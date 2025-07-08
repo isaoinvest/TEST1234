@@ -23,7 +23,7 @@
         transform: translateX(-50%);
         z-index: 1000;
         display: flex;
-        gap: 15px; /* 圖示間的距離 */
+        gap: 15px;
       }
 
       /* --- 圖示按鈕統一樣式 --- */
@@ -46,7 +46,7 @@
       }
       
       .icon-button:active {
-        transform: scale(0.9); /* 按下時縮小 */
+        transform: scale(0.9);
       }
 
       .icon-button.active {
@@ -64,7 +64,6 @@
         height: 60%;
         fill: white;
       }
-
 
       /* 掃描UI樣式 */
       #scanning-overlay {
@@ -94,7 +93,6 @@
         border: 2px solid rgba(0, 255, 255, 0.7);
         border-radius: 10px;
         position: relative;
-        /* overflow: hidden; */ /* 暫時移除或調整角落位置 */
         box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
       }
 
@@ -109,7 +107,6 @@
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
       
-      /* --- 修正部分 --- */
       /* 角落標記 */
       .corner {
         position: absolute;
@@ -124,7 +121,7 @@
         left: 7px;
         border-top-width: 3px;
         border-left-width: 3px;
-        border-top-left-radius: 10px; /* 配合圓角 */
+        border-top-left-radius: 10px;
       }
       .corner-top-right {
         top: 7px;
@@ -171,7 +168,7 @@
         100% { transform: translateY(0); }
       }
 
-      /* 全螢幕影片容器 */
+      /* === 優化的全螢幕影片容器 === */
       #fullscreen-video-container {
         position: fixed;
         top: 0;
@@ -179,20 +176,41 @@
         width: 100vw;
         height: 100vh;
         z-index: 999;
-        display: none;
-        background-color: rgba(0, 0, 0, 0.9);
+        background-color: rgba(0, 0, 0, 0.95);
         cursor: pointer;
-      }
-      #fullscreen-video-container.visible {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.25s ease-out, visibility 0.25s ease-out;
         display: flex;
         align-items: center;
         justify-content: center;
       }
+
+      #fullscreen-video-container.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+
       #fullscreen-video {
         max-width: 100%;
         max-height: 100%;
         width: auto;
         height: auto;
+        transform: scale(0.95);
+        transition: transform 0.25s ease-out;
+      }
+
+      #fullscreen-video-container.visible #fullscreen-video {
+        transform: scale(1);
+      }
+
+      /* 輕量化的淡入淡出動畫 */
+      .fade-transition {
+        transition: opacity 0.2s ease-out;
+      }
+
+      .fade-out {
+        opacity: 0;
       }
     </style>
   </head>
@@ -225,7 +243,7 @@
     <a-scene
       mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/gamania-Shopping/main/gamania-Shopping.mind;
                     warmupTolerance: 5;
-                    missTolerance: 150; /* 使用 missTolerance 實現緩衝 */
+                    missTolerance: 150;
                     filterMinCF: 0.000001; 
                     filterBeta: 250;
                     uiScanning: #scanning-overlay;"
@@ -369,11 +387,9 @@
               }
             });
             state.audioEnabled = enable;
-            // 更新圖示
             soundOnIcon.style.display = enable ? 'block' : 'none';
             soundOffIcon.style.display = enable ? 'none' : 'block';
             audioButton.classList.toggle('active', enable);
-
           } catch (error) {
             console.error("切換音頻失敗:", error);
           }
@@ -394,9 +410,8 @@
           
           if (shouldPlay) {
             return videoEl.play().catch((error) => {
-              // 第一次播放失敗通常因為使用者未互動，靜音重試
               videoEl.muted = true;
-              toggleAudio(false); // 更新狀態與UI
+              toggleAudio(false);
               return videoEl.play().catch(() => {});
             });
           } else {
@@ -408,15 +423,20 @@
         const playVideo = (videoEl) => handleVideoPlayback(videoEl, true);
         const pauseVideo = (videoEl) => handleVideoPlayback(videoEl, false);
 
-        // 切換到全螢幕影片
+        // === 優化的全螢幕影片切換 ===
         function switchToFullscreenVideo(sourceVideoEl) {
           if (!sourceVideoEl || !sourceVideoEl.src || sourceVideoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
+          // 設定影片源和同步時間
           fullscreenVideoEl.src = sourceVideoEl.src;
           fullscreenVideoEl.currentTime = sourceVideoEl.currentTime;
           fullscreenVideoEl.muted = !state.audioEnabled;
+          
+          // 觸發轉場動畫
           fullscreenVideoContainer.classList.add("visible");
           state.fullscreenVideoActive = true;
+          
+          // 播放影片
           fullscreenVideoEl.play().catch(() => {
             fullscreenVideoEl.muted = true;
             toggleAudio(false);
@@ -424,17 +444,24 @@
           });
         }
 
-        // 從全螢幕切換回來
+        // === 優化的全螢幕退出 ===
         function switchFromFullscreenVideo(targetVideoEl) {
           if (!targetVideoEl || !targetVideoEl.src || targetVideoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
+          // 同步時間
           if (state.fullscreenVideoActive && !fullscreenVideoEl.paused) {
             targetVideoEl.currentTime = fullscreenVideoEl.currentTime;
           }
+          
+          // 觸發淡出動畫
           fullscreenVideoContainer.classList.remove("visible");
           state.fullscreenVideoActive = false;
-          fullscreenVideoEl.pause();
-          fullscreenVideoEl.src = "";
+          
+          // 延遲清理以配合動畫
+          setTimeout(() => {
+            fullscreenVideoEl.pause();
+            fullscreenVideoEl.src = "";
+          }, 250);
         }
 
         // 全螢幕影片點擊處理
@@ -442,10 +469,14 @@
           if (state.fullscreenVideoActive) {
             fullscreenVideoContainer.classList.remove("visible");
             state.fullscreenVideoActive = false;
-            fullscreenVideoEl.pause();
-            fullscreenVideoEl.src = "";
             state.continuePlayEnabled = false;
             continuePlayButton.classList.remove("active");
+            
+            // 延遲清理以配合動畫
+            setTimeout(() => {
+              fullscreenVideoEl.pause();
+              fullscreenVideoEl.src = "";
+            }, 250);
             
             if (state.targetCount > 0 && state.lastActiveVideo) {
               playVideo(state.lastActiveVideo);
@@ -477,10 +508,7 @@
             }
           } else {
             if (state.fullscreenVideoActive) {
-              fullscreenVideoContainer.classList.remove("visible");
-              fullscreenVideoEl.pause();
-              fullscreenVideoEl.src = "";
-              state.fullscreenVideoActive = false;
+              switchFromFullscreenVideo(state.lastActiveVideo);
             }
             if (state.targetCount === 0) {
               if (state.lastActiveVideo && !state.lastActiveVideo.paused) {
@@ -514,7 +542,7 @@
           }
         };
 
-        // 目標丟失處理 (簡化版)
+        // 目標丟失處理
         const targetLost = (videoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
@@ -523,12 +551,8 @@
           if (state.continuePlayEnabled && state.targetCount === 0) {
             switchToFullscreenVideo(videoEl);
           } else if (state.targetCount === 0) {
-            // 因為 missTolerance 會處理緩衝，這裡只需要在最終丟失時暫停影片即可
-            // MindAR 會在 missTolerance 倒數結束後，自動隱藏 a-entity
-            // 我們只需確保影片狀態同步
             pauseVideo(videoEl);
 
-            // 重新顯示掃描UI
             if (state.overlayTimer) clearTimeout(state.overlayTimer);
             state.overlayTimer = setTimeout(() => {
               if (state.targetCount === 0 && !state.continuePlayEnabled) {
