@@ -128,13 +128,92 @@
         opacity: 0.9;
         min-width: 100px;
         text-align: center;
+        /* 擴大觸控區域 */
+        position: relative;
       }
+
+      .control-button::before {
+        content: '';
+        position: absolute;
+        top: -15px;
+        left: -15px;
+        right: -15px;
+        bottom: -15px;
+        z-index: -1;
+      }
+
       .control-button:hover {
         background-color: rgba(0, 0, 0, 0.8);
         opacity: 1;
+        transform: translateX(-50%) scale(1.05);
       }
+
+      .control-button:active {
+        transform: translateX(-50%) scale(0.95);
+      }
+
       .control-button.active {
         background-color: rgba(0, 195, 255, 0.3);
+      }
+
+      /* 控制面板 */
+      #control-panel {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px 15px;
+        border-radius: 25px;
+        border: 2px solid rgba(0, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        opacity: 0.9;
+      }
+
+      #control-panel.hidden {
+        opacity: 0;
+        transform: translateX(-50%) translateY(100%);
+        pointer-events: none;
+      }
+
+      /* 目標丟失緩衝指示器 */
+      #target-lost-indicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1001;
+        background: rgba(255, 165, 0, 0.9);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        display: none;
+        pointer-events: none;
+        box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+      }
+
+      #countdown-circle {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        margin: 10px auto 0;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
 
       /* 掃描動畫 */
@@ -144,7 +223,55 @@
         100% { transform: translateY(0); }
       }
 
-      /* 全螢幕影片容器 */
+      /* 響應式設計 - 方向變化適配 */
+      @media screen and (orientation: landscape) {
+        #control-panel {
+          bottom: 15px;
+          flex-direction: row;
+        }
+        
+        .control-button {
+          bottom: 15px;
+          font-size: 13px;
+          padding: 8px 14px;
+        }
+        
+        .scanner-inner {
+          width: 180px;
+          height: 180px;
+        }
+      }
+
+      @media screen and (orientation: portrait) {
+        #control-panel {
+          bottom: 20px;
+          flex-direction: row;
+        }
+        
+        .control-button {
+          bottom: 20px;
+          font-size: 14px;
+          padding: 10px 16px;
+        }
+        
+        .scanner-inner {
+          width: 200px;
+          height: 200px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #control-panel {
+          gap: 8px;
+          padding: 8px 12px;
+        }
+        
+        .control-button {
+          min-width: 80px;
+          padding: 8px 12px;
+          font-size: 12px;
+        }
+      }
       #fullscreen-video-container {
         position: fixed;
         top: 0;
@@ -170,7 +297,18 @@
     </style>
   </head>
   <body>
-    <button class="control-button" id="continue-play-button">持續播放</button>
+    <!-- 控制面板 -->
+    <div id="control-panel">
+      <button class="control-button" id="continue-play-button">持續播放</button>
+      <button class="control-button" id="fullscreen-btn" style="min-width: 40px; padding: 8px 12px;">⛶</button>
+    </div>
+
+    <!-- 目標丟失緩衝指示器 -->
+    <div id="target-lost-indicator">
+      <div>目標暫時丟失</div>
+      <div style="font-size: 14px; margin-top: 5px;">繼續播放中...</div>
+      <div id="countdown-circle"></div>
+    </div>
 
     <div id="scanning-overlay">
       <div class="scanner-inner">
@@ -311,10 +449,14 @@
         const continuePlayButton = document.getElementById("continue-play-button");
         const fullscreenVideoContainer = document.getElementById("fullscreen-video-container");
         const fullscreenVideoEl = document.getElementById("fullscreen-video");
+        const controlPanel = document.getElementById("control-panel");
+        const fullscreenBtn = document.getElementById("fullscreen-btn");
+        const targetLostIndicator = document.getElementById("target-lost-indicator");
 
         const SCAN_OVERLAY_DELAY = 200;
+        const TARGET_LOST_BUFFER_TIME = 5000; // 5秒緩衝時間
 
-        // 簡化的狀態管理
+        // 簡化的狀態管理 + 新增功能
         const state = {
           targetCount: 0,
           overlayTimer: null,
@@ -323,6 +465,8 @@
           lastActiveVideo: null,
           fullscreenVideoActive: false,
           hasPlayedOnce: false,
+          targetLostTimer: null, // 目標丟失緩衝計時器
+          isInTargetLostBuffer: false, // 是否在緩衝期間
         };
 
         console.log('📹 檢查影片元素:');
@@ -381,6 +525,13 @@
 
         const playVideo = (videoEl) => handleVideoPlayback(videoEl, true);
         const pauseVideo = (videoEl) => handleVideoPlayback(videoEl, false);
+
+        // 全螢幕按鈕處理
+        fullscreenBtn.addEventListener("click", () => {
+          if (state.lastActiveVideo && (state.targetCount > 0 || state.continuePlayEnabled)) {
+            switchToFullscreenVideo(state.lastActiveVideo);
+          }
+        });
 
         // 切換到全螢幕影片
         function switchToFullscreenVideo(sourceVideoEl) {
@@ -473,11 +624,25 @@
           }
         });
 
-        // 目標找到處理 - 保持原始邏輯
+        // 目標找到處理 - 保持原始邏輯 + 清除緩衝
         const targetFound = (videoEl, otherVideoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
           console.log('🎯 目標發現:', videoEl.id);
+          
+          // 清除目標丟失緩衝
+          if (state.targetLostTimer) {
+            clearTimeout(state.targetLostTimer);
+            state.targetLostTimer = null;
+            console.log('✅ 清除目標丟失緩衝計時器');
+          }
+          
+          if (state.isInTargetLostBuffer) {
+            targetLostIndicator.style.display = 'none';
+            state.isInTargetLostBuffer = false;
+            console.log('🎯 目標重新找到，隱藏緩衝指示器');
+          }
+          
           state.targetCount++;
           state.lastActiveVideo = videoEl;
           state.hasPlayedOnce = true;
@@ -497,28 +662,51 @@
           }
         };
 
-        // 目標丟失處理 - 保持原始邏輯
+        // 目標丟失處理 - 增加5秒緩衝
         const targetLost = (videoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
-          console.log('🔍 目標丟失:', videoEl.id);
-          if (state.targetCount > 0) state.targetCount--;
+          console.log('🔍 目標丟失，啟動5秒緩衝:', videoEl.id);
           
-          if (state.continuePlayEnabled && state.targetCount === 0) {
-            switchToFullscreenVideo(videoEl);
-          } else {
-            pauseVideo(videoEl);
-            
-            if (state.targetCount === 0) {
-              if (state.overlayTimer) clearTimeout(state.overlayTimer);
-              
-              state.overlayTimer = setTimeout(() => {
-                if (state.targetCount === 0 && !state.continuePlayEnabled) {
-                  scanningOverlay.classList.remove("hidden");
-                }
-              }, SCAN_OVERLAY_DELAY);
-            }
+          // 清除之前的緩衝計時器
+          if (state.targetLostTimer) {
+            clearTimeout(state.targetLostTimer);
           }
+          
+          // 顯示緩衝指示器
+          if (!state.isInTargetLostBuffer) {
+            state.isInTargetLostBuffer = true;
+            targetLostIndicator.style.display = 'block';
+            console.log('📺 顯示目標丟失緩衝指示器');
+          }
+          
+          // 設定5秒緩衝計時器
+          state.targetLostTimer = setTimeout(() => {
+            console.log('⏰ 5秒緩衝時間結束，執行正常丟失邏輯');
+            
+            // 隱藏緩衝指示器
+            targetLostIndicator.style.display = 'none';
+            state.isInTargetLostBuffer = false;
+            
+            // 執行原始的目標丟失邏輯
+            if (state.targetCount > 0) state.targetCount--;
+            
+            if (state.continuePlayEnabled && state.targetCount === 0) {
+              switchToFullscreenVideo(videoEl);
+            } else {
+              pauseVideo(videoEl);
+              
+              if (state.targetCount === 0) {
+                if (state.overlayTimer) clearTimeout(state.overlayTimer);
+                
+                state.overlayTimer = setTimeout(() => {
+                  if (state.targetCount === 0 && !state.continuePlayEnabled) {
+                    scanningOverlay.classList.remove("hidden");
+                  }
+                }, SCAN_OVERLAY_DELAY);
+              }
+            }
+          }, TARGET_LOST_BUFFER_TIME);
         };
 
         // 設定目標事件監聽器
@@ -555,7 +743,90 @@
           sceneEl.addEventListener('loaded', setupAudioHandlers);
         }
 
+        // 手勢識別 - 滑動控制面板
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let panelVisible = true;
+        
+        document.addEventListener('touchstart', (e) => {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+          const touchEndX = e.changedTouches[0].clientX;
+          const touchEndY = e.changedTouches[0].clientY;
+          const deltaX = touchEndX - touchStartX;
+          const deltaY = touchEndY - touchStartY;
+          
+          // 檢測水平滑動手勢
+          if (Math.abs(deltaX) > 100 && Math.abs(deltaY) < 50) {
+            if (deltaX > 0) {
+              // 向右滑動：顯示控制面板
+              controlPanel.classList.remove('hidden');
+              panelVisible = true;
+              console.log('👆 向右滑動：顯示控制面板');
+            } else {
+              // 向左滑動：隱藏控制面板
+              controlPanel.classList.add('hidden');
+              panelVisible = false;
+              console.log('👆 向左滑動：隱藏控制面板');
+            }
+          }
+          
+          // 檢測向上滑動手勢
+          if (deltaY < -100 && Math.abs(deltaX) < 50) {
+            // 向上滑動：顯示控制面板
+            controlPanel.classList.remove('hidden');
+            panelVisible = true;
+            console.log('👆 向上滑動：顯示控制面板');
+          }
+        }, { passive: true });
+
+        // 方向變化適配
+        window.addEventListener('orientationchange', () => {
+          console.log('📱 設備方向改變');
+          setTimeout(() => {
+            // 根據方向調整UI
+            const isLandscape = window.orientation === 90 || window.orientation === -90;
+            
+            if (isLandscape) {
+              console.log('📱 切換到橫屏模式');
+              controlPanel.style.flexDirection = 'row';
+              controlPanel.style.gap = '8px';
+            } else {
+              console.log('📱 切換到豎屏模式');
+              controlPanel.style.flexDirection = 'row';
+              controlPanel.style.gap = '10px';
+            }
+            
+            // 確保控制面板可見性保持一致
+            if (panelVisible) {
+              controlPanel.classList.remove('hidden');
+            }
+          }, 500);
+        });
+
+        // 雙擊全螢幕
+        let lastTap = 0;
+        document.addEventListener('touchend', (e) => {
+          const currentTime = new Date().getTime();
+          const tapLength = currentTime - lastTap;
+          
+          if (tapLength < 500 && tapLength > 0) {
+            // 雙擊檢測
+            if (state.lastActiveVideo && (state.targetCount > 0 || state.continuePlayEnabled)) {
+              console.log('👆👆 雙擊檢測：切換全螢幕');
+              fullscreenBtn.click();
+            }
+            e.preventDefault();
+          }
+          lastTap = currentTime;
+        });
+
         console.log('✅ AR影片播放應用初始化完成');
+        console.log('📱 手勢功能已啟用：左右滑動控制面板，向上滑動顯示面板，雙擊全螢幕');
+        console.log('⏱️ 目標丟失緩衝：5秒');
       }
     </script>
   </body>
