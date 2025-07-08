@@ -77,7 +77,7 @@
         transition: all 0.2s ease;
       }
 
-      /* 掃描UI樣式 */
+      /* 掃描UI樣式 - 增強版 */
       #scanning-overlay {
         position: fixed;
         top: 0;
@@ -86,10 +86,11 @@
         height: 100%;
         z-index: 2;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        background-color: rgba(0, 0, 0, 0.2);
+        background: radial-gradient(circle at center, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
         opacity: 1;
         transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
@@ -98,14 +99,38 @@
         opacity: 0;
       }
 
-      /* 掃描框 */
-      .scanner-inner {
-        width: 200px;
-        height: 200px;
-        border: 2px solid rgba(0, 255, 255, 0.7);
-        border-radius: 10px;
+      /* 掃描提示文字 */
+      .scanning-instruction {
+        color: rgba(255, 255, 255, 0.9);
+        font-family: 'Arial', sans-serif;
+        font-size: 16px;
+        font-weight: 300;
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 0 20px;
+        line-height: 1.5;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        animation: instructionPulse 3s ease-in-out infinite;
+      }
+
+      @keyframes instructionPulse {
+        0%, 100% { opacity: 0.8; transform: translateY(0); }
+        50% { opacity: 1; transform: translateY(-2px); }
+      }
+
+      /* 掃描框容器 */
+      .scanner-container {
         position: relative;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* 掃描框 - 增強版 */
+      .scanner-inner {
+        width: 220px;
+        height: 220px;
+        position: relative;
         transform: scale(1);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
@@ -114,77 +139,373 @@
         transform: scale(0.9);
       }
 
-      /* 掃描線 */
+      /* 主掃描框 */
+      .scanner-frame {
+        width: 100%;
+        height: 100%;
+        border: 2px solid rgba(0, 255, 255, 0.4);
+        border-radius: 12px;
+        position: relative;
+        background: rgba(0, 255, 255, 0.02);
+        backdrop-filter: blur(1px);
+        -webkit-backdrop-filter: blur(1px);
+        animation: frameBreathing 4s ease-in-out infinite;
+      }
+
+      @keyframes frameBreathing {
+        0%, 100% { 
+          border-color: rgba(0, 255, 255, 0.4);
+          box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+        50% { 
+          border-color: rgba(0, 255, 255, 0.7);
+          box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+        }
+      }
+
+      /* 掃描線 - 增強版 */
       .scanner-line {
         position: absolute;
         height: 3px;
         width: 100%;
-        background: linear-gradient(90deg, transparent, #00ffff, #00ffff, transparent);
+        background: linear-gradient(90deg, 
+          transparent 0%, 
+          rgba(0, 255, 255, 0.3) 20%, 
+          rgba(0, 255, 255, 0.9) 50%, 
+          rgba(0, 255, 255, 0.3) 80%, 
+          transparent 100%);
         top: 0;
-        animation: scan 2.5s linear infinite;
+        border-radius: 2px;
+        animation: enhancedScan 3s ease-in-out infinite;
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
+
+      @keyframes enhancedScan {
+        0%, 100% { 
+          transform: translateY(0);
+          opacity: 0.6;
+        }
+        25% { 
+          transform: translateY(54px);
+          opacity: 1;
+        }
+        50% { 
+          transform: translateY(108px);
+          opacity: 1;
+        }
+        75% { 
+          transform: translateY(162px);
+          opacity: 1;
+        }
+        100% { 
+          transform: translateY(217px);
+          opacity: 0.3;
+        }
+      }
       
-      /* 角落標記 */
+      /* 角落標記 - 增強版 */
       .corner {
         position: absolute;
-        width: 20px;
-        height: 20px;
+        width: 25px;
+        height: 25px;
         border-color: rgba(0, 255, 255, 0.9);
         border-style: solid;
         border-width: 0;
-      }
-      .corner-top-left {
-        top: 2px; 
-        left: 2px;
-        border-top-width: 3px;
-        border-left-width: 3px;
-        border-top-left-radius: 10px;
-      }
-      .corner-top-right {
-        top: 2px;
-        right: 2px;
-        border-top-width: 3px;
-        border-right-width: 3px;
-        border-top-right-radius: 10px;
-      }
-      .corner-bottom-left {
-        bottom: 2px;
-        left: 2px;
-        border-bottom-width: 3px;
-        border-left-width: 3px;
-        border-bottom-left-radius: 10px;
-      }
-      .corner-bottom-right {
-        bottom: 2px;
-        right: 2px;
-        border-bottom-width: 3px;
-        border-right-width: 3px;
-        border-bottom-right-radius: 10px;
+        animation: cornerPulse 2s ease-in-out infinite;
       }
 
-      /* 掃描文字 */
+      @keyframes cornerPulse {
+        0%, 100% { 
+          border-color: rgba(0, 255, 255, 0.6);
+          filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.3));
+        }
+        50% { 
+          border-color: rgba(0, 255, 255, 1);
+          filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.6));
+        }
+      }
+
+      .corner-top-left {
+        top: -2px; 
+        left: -2px;
+        border-top-width: 4px;
+        border-left-width: 4px;
+        border-top-left-radius: 12px;
+        animation-delay: 0s;
+      }
+      .corner-top-right {
+        top: -2px;
+        right: -2px;
+        border-top-width: 4px;
+        border-right-width: 4px;
+        border-top-right-radius: 12px;
+        animation-delay: 0.5s;
+      }
+      .corner-bottom-left {
+        bottom: -2px;
+        left: -2px;
+        border-bottom-width: 4px;
+        border-left-width: 4px;
+        border-bottom-left-radius: 12px;
+        animation-delay: 1.5s;
+      }
+      .corner-bottom-right {
+        bottom: -2px;
+        right: -2px;
+        border-bottom-width: 4px;
+        border-right-width: 4px;
+        border-bottom-right-radius: 12px;
+        animation-delay: 1s;
+      }
+
+      /* 掃描狀態文字 */
       .scanning-text {
         position: absolute;
-        bottom: -35px;
+        bottom: -50px;
         left: 50%;
         transform: translateX(-50%);
         width: 100%;
         text-align: center;
-        font-family: Arial, sans-serif;
+        font-family: 'Arial', sans-serif;
         color: rgba(0, 255, 255, 0.9);
         text-transform: uppercase;
-        letter-spacing: 2px;
-        font-size: 14px;
-        text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-        transition: opacity 0.3s ease;
+        letter-spacing: 3px;
+        font-size: 13px;
+        font-weight: 500;
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        animation: textFlicker 2s ease-in-out infinite;
       }
 
-      /* 掃描動畫 */
-      @keyframes scan {
-        0% { transform: translateY(0); }
-        50% { transform: translateY(197px); }
-        100% { transform: translateY(0); }
+      @keyframes textFlicker {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+      }
+
+      /* 雷達掃描效果 */
+      .radar-sweep {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 300px;
+        height: 300px;
+        transform: translate(-50%, -50%);
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
+      .radar-circle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        animation: radarExpand 4s linear infinite;
+      }
+
+      .radar-circle:nth-child(1) {
+        width: 100px;
+        height: 100px;
+        animation-delay: 0s;
+      }
+
+      .radar-circle:nth-child(2) {
+        width: 150px;
+        height: 150px;
+        animation-delay: 1s;
+      }
+
+      .radar-circle:nth-child(3) {
+        width: 200px;
+        height: 200px;
+        animation-delay: 2s;
+      }
+
+      .radar-circle:nth-child(4) {
+        width: 250px;
+        height: 250px;
+        animation-delay: 3s;
+      }
+
+      @keyframes radarExpand {
+        0% {
+          transform: translate(-50%, -50%) scale(0.5);
+          opacity: 0.8;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(2);
+          opacity: 0;
+        }
+      }
+
+      /* 目標指示器 */
+      .target-indicators {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .target-hint {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: rgba(0, 255, 255, 0.6);
+        border-radius: 50%;
+        animation: targetHintFloat 3s ease-in-out infinite;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+      }
+
+      .target-hint:nth-child(1) {
+        top: 20%;
+        left: 25%;
+        animation-delay: 0s;
+      }
+
+      .target-hint:nth-child(2) {
+        top: 30%;
+        right: 20%;
+        animation-delay: 1s;
+      }
+
+      .target-hint:nth-child(3) {
+        bottom: 25%;
+        left: 30%;
+        animation-delay: 2s;
+      }
+
+      .target-hint:nth-child(4) {
+        bottom: 20%;
+        right: 25%;
+        animation-delay: 1.5s;
+      }
+
+      @keyframes targetHintFloat {
+        0%, 100% {
+          transform: translateY(0) scale(0.8);
+          opacity: 0.4;
+        }
+        50% {
+          transform: translateY(-10px) scale(1.2);
+          opacity: 0.8;
+        }
+      }
+
+      /* 掃描引導箭頭 */
+      .scan-arrows {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 280px;
+        height: 280px;
+        pointer-events: none;
+      }
+
+      .arrow {
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        animation: arrowPulse 2s ease-in-out infinite;
+      }
+
+      .arrow-top {
+        top: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 12px solid rgba(0, 255, 255, 0.6);
+        animation-delay: 0s;
+      }
+
+      .arrow-right {
+        right: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-left: 12px solid rgba(0, 255, 255, 0.6);
+        animation-delay: 0.5s;
+      }
+
+      .arrow-bottom {
+        bottom: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 12px solid rgba(0, 255, 255, 0.6);
+        animation-delay: 1s;
+      }
+
+      .arrow-left {
+        left: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-right: 12px solid rgba(0, 255, 255, 0.6);
+        animation-delay: 1.5s;
+      }
+
+      @keyframes arrowPulse {
+        0%, 100% {
+          opacity: 0.3;
+          transform: translateX(-50%) scale(0.8);
+        }
+        50% {
+          opacity: 0.8;
+          transform: translateX(-50%) scale(1.2);
+        }
+      }
+
+      .arrow-right {
+        animation-name: arrowPulseRight;
+      }
+
+      .arrow-bottom {
+        animation-name: arrowPulseBottom;
+      }
+
+      .arrow-left {
+        animation-name: arrowPulseLeft;
+      }
+
+      @keyframes arrowPulseRight {
+        0%, 100% {
+          opacity: 0.3;
+          transform: translateY(-50%) scale(0.8);
+        }
+        50% {
+          opacity: 0.8;
+          transform: translateY(-50%) scale(1.2);
+        }
+      }
+
+      @keyframes arrowPulseBottom {
+        0%, 100% {
+          opacity: 0.3;
+          transform: translateX(-50%) scale(0.8);
+        }
+        50% {
+          opacity: 0.8;
+          transform: translateX(-50%) scale(1.2);
+        }
+      }
+
+      @keyframes arrowPulseLeft {
+        0%, 100% {
+          opacity: 0.3;
+          transform: translateY(-50%) scale(0.8);
+        }
+        50% {
+          opacity: 0.8;
+          transform: translateY(-50%) scale(1.2);
+        }
       }
 
       /* 全螢幕影片容器 - 優化版 */
@@ -385,13 +706,45 @@
     </div>
 
     <div id="scanning-overlay">
-      <div class="scanner-inner">
-        <div class="scanner-line"></div>
-        <div class="corner corner-top-left"></div>
-        <div class="corner corner-top-right"></div>
-        <div class="corner corner-bottom-left"></div>
-        <div class="corner corner-bottom-right"></div>
-        <div class="scanning-text">目標掃描中</div>
+      <div class="scanning-instruction">
+        將攝影機對準目標圖像
+      </div>
+      
+      <div class="scanner-container">
+        <!-- 雷達掃描效果 -->
+        <div class="radar-sweep">
+          <div class="radar-circle"></div>
+          <div class="radar-circle"></div>
+          <div class="radar-circle"></div>
+          <div class="radar-circle"></div>
+        </div>
+        
+        <!-- 目標指示器 -->
+        <div class="target-indicators">
+          <div class="target-hint"></div>
+          <div class="target-hint"></div>
+          <div class="target-hint"></div>
+          <div class="target-hint"></div>
+        </div>
+        
+        <!-- 掃描引導箭頭 -->
+        <div class="scan-arrows">
+          <div class="arrow arrow-top"></div>
+          <div class="arrow arrow-right"></div>
+          <div class="arrow arrow-bottom"></div>
+          <div class="arrow arrow-left"></div>
+        </div>
+        
+        <div class="scanner-inner">
+          <div class="scanner-frame">
+            <div class="scanner-line"></div>
+            <div class="corner corner-top-left"></div>
+            <div class="corner corner-top-right"></div>
+            <div class="corner corner-bottom-left"></div>
+            <div class="corner corner-bottom-right"></div>
+            <div class="scanning-text">掃描中...</div>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -892,8 +1245,204 @@
           });
         }
 
-        // 預載入優化
-        function preloadVideo(videoElement) {
+        // 掃描引導增強功能
+        function enhanceScanningExperience() {
+          const scanningOverlay = document.getElementById("scanning-overlay");
+          const instructionText = document.querySelector(".scanning-instruction");
+          const scanningText = document.querySelector(".scanning-text");
+          const radarSweep = document.querySelector(".radar-sweep");
+          const targetIndicators = document.querySelector(".target-indicators");
+          const scanArrows = document.querySelector(".scan-arrows");
+          
+          let instructionIndex = 0;
+          let scanningTimer = null;
+          let isScanning = false;
+          
+          const instructions = [
+            "將攝影機對準目標圖像",
+            "保持穩定並靠近目標",
+            "確保光線充足",
+            "慢慢移動尋找最佳角度"
+          ];
+          
+          const scanningStates = [
+            "搜尋中...",
+            "分析中...",
+            "掃描中...",
+            "處理中..."
+          ];
+          
+          // 動態更新指引文字
+          function updateInstruction() {
+            if (!state.fullscreenVideoActive && state.targetCount === 0) {
+              instructionText.textContent = instructions[instructionIndex];
+              instructionIndex = (instructionIndex + 1) % instructions.length;
+            }
+          }
+          
+          // 動態更新掃描狀態
+          function updateScanningState() {
+            if (!state.fullscreenVideoActive && state.targetCount === 0) {
+              const randomState = scanningStates[Math.floor(Math.random() * scanningStates.length)];
+              scanningText.textContent = randomState;
+            }
+          }
+          
+          // 開始掃描體驗
+          function startScanningExperience() {
+            if (isScanning) return;
+            isScanning = true;
+            
+            // 每5秒更新指引文字
+            const instructionInterval = setInterval(updateInstruction, 5000);
+            
+            // 每2秒更新掃描狀態
+            const stateInterval = setInterval(updateScanningState, 2000);
+            
+            // 存儲間隔ID以便清理
+            scanningTimer = {
+              instructionInterval,
+              stateInterval
+            };
+          }
+          
+          // 停止掃描體驗
+          function stopScanningExperience() {
+            if (!isScanning) return;
+            isScanning = false;
+            
+            if (scanningTimer) {
+              clearInterval(scanningTimer.instructionInterval);
+              clearInterval(scanningTimer.stateInterval);
+              scanningTimer = null;
+            }
+          }
+          
+          // 監聽掃描狀態變化
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const isHidden = scanningOverlay.classList.contains('hidden');
+                if (isHidden) {
+                  stopScanningExperience();
+                } else {
+                  startScanningExperience();
+                }
+              }
+            });
+          });
+          
+          observer.observe(scanningOverlay, {
+            attributes: true,
+            attributeFilter: ['class']
+          });
+          
+          // 初始啟動
+          if (!scanningOverlay.classList.contains('hidden')) {
+            startScanningExperience();
+          }
+          
+          return {
+            start: startScanningExperience,
+            stop: stopScanningExperience
+          };
+        }
+        
+        // 攝影機權限狀態檢測
+        function checkCameraPermission() {
+          if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'camera' }).then((result) => {
+              const instructionText = document.querySelector(".scanning-instruction");
+              
+              switch (result.state) {
+                case 'denied':
+                  instructionText.textContent = "請允許攝影機權限並重新載入頁面";
+                  instructionText.style.color = "rgba(255, 100, 100, 0.9)";
+                  break;
+                case 'prompt':
+                  instructionText.textContent = "請允許使用攝影機";
+                  break;
+                case 'granted':
+                  instructionText.textContent = "將攝影機對準目標圖像";
+                  break;
+              }
+            }).catch(() => {
+              // 權限 API 不支援時的預設行為
+            });
+          }
+        }
+        
+        // 設備方向提示
+        function addOrientationGuidance() {
+          let orientationHint = null;
+          
+          function showOrientationHint() {
+            const instructionText = document.querySelector(".scanning-instruction");
+            
+            if (window.orientation !== undefined) {
+              // 檢測是否為橫向模式
+              if (Math.abs(window.orientation) === 90) {
+                instructionText.innerHTML = "建議使用直向模式<br/>獲得更佳掃描體驗";
+                instructionText.style.fontSize = "14px";
+              } else {
+                instructionText.textContent = "將攝影機對準目標圖像";
+                instructionText.style.fontSize = "16px";
+              }
+            }
+          }
+          
+          window.addEventListener('orientationchange', () => {
+            setTimeout(showOrientationHint, 500);
+          });
+          
+          // 初始檢查
+          showOrientationHint();
+        }
+        
+        // 環境光線檢測提示
+        function addLightingGuidance() {
+          const video = document.querySelector('video');
+          const instructionText = document.querySelector(".scanning-instruction");
+          
+          if (video && 'ImageCapture' in window) {
+            // 簡單的亮度檢測（如果支援）
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            function checkLighting() {
+              if (video.videoWidth > 0 && video.videoHeight > 0) {
+                canvas.width = video.videoWidth / 4; // 降低解析度提升效能
+                canvas.height = video.videoHeight / 4;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                let brightness = 0;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                  // 計算像素亮度
+                  brightness += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+                }
+                
+                brightness = brightness / (canvas.width * canvas.height);
+                
+                if (brightness < 50) {
+                  instructionText.innerHTML = "光線不足<br/>請移至較亮的環境";
+                  instructionText.style.color = "rgba(255, 200, 100, 0.9)";
+                } else if (brightness > 200) {
+                  instructionText.innerHTML = "光線過強<br/>請避免強光直射";
+                  instructionText.style.color = "rgba(255, 200, 100, 0.9)";
+                } else {
+                  instructionText.textContent = "將攝影機對準目標圖像";
+                  instructionText.style.color = "rgba(255, 255, 255, 0.9)";
+                }
+              }
+            }
+            
+            // 定期檢查光線條件
+            setInterval(checkLighting, 3000);
+          }
+        }
           if (videoElement && videoElement.src && !videoElement.src.includes("YOUR_VIDEO1_URL.mp4")) {
             videoElement.load();
             
