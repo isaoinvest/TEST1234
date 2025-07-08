@@ -166,55 +166,7 @@
         100% { transform: translateY(0); }
       }
 
-      /* 響應式設計 - 方向變化適配 */
-      @media screen and (orientation: landscape) {
-        #control-panel {
-          bottom: 15px;
-          flex-direction: row;
-        }
-        
-        .control-button {
-          bottom: 15px;
-          font-size: 13px;
-          padding: 8px 14px;
-        }
-        
-        .scanner-inner {
-          width: 180px;
-          height: 180px;
-        }
-      }
-
-      @media screen and (orientation: portrait) {
-        #control-panel {
-          bottom: 20px;
-          flex-direction: row;
-        }
-        
-        .control-button {
-          bottom: 20px;
-          font-size: 14px;
-          padding: 10px 16px;
-        }
-        
-        .scanner-inner {
-          width: 200px;
-          height: 200px;
-        }
-      }
-
-      @media (max-width: 480px) {
-        #control-panel {
-          gap: 8px;
-          padding: 8px 12px;
-        }
-        
-        .control-button {
-          min-width: 60px;
-          padding: 8px 12px;
-          font-size: 12px;
-        }
-      }
+      /* 全螢幕影片容器 */
       #fullscreen-video-container {
         position: fixed;
         top: 0;
@@ -236,6 +188,17 @@
         max-height: 100%;
         width: auto;
         height: auto;
+      }
+
+      /* 響應式設計 */
+      @media screen and (orientation: landscape) {
+        #control-panel {
+          bottom: 15px;
+        }
+        .scanner-inner {
+          width: 180px;
+          height: 180px;
+        }
       }
     </style>
   </head>
@@ -375,7 +338,7 @@
           },
         });
 
-        // 主要應用邏輯 - 保持原始簡單邏輯
+        // 主要應用邏輯
         const video0El = document.querySelector("#video");
         const video1El = document.querySelector("#video1");
         const target0El = document.querySelector("#target0");
@@ -397,7 +360,7 @@
           lastActiveVideo: null,
           fullscreenVideoActive: false,
           hasPlayedOnce: false,
-          targetLostTimer: null, // 目標丟失緩衝計時器
+          targetLostTimer: null,
         };
 
         console.log('📹 檢查影片元素:');
@@ -511,48 +474,7 @@
           }
         });
 
-        // 設定持續播放按鈕
-        continuePlayButton.addEventListener("click", () => {
-          if (!state.hasPlayedOnce) return;
-          
-          state.continuePlayEnabled = !state.continuePlayEnabled;
-          
-          if (state.continuePlayEnabled) {
-            continuePlayButton.classList.add("active");
-            continuePlayButton.textContent = "停止播放";
-            
-            if (state.lastActiveVideo) {
-              if (state.targetCount === 0) {
-                switchToFullscreenVideo(state.lastActiveVideo);
-              } else if (state.lastActiveVideo.paused) {
-                playVideo(state.lastActiveVideo);
-              }
-            }
-            
-            if (state.targetCount === 0) {
-              scanningOverlay.classList.add("hidden");
-            }
-          } else {
-            continuePlayButton.classList.remove("active");
-            continuePlayButton.textContent = "持續播放";
-            
-            if (state.fullscreenVideoActive) {
-              fullscreenVideoContainer.classList.remove("visible");
-              fullscreenVideoEl.pause();
-              fullscreenVideoEl.src = "";
-              state.fullscreenVideoActive = false;
-            }
-            
-            if (state.targetCount === 0) {
-              if (state.lastActiveVideo && !state.lastActiveVideo.paused) {
-                pauseVideo(state.lastActiveVideo);
-              }
-              scanningOverlay.classList.remove("hidden");
-            }
-          }
-        });
-
-        // 目標找到處理 - 保持原始邏輯 + 清除緩衝
+        // 目標找到處理
         const targetFound = (videoEl, otherVideoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
@@ -584,13 +506,13 @@
           }
         };
 
-        // 目標丟失處理 - 簡化版5秒緩衝
+        // 目標丟失處理 - 5秒緩衝
         const targetLost = (videoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
           console.log('🔍 目標丟失，啟動5秒緩衝:', videoEl.id);
           
-          // 立即隱藏掃描UI，避免遮蔽影片
+          // 立即隱藏掃描UI
           scanningOverlay.classList.add("hidden");
           
           // 清除之前的緩衝計時器
@@ -602,13 +524,9 @@
           state.targetLostTimer = setTimeout(() => {
             console.log('⏰ 5秒緩衝時間結束');
             
-            // 執行原始的目標丟失邏輯
             if (state.targetCount > 0) state.targetCount--;
-            
-            // 暫停影片
             pauseVideo(videoEl);
             
-            // 5秒後顯示掃描UI
             if (state.targetCount === 0) {
               if (state.overlayTimer) clearTimeout(state.overlayTimer);
               
@@ -695,30 +613,6 @@
           }
         }, { passive: true });
 
-        // 方向變化適配
-        window.addEventListener('orientationchange', () => {
-          console.log('📱 設備方向改變');
-          setTimeout(() => {
-            // 根據方向調整UI
-            const isLandscape = window.orientation === 90 || window.orientation === -90;
-            
-            if (isLandscape) {
-              console.log('📱 切換到橫屏模式');
-              controlPanel.style.flexDirection = 'row';
-              controlPanel.style.gap = '8px';
-            } else {
-              console.log('📱 切換到豎屏模式');
-              controlPanel.style.flexDirection = 'row';
-              controlPanel.style.gap = '10px';
-            }
-            
-            // 確保控制面板可見性保持一致
-            if (panelVisible) {
-              controlPanel.classList.remove('hidden');
-            }
-          }, 500);
-        });
-
         // 雙擊全螢幕
         let lastTap = 0;
         document.addEventListener('touchend', (e) => {
@@ -726,7 +620,6 @@
           const tapLength = currentTime - lastTap;
           
           if (tapLength < 500 && tapLength > 0) {
-            // 雙擊檢測
             if (state.lastActiveVideo && state.targetCount > 0) {
               console.log('👆👆 雙擊檢測：切換全螢幕');
               fullscreenBtn.click();
@@ -737,8 +630,8 @@
         });
 
         console.log('✅ AR影片播放應用初始化完成');
-        console.log('📱 手勢功能已啟用：左右滑動控制面板，向上滑動顯示面板，雙擊全螢幕');
-        console.log('⏱️ 目標丟失緩衝：5秒（無視覺提示，掃描UI隱藏）');
+        console.log('📱 手勢功能：左右滑動控制面板，向上滑動顯示面板，雙擊全螢幕');
+        console.log('⏱️ 目標丟失緩衝：5秒（掃描UI隱藏）');
       }
     </script>
   </body>
