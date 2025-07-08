@@ -15,27 +15,56 @@
         height: 100vh;
       }
 
-      /* --- 新增：首次互動提示 --- */
-      #audio-prompt {
+      /* --- 新增：底部控制按鈕容器 --- */
+      #controls-container {
         position: fixed;
-        z-index: 1001;
-        top: 50%;
+        bottom: 20px;
         left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 15px 25px;
-        border-radius: 20px;
-        font-family: Arial, sans-serif;
-        cursor: pointer;
-        text-align: center;
-        opacity: 1;
-        transition: opacity 0.5s ease;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: flex;
+        gap: 15px; /* 圖示間的距離 */
       }
-      #audio-prompt.hidden {
+
+      /* --- 修改：圖示按鈕統一樣式 --- */
+      .icon-button {
+        width: 50px;
+        height: 50px;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+
+      .icon-button:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: rgba(0, 255, 255, 0.7);
+      }
+      
+      .icon-button:active {
+        transform: scale(0.9); /* 按下時縮小 */
+      }
+
+      .icon-button.active {
+        background-color: rgba(0, 195, 255, 0.4);
+        border-color: rgba(0, 255, 255, 0.9);
+      }
+      
+      .icon-button.hidden {
         opacity: 0;
         pointer-events: none;
       }
+
+      .icon-button svg {
+        width: 60%;
+        height: 60%;
+        fill: white;
+      }
+
 
       /* 掃描UI樣式 */
       #scanning-overlay {
@@ -130,40 +159,6 @@
         text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
       }
 
-      /* 持續播放按鈕 */
-      .control-button {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1000;
-        background-color: rgba(0, 0, 0, 0.6);
-        color: white;
-        border: 2px solid rgba(0, 255, 255, 0.7);
-        border-radius: 50px;
-        padding: 10px 16px;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-        transition: all 0.3s ease;
-        opacity: 0.9;
-        min-width: 100px;
-        text-align: center;
-      }
-      .control-button:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-        opacity: 1;
-      }
-      .control-button.active {
-        background-color: rgba(0, 195, 255, 0.3);
-      }
-      /* --- 新增：按鈕按下的視覺回饋 --- */
-      .control-button:active {
-        transform: translateX(-50%) scale(0.95);
-        background-color: rgba(0, 255, 255, 0.2);
-      }
-
       /* 掃描動畫 */
       @keyframes scan {
         0% { transform: translateY(0); }
@@ -197,9 +192,15 @@
     </style>
   </head>
   <body>
-    <div id="audio-prompt">點擊螢幕開啟聲音</div>
-
-    <button class="control-button" id="continue-play-button">持續播放</button>
+    <div id="controls-container">
+      <button class="icon-button" id="audio-button">
+        <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><path d="M0 0h24v24H0z" fill="none"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        <svg id="sound-on-icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" style="display: none;"><path d="M0 0h24v24H0z" fill="none"/><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      </button>
+      <button class="icon-button" id="continue-play-button">
+         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><path d="M0 0h24v24H0z" fill="none"/><path d="M8 5v14l11-7z"/></svg>
+      </button>
+    </div>
 
     <div id="scanning-overlay">
       <div class="scanner-inner">
@@ -219,7 +220,7 @@
     <a-scene
       mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/gamania-Shopping/main/gamania-Shopping.mind;
                     warmupTolerance: 5;
-                    missTolerance: 10;
+                    missTolerance: 150; /* 修改：使用 missTolerance 實現緩衝 */
                     filterMinCF: 0.000001; 
                     filterBeta: 250;
                     uiScanning: #scanning-overlay;"
@@ -272,9 +273,6 @@
           rotation="0 0 0"
           loop="true"
         ></a-video>
-        <a-plane id="loading-indicator-0" position="0 0 0.01" height="0.2" width="0.2" color="#FFFFFF" material="opacity: 0.8;" visible="false">
-          <a-text value="Loading..." align="center" color="#000000"></a-text>
-        </a-plane>
       </a-entity>
 
       <a-entity
@@ -290,9 +288,6 @@
           rotation="0 0 0"
           loop="true"
         ></a-video>
-         <a-plane id="loading-indicator-1" position="0 0 0.01" height="0.2" width="0.2" color="#FFFFFF" material="opacity: 0.8;" visible="false">
-          <a-text value="Loading..." align="center" color="#000000"></a-text>
-        </a-plane>
       </a-entity>
     </a-scene>
 
@@ -340,72 +335,50 @@
         const video1El = document.querySelector("#video1");
         const target0El = document.querySelector("#target0");
         const target1El = document.querySelector("#target1");
-        const loadingIndicator0 = document.querySelector("#loading-indicator-0");
-        const loadingIndicator1 = document.querySelector("#loading-indicator-1");
-        const audioPrompt = document.getElementById("audio-prompt");
         const scanningOverlay = document.getElementById("scanning-overlay");
         const continuePlayButton = document.getElementById("continue-play-button");
+        const audioButton = document.getElementById("audio-button");
+        const soundOnIcon = document.getElementById("sound-on-icon");
+        const soundOffIcon = document.getElementById("sound-off-icon");
         const fullscreenVideoContainer = document.getElementById("fullscreen-video-container");
         const fullscreenVideoEl = document.getElementById("fullscreen-video");
 
         const SCAN_OVERLAY_DELAY = 200;
-        const MISS_TOLERANCE_BUFFER = 5000; // 5秒緩衝
 
         const state = {
           targetCount: 0,
           overlayTimer: null,
-          lostTargetTimer: null, 
           audioEnabled: false,
           continuePlayEnabled: false,
           lastActiveVideo: null,
           fullscreenVideoActive: false,
           hasPlayedOnce: false,
         };
-        
-        // --- 新增：影片載入狀態處理 ---
-        function setupVideoLoadingIndicator(videoEl, indicatorEl) {
-            if (!videoEl || !indicatorEl) return;
-            videoEl.addEventListener('waiting', () => {
-                indicatorEl.setAttribute('visible', true);
-            });
-            videoEl.addEventListener('playing', () => {
-                indicatorEl.setAttribute('visible', false);
-            });
-        }
-        setupVideoLoadingIndicator(video0El, loadingIndicator0);
-        setupVideoLoadingIndicator(video1El, loadingIndicator1);
 
-
-        // 啟用音訊
-        function enableAudio() {
-          if (state.audioEnabled) return;
+        // 啟用/停用音訊
+        function toggleAudio(enable) {
           try {
             [video0El, video1El, fullscreenVideoEl].forEach(video => {
               if (video && video.src && !video.src.includes("YOUR_VIDEO1_URL.mp4")) {
-                video.muted = false;
+                video.muted = !enable;
               }
             });
-            state.audioEnabled = true;
+            state.audioEnabled = enable;
+            // 更新圖示
+            soundOnIcon.style.display = enable ? 'block' : 'none';
+            soundOffIcon.style.display = enable ? 'none' : 'block';
+            audioButton.classList.toggle('active', enable);
+
           } catch (error) {
-            console.error("啟用音頻失敗:", error);
+            console.error("切換音頻失敗:", error);
           }
         }
-
-        // --- 優化：設定音訊與首次互動提示 ---
-        function setupAudioHandlers() {
-          const enableAudioOnce = () => {
-            enableAudio();
-            // 隱藏提示
-            audioPrompt.classList.add("hidden"); 
-            document.removeEventListener("touchstart", enableAudioOnce);
-            document.removeEventListener("click", enableAudioOnce);
-            // 移除對提示本身的監聽
-            audioPrompt.removeEventListener('click', enableAudioOnce);
-          };
-          // 同時監聽螢幕和提示本身的點擊
-          document.addEventListener("touchstart", enableAudioOnce, { passive: true });
-          document.addEventListener("click", enableAudioOnce);
-          audioPrompt.addEventListener('click', enableAudioOnce);
+        
+        // 設定音訊按鈕
+        function setupAudioButton() {
+          audioButton.addEventListener('click', () => {
+             toggleAudio(!state.audioEnabled);
+          });
         }
 
         // 處理影片播放
@@ -416,8 +389,9 @@
           
           if (shouldPlay) {
             return videoEl.play().catch((error) => {
+              // 第一次播放失敗通常因為使用者未互動，靜音重試
               videoEl.muted = true;
-              state.audioEnabled = false;
+              toggleAudio(false); // 更新狀態與UI
               return videoEl.play().catch(() => {});
             });
           } else {
@@ -435,12 +409,12 @@
           
           fullscreenVideoEl.src = sourceVideoEl.src;
           fullscreenVideoEl.currentTime = sourceVideoEl.currentTime;
-          fullscreenVideoEl.muted = state.audioEnabled ? sourceVideoEl.muted : true;
+          fullscreenVideoEl.muted = !state.audioEnabled;
           fullscreenVideoContainer.classList.add("visible");
           state.fullscreenVideoActive = true;
           fullscreenVideoEl.play().catch(() => {
             fullscreenVideoEl.muted = true;
-            state.audioEnabled = false;
+            toggleAudio(false);
             fullscreenVideoEl.play();
           });
         }
@@ -467,7 +441,6 @@
             fullscreenVideoEl.src = "";
             state.continuePlayEnabled = false;
             continuePlayButton.classList.remove("active");
-            continuePlayButton.textContent = "持續播放";
             
             if (state.targetCount > 0 && state.lastActiveVideo) {
               playVideo(state.lastActiveVideo);
@@ -484,11 +457,9 @@
           if (!state.hasPlayedOnce) return;
           
           state.continuePlayEnabled = !state.continuePlayEnabled;
+          continuePlayButton.classList.toggle("active", state.continuePlayEnabled);
           
           if (state.continuePlayEnabled) {
-            continuePlayButton.classList.add("active");
-            continuePlayButton.textContent = "停止播放";
-            
             if (state.lastActiveVideo) {
               if (state.targetCount === 0) {
                 switchToFullscreenVideo(state.lastActiveVideo);
@@ -496,21 +467,16 @@
                 playVideo(state.lastActiveVideo);
               }
             }
-            
             if (state.targetCount === 0) {
               scanningOverlay.classList.add("hidden");
             }
           } else {
-            continuePlayButton.classList.remove("active");
-            continuePlayButton.textContent = "持續播放";
-            
             if (state.fullscreenVideoActive) {
               fullscreenVideoContainer.classList.remove("visible");
               fullscreenVideoEl.pause();
               fullscreenVideoEl.src = "";
               state.fullscreenVideoActive = false;
             }
-            
             if (state.targetCount === 0) {
               if (state.lastActiveVideo && !state.lastActiveVideo.paused) {
                 pauseVideo(state.lastActiveVideo);
@@ -523,11 +489,6 @@
         // 目標找到處理
         const targetFound = (videoEl, otherVideoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
-
-          if (state.lostTargetTimer) {
-            clearTimeout(state.lostTargetTimer);
-            state.lostTargetTimer = null;
-          }
 
           state.targetCount++;
           state.lastActiveVideo = videoEl;
@@ -548,7 +509,7 @@
           }
         };
 
-        // 目標丟失處理
+        // 目標丟失處理 (簡化版)
         const targetLost = (videoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
@@ -556,23 +517,19 @@
 
           if (state.continuePlayEnabled && state.targetCount === 0) {
             switchToFullscreenVideo(videoEl);
-            return;
-          }
-          
-          if (!state.continuePlayEnabled && state.targetCount === 0) {
-            if (state.lostTargetTimer) {
-                clearTimeout(state.lostTargetTimer);
-            }
-            
-            state.lostTargetTimer = setTimeout(() => {
-                if (state.targetCount === 0 && !state.continuePlayEnabled) {
-                    pauseVideo(videoEl);
-                    if (state.overlayTimer) clearTimeout(state.overlayTimer);
-                    state.overlayTimer = setTimeout(() => {
-                        scanningOverlay.classList.remove("hidden");
-                    }, SCAN_OVERLAY_DELAY);
-                }
-            }, MISS_TOLERANCE_BUFFER);
+          } else if (state.targetCount === 0) {
+            // 因為 missTolerance 會處理緩衝，這裡只需要在最終丟失時暫停影片即可
+            // MindAR 會在 missTolerance 倒數結束後，自動隱藏 a-entity
+            // 我們只需確保影片狀態同步
+            pauseVideo(videoEl);
+
+            // 重新顯示掃描UI
+            if (state.overlayTimer) clearTimeout(state.overlayTimer);
+            state.overlayTimer = setTimeout(() => {
+              if (state.targetCount === 0 && !state.continuePlayEnabled) {
+                scanningOverlay.classList.remove("hidden");
+              }
+            }, SCAN_OVERLAY_DELAY);
           }
         };
 
@@ -605,9 +562,9 @@
         // 初始化
         const sceneEl = document.querySelector("a-scene");
         if (sceneEl.hasLoaded) {
-          setupAudioHandlers();
+          setupAudioButton();
         } else {
-          sceneEl.addEventListener('loaded', setupAudioHandlers);
+          sceneEl.addEventListener('loaded', setupAudioButton);
         }
       }
     </script>
