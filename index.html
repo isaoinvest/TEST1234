@@ -15,7 +15,7 @@
         height: 100vh;
       }
 
-      /* --- 新增：底部控制按鈕容器 --- */
+      /* --- 底部控制按鈕容器 --- */
       #controls-container {
         position: fixed;
         bottom: 20px;
@@ -26,7 +26,7 @@
         gap: 15px; /* 圖示間的距離 */
       }
 
-      /* --- 修改：圖示按鈕統一樣式 --- */
+      /* --- 圖示按鈕統一樣式 --- */
       .icon-button {
         width: 50px;
         height: 50px;
@@ -94,7 +94,7 @@
         border: 2px solid rgba(0, 255, 255, 0.7);
         border-radius: 10px;
         position: relative;
-        overflow: hidden;
+        /* overflow: hidden; */ /* 暫時移除或調整角落位置 */
         box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
       }
 
@@ -108,7 +108,8 @@
         animation: scan 2.5s linear infinite;
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
-
+      
+      /* --- 修正部分 --- */
       /* 角落標記 */
       .corner {
         position: absolute;
@@ -119,28 +120,32 @@
         border-width: 0;
       }
       .corner-top-left {
-        top: 0px;
-        left: 0px;
+        top: -2px; /* 將標記放在邊框上 */
+        left: -2px;
         border-top-width: 3px;
         border-left-width: 3px;
+        border-top-left-radius: 10px; /* 配合圓角 */
       }
       .corner-top-right {
         top: -2px;
         right: -2px;
         border-top-width: 3px;
         border-right-width: 3px;
+        border-top-right-radius: 10px;
       }
       .corner-bottom-left {
         bottom: -2px;
         left: -2px;
         border-bottom-width: 3px;
         border-left-width: 3px;
+        border-bottom-left-radius: 10px;
       }
       .corner-bottom-right {
         bottom: -2px;
         right: -2px;
         border-bottom-width: 3px;
         border-right-width: 3px;
+        border-bottom-right-radius: 10px;
       }
 
       /* 掃描文字 */
@@ -220,7 +225,7 @@
     <a-scene
       mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/gamania-Shopping/main/gamania-Shopping.mind;
                     warmupTolerance: 5;
-                    missTolerance: 150; /* 修改：使用 missTolerance 實現緩衝 */
+                    missTolerance: 150; /* 使用 missTolerance 實現緩衝 */
                     filterMinCF: 0.000001; 
                     filterBeta: 250;
                     uiScanning: #scanning-overlay;"
