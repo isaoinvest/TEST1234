@@ -315,59 +315,66 @@
     </a-scene>
 
     <script>
+      // === 效能優化：快速初始化 ===
+      let elementsCache = null;
+      
+      function cacheElements() {
+        if (!elementsCache) {
+          elementsCache = {
+            video0: document.querySelector("#video"),
+            video1: document.querySelector("#video1"),
+            target0: document.querySelector("#target0"),
+            target1: document.querySelector("#target1"),
+            scanningOverlay: document.getElementById("scanning-overlay"),
+            continuePlayButton: document.getElementById("continue-play-button"),
+            audioButton: document.getElementById("audio-button"),
+            soundOnIcon: document.getElementById("sound-on-icon"),
+            soundOffIcon: document.getElementById("sound-off-icon"),
+            fullscreenContainer: document.getElementById("fullscreen-video-container"),
+            fullscreenVideo: document.getElementById("fullscreen-video")
+          };
+        }
+        return elementsCache;
+      }
+
       // 等待 A-Frame 載入完成
       if (window.AFRAME) {
         initializeApp();
       } else {
-        window.addEventListener('DOMContentLoaded', function() {
+        const initHandler = () => {
           if (window.AFRAME) {
             initializeApp();
-          } else {
-            window.addEventListener('load', initializeApp);
+            document.removeEventListener('DOMContentLoaded', initHandler);
           }
-        });
+        };
+        document.addEventListener('DOMContentLoaded', initHandler);
       }
 
       function initializeApp() {
-        // 自動調整影片比例的 A-Frame 元件
+        // === 效能優化：預計算比例組件 ===
         AFRAME.registerComponent("fit-video-to-target-ratio", {
-          schema: {
-            videoSelector: { type: "string" },
-          },
+          schema: { videoSelector: { type: "string" } },
           init: function () {
+            this.targetAspectRatio = parseFloat(this.el.dataset.targetAspectRatio) || 1.0;
             this.el.addEventListener("targetFound", this.onTargetFound.bind(this));
           },
           onTargetFound: function () {
             const videoEntity = this.el.querySelector(this.data.videoSelector);
-            if (!videoEntity) return;
-
-            const ratioString = this.el.dataset.targetAspectRatio;
-            const targetAspectRatio = ratioString ? parseFloat(ratioString) : 1.0;
-            
-            if (!isNaN(targetAspectRatio) && targetAspectRatio > 0) {
+            if (videoEntity && this.targetAspectRatio > 0) {
               videoEntity.setAttribute("geometry", {
                 width: 1,
-                height: 1 / targetAspectRatio
+                height: 1 / this.targetAspectRatio
               });
             }
           },
         });
 
-        // 主要應用邏輯
-        const video0El = document.querySelector("#video");
-        const video1El = document.querySelector("#video1");
-        const target0El = document.querySelector("#target0");
-        const target1El = document.querySelector("#target1");
-        const scanningOverlay = document.getElementById("scanning-overlay");
-        const continuePlayButton = document.getElementById("continue-play-button");
-        const audioButton = document.getElementById("audio-button");
-        const soundOnIcon = document.getElementById("sound-on-icon");
-        const soundOffIcon = document.getElementById("sound-off-icon");
-        const fullscreenVideoContainer = document.getElementById("fullscreen-video-container");
-        const fullscreenVideoEl = document.getElementById("fullscreen-video");
+        // 快取元素引用
+        const els = cacheElements();
 
         const SCAN_OVERLAY_DELAY = 200;
 
+        // === 效能優化：狀態管理 ===
         const state = {
           targetCount: 0,
           overlayTimer: null,
@@ -378,104 +385,90 @@
           hasPlayedOnce: false,
         };
 
+        // === 效能優化：預篩選有效影片 ===
+        const validVideos = [els.video0, els.video1].filter(v => 
+          v && v.src && !v.src.includes("YOUR_VIDEO1_URL.mp4")
+        );
+
         // 啟用/停用音訊
         function toggleAudio(enable) {
-          try {
-            [video0El, video1El, fullscreenVideoEl].forEach(video => {
-              if (video && video.src && !video.src.includes("YOUR_VIDEO1_URL.mp4")) {
-                video.muted = !enable;
-              }
-            });
-            state.audioEnabled = enable;
-            soundOnIcon.style.display = enable ? 'block' : 'none';
-            soundOffIcon.style.display = enable ? 'none' : 'block';
-            audioButton.classList.toggle('active', enable);
-          } catch (error) {
-            console.error("切換音頻失敗:", error);
-          }
+          state.audioEnabled = enable;
+          // 批次更新音訊狀態
+          validVideos.forEach(video => video.muted = !enable);
+          if (els.fullscreenVideo.src) els.fullscreenVideo.muted = !enable;
+          
+          // 批次更新UI
+          els.soundOnIcon.style.display = enable ? 'block' : 'none';
+          els.soundOffIcon.style.display = enable ? 'none' : 'block';
+          els.audioButton.classList.toggle('active', enable);
         }
         
-        // 設定音訊按鈕
+        // === 效能優化：音訊按鈕設定（延遲綁定） ===
         function setupAudioButton() {
-          audioButton.addEventListener('click', () => {
-             toggleAudio(!state.audioEnabled);
+          els.audioButton.addEventListener('click', () => toggleAudio(!state.audioEnabled), { passive: true });
+        }
+
+        // === 效能優化：簡化影片播放處理 ===
+        const playVideo = (videoEl) => {
+          if (!videoEl || !videoEl.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return Promise.resolve();
+          return videoEl.play().catch(() => {
+            videoEl.muted = true;
+            toggleAudio(false);
+            return videoEl.play().catch(() => {});
           });
-        }
+        };
 
-        // 處理影片播放
-        function handleVideoPlayback(videoEl, shouldPlay) {
-          if (!videoEl || !videoEl.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) {
-            return Promise.resolve();
-          }
-          
-          if (shouldPlay) {
-            return videoEl.play().catch((error) => {
-              videoEl.muted = true;
-              toggleAudio(false);
-              return videoEl.play().catch(() => {});
-            });
-          } else {
+        const pauseVideo = (videoEl) => {
+          if (videoEl && videoEl.src && !videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) {
             videoEl.pause();
-            return Promise.resolve();
           }
-        }
+        };
 
-        const playVideo = (videoEl) => handleVideoPlayback(videoEl, true);
-        const pauseVideo = (videoEl) => handleVideoPlayback(videoEl, false);
-
-        // === 優化的全螢幕影片切換 ===
+        // === 效能優化：全螢幕切換（減少DOM操作） ===
         function switchToFullscreenVideo(sourceVideoEl) {
           if (!sourceVideoEl || !sourceVideoEl.src || sourceVideoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          // 設定影片源和同步時間
-          fullscreenVideoEl.src = sourceVideoEl.src;
-          fullscreenVideoEl.currentTime = sourceVideoEl.currentTime;
-          fullscreenVideoEl.muted = !state.audioEnabled;
+          // 批次設定屬性
+          Object.assign(els.fullscreenVideo, {
+            src: sourceVideoEl.src,
+            currentTime: sourceVideoEl.currentTime,
+            muted: !state.audioEnabled
+          });
           
-          // 觸發轉場動畫
-          fullscreenVideoContainer.classList.add("visible");
+          els.fullscreenContainer.classList.add("visible");
           state.fullscreenVideoActive = true;
           
-          // 播放影片
-          fullscreenVideoEl.play().catch(() => {
-            fullscreenVideoEl.muted = true;
-            toggleAudio(false);
-            fullscreenVideoEl.play();
-          });
+          playVideo(els.fullscreenVideo);
         }
 
-        // === 優化的全螢幕退出 ===
         function switchFromFullscreenVideo(targetVideoEl) {
           if (!targetVideoEl || !targetVideoEl.src || targetVideoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          // 同步時間
-          if (state.fullscreenVideoActive && !fullscreenVideoEl.paused) {
-            targetVideoEl.currentTime = fullscreenVideoEl.currentTime;
+          if (state.fullscreenVideoActive && !els.fullscreenVideo.paused) {
+            targetVideoEl.currentTime = els.fullscreenVideo.currentTime;
           }
           
-          // 觸發淡出動畫
-          fullscreenVideoContainer.classList.remove("visible");
+          els.fullscreenContainer.classList.remove("visible");
           state.fullscreenVideoActive = false;
           
           // 延遲清理以配合動畫
           setTimeout(() => {
-            fullscreenVideoEl.pause();
-            fullscreenVideoEl.src = "";
+            els.fullscreenVideo.pause();
+            els.fullscreenVideo.src = "";
           }, 250);
         }
 
-        // 全螢幕影片點擊處理
-        fullscreenVideoContainer.addEventListener("click", () => {
+        // === 效能優化：事件處理（使用 passive 監聽器） ===
+        els.fullscreenContainer.addEventListener("click", () => {
           if (state.fullscreenVideoActive) {
-            fullscreenVideoContainer.classList.remove("visible");
+            els.fullscreenContainer.classList.remove("visible");
             state.fullscreenVideoActive = false;
             state.continuePlayEnabled = false;
-            continuePlayButton.classList.remove("active");
+            els.continuePlayButton.classList.remove("active");
             
-            // 延遲清理以配合動畫
             setTimeout(() => {
-              fullscreenVideoEl.pause();
-              fullscreenVideoEl.src = "";
+              els.fullscreenVideo.pause();
+              els.fullscreenVideo.src = "";
             }, 250);
             
             if (state.targetCount > 0 && state.lastActiveVideo) {
@@ -483,17 +476,17 @@
             }
             
             if (state.targetCount === 0) {
-              scanningOverlay.classList.remove("hidden");
+              els.scanningOverlay.classList.remove("hidden");
             }
           }
-        });
+        }, { passive: true });
 
         // 設定持續播放按鈕
-        continuePlayButton.addEventListener("click", () => {
+        els.continuePlayButton.addEventListener("click", () => {
           if (!state.hasPlayedOnce) return;
           
           state.continuePlayEnabled = !state.continuePlayEnabled;
-          continuePlayButton.classList.toggle("active", state.continuePlayEnabled);
+          els.continuePlayButton.classList.toggle("active", state.continuePlayEnabled);
           
           if (state.continuePlayEnabled) {
             if (state.lastActiveVideo) {
@@ -504,7 +497,7 @@
               }
             }
             if (state.targetCount === 0) {
-              scanningOverlay.classList.add("hidden");
+              els.scanningOverlay.classList.add("hidden");
             }
           } else {
             if (state.fullscreenVideoActive) {
@@ -514,12 +507,12 @@
               if (state.lastActiveVideo && !state.lastActiveVideo.paused) {
                 pauseVideo(state.lastActiveVideo);
               }
-              scanningOverlay.classList.remove("hidden");
+              els.scanningOverlay.classList.remove("hidden");
             }
           }
-        });
+        }, { passive: true });
 
-        // 目標找到處理
+        // === 效能優化：目標事件處理 ===
         const targetFound = (videoEl, otherVideoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
@@ -529,12 +522,12 @@
           
           if (otherVideoEl) pauseVideo(otherVideoEl);
 
-          if (state.fullscreenVideoActive && fullscreenVideoEl.src === videoEl.src) {
+          if (state.fullscreenVideoActive && els.fullscreenVideo.src === videoEl.src) {
             switchFromFullscreenVideo(videoEl);
           }
 
           playVideo(videoEl);
-          scanningOverlay.classList.add("hidden");
+          els.scanningOverlay.classList.add("hidden");
           
           if (state.overlayTimer) {
             clearTimeout(state.overlayTimer);
@@ -542,7 +535,6 @@
           }
         };
 
-        // 目標丟失處理
         const targetLost = (videoEl) => {
           if (!videoEl || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
@@ -556,44 +548,48 @@
             if (state.overlayTimer) clearTimeout(state.overlayTimer);
             state.overlayTimer = setTimeout(() => {
               if (state.targetCount === 0 && !state.continuePlayEnabled) {
-                scanningOverlay.classList.remove("hidden");
+                els.scanningOverlay.classList.remove("hidden");
               }
             }, SCAN_OVERLAY_DELAY);
           }
         };
 
-        // 設定目標事件監聽器
-        if (target0El && video0El) {
-          target0El.addEventListener("targetFound", () => targetFound(video0El, video1El));
-          target0El.addEventListener("targetLost", () => targetLost(video0El));
+        // === 效能優化：條件式事件監聽器綁定 ===
+        if (els.target0 && els.video0) {
+          els.target0.addEventListener("targetFound", () => targetFound(els.video0, els.video1));
+          els.target0.addEventListener("targetLost", () => targetLost(els.video0));
         }
 
-        if (target1El && video1El && !video1El.src.includes("YOUR_VIDEO1_URL.mp4")) {
-          target1El.addEventListener("targetFound", () => targetFound(video1El, video0El));
-          target1El.addEventListener("targetLost", () => targetLost(video1El));
+        if (els.target1 && els.video1 && !els.video1.src.includes("YOUR_VIDEO1_URL.mp4")) {
+          els.target1.addEventListener("targetFound", () => targetFound(els.video1, els.video0));
+          els.target1.addEventListener("targetLost", () => targetLost(els.video1));
         }
 
-        // 頁面可見性變化處理
+        // === 效能優化：頁面可見性處理（passive 監聽器） ===
         document.addEventListener("visibilitychange", () => {
           if (document.visibilityState === "hidden") {
-            if (video0El) pauseVideo(video0El);
-            if (video1El && !video1El.src.includes("YOUR_VIDEO1_URL.mp4")) pauseVideo(video1El);
-            if (state.fullscreenVideoActive) fullscreenVideoEl.pause();
+            validVideos.forEach(pauseVideo);
+            if (state.fullscreenVideoActive) els.fullscreenVideo.pause();
           } else if (document.visibilityState === "visible") {
             if (state.fullscreenVideoActive) {
-              fullscreenVideoEl.play().catch(() => {});
+              els.fullscreenVideo.play().catch(() => {});
             } else if (state.targetCount > 0 && state.lastActiveVideo) {
-              playVideo(state.lastActiveVideo).catch(() => {});
+              playVideo(state.lastActiveVideo);
             }
           }
-        });
+        }, { passive: true });
 
-        // 初始化
+        // === 效能優化：延遲初始化 ===
         const sceneEl = document.querySelector("a-scene");
+        const initAudio = () => {
+          setupAudioButton();
+          sceneEl.removeEventListener('loaded', initAudio);
+        };
+        
         if (sceneEl.hasLoaded) {
           setupAudioButton();
         } else {
-          sceneEl.addEventListener('loaded', setupAudioButton);
+          sceneEl.addEventListener('loaded', initAudio, { once: true });
         }
       }
     </script>
