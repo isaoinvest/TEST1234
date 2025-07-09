@@ -2,11 +2,8 @@
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#000000" />
     <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/mindar-image-aframe.prod.js"></script>
 
@@ -171,38 +168,22 @@
         100% { transform: translateY(0); }
       }
 
-      /* === 強制全螢幕影片容器（瀏覽器模式優化） === */
+      /* === 優化的全螢幕影片容器 === */
       #fullscreen-video-container {
         position: fixed;
         top: 0;
         left: 0;
-        right: 0;
-        bottom: 0;
         width: 100vw;
         height: 100vh;
-        /* 使用多種視窗單位確保覆蓋 */
-        min-height: 100vh;
-        min-height: 100dvh;
-        min-height: 100svh;
-        max-height: 100vh;
-        max-height: 100dvh;
-        z-index: 2147483647; /* 最大可能的 z-index */
-        background-color: #000000;
+        z-index: 999;
+        background-color: rgba(0, 0, 0, 0.95);
         cursor: pointer;
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+        transition: opacity 0.25s ease-out, visibility 0.25s ease-out;
         display: flex;
         align-items: center;
         justify-content: center;
-        /* 強制硬體加速 */
-        -webkit-transform: translate3d(0, 0, 0);
-        transform: translate3d(0, 0, 0);
-        /* 防止滾動 */
-        overflow: hidden;
-        /* 確保在所有設備上都能覆蓋狀態欄 */
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-        margin: calc(-1 * env(safe-area-inset-top)) calc(-1 * env(safe-area-inset-right)) calc(-1 * env(safe-area-inset-bottom)) calc(-1 * env(safe-area-inset-left));
       }
 
       #fullscreen-video-container.visible {
@@ -216,112 +197,16 @@
         width: auto;
         height: auto;
         transform: scale(0.95);
-        transition: transform 0.15s ease-out;
-        object-fit: contain;
-        /* 確保影片不被安全區域影響 */
-        position: relative;
-        z-index: 1;
+        transition: transform 0.25s ease-out;
       }
 
       #fullscreen-video-container.visible #fullscreen-video {
         transform: scale(1);
       }
 
-      /* 新增：隱藏的預載影片容器 */
-      #preload-video-container {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      /* 載入指示器 */
-      .loading-indicator {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: none;
-        z-index: 10;
-      }
-
-      .loading-indicator.show {
-        display: block;
-      }
-
-      .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(0, 255, 255, 0.3);
-        border-top: 3px solid #00ffff;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-
-      /* 強制隱藏瀏覽器UI的樣式 */
-      #fullscreen-video-container.visible {
-        /* 嘗試觸發瀏覽器自動隱藏UI */
-        -webkit-overflow-scrolling: touch;
-      }
-
-      /* 橫式螢幕強制全螢幕 */
-      @media screen and (orientation: landscape) {
-        #fullscreen-video-container {
-          /* 確保橫式時完全填滿螢幕 */
-          width: 100vw;
-          height: 100vh;
-          min-height: 100vh;
-          min-height: 100dvh;
-          min-height: 100svh;
-          /* 嘗試覆蓋瀏覽器UI區域 */
-          top: -100px;
-          bottom: -100px;
-          left: -10px;
-          right: -10px;
-          padding-top: 100px;
-          padding-bottom: 100px;
-          padding-left: 10px;
-          padding-right: 10px;
-        }
-        
-        #fullscreen-video {
-          max-width: calc(100vw - 20px);
-          max-height: calc(100vh - 200px);
-          max-height: calc(100dvh - 200px);
-        }
-      }
-
-      /* 強制全螢幕時隱藏控制項和其他元素 */
-      body.fullscreen-active {
-        overflow: hidden !important;
-        position: fixed !important;
-        width: 100% !important;
-        height: 100% !important;
-      }
-
-      body.fullscreen-active #controls-container,
-      body.fullscreen-active #scanning-overlay {
-        opacity: 0 !important;
-        pointer-events: none !important;
-        transition: opacity 0.1s ease-out;
-      }
-
-      body.fullscreen-active a-scene {
-        pointer-events: none;
-      }
-
       /* 輕量化的淡入淡出動畫 */
       .fade-transition {
-        transition: opacity 0.1s ease-out;
+        transition: opacity 0.2s ease-out;
       }
 
       .fade-out {
@@ -352,19 +237,11 @@
     </div>
     
     <div id="fullscreen-video-container">
-      <div class="loading-indicator">
-        <div class="spinner"></div>
-      </div>
       <video id="fullscreen-video" playsinline webkit-playsinline></video>
     </div>
 
-    <!-- 隱藏的預載影片容器 -->
-    <div id="preload-video-container">
-      <video id="preload-video" playsinline webkit-playsinline muted preload="auto"></video>
-    </div>
-
     <a-scene
-      mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/TEST1234/main/targets.mind;
+      mindar-image="imageTargetSrc:https://raw.githubusercontent.com/isaoinvest/TEST1234/main/targets.mind;
                     warmupTolerance: 5;
                     missTolerance: 150;
                     filterMinCF: 0.000001; 
@@ -454,9 +331,7 @@
             soundOnIcon: document.getElementById("sound-on-icon"),
             soundOffIcon: document.getElementById("sound-off-icon"),
             fullscreenContainer: document.getElementById("fullscreen-video-container"),
-            fullscreenVideo: document.getElementById("fullscreen-video"),
-            preloadVideo: document.getElementById("preload-video"),
-            loadingIndicator: document.querySelector(".loading-indicator")
+            fullscreenVideo: document.getElementById("fullscreen-video")
           };
         }
         return elementsCache;
@@ -508,88 +383,7 @@
           lastActiveVideo: null,
           fullscreenVideoActive: false,
           hasPlayedOnce: false,
-          preloadCache: new Map(), // 預載快取
-          switchingToFullscreen: false, // 新增：切換狀態標記
         };
-
-        // === 新增：影片預載管理 ===
-        class VideoPreloader {
-          constructor() {
-            this.preloadedVideos = new Map();
-            this.isPreloading = false;
-          }
-
-          async preloadVideo(videoEl) {
-            if (!videoEl || !videoEl.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) {
-              return null;
-            }
-
-            const src = videoEl.src;
-            
-            // 如果已經預載過，直接返回
-            if (this.preloadedVideos.has(src)) {
-              return this.preloadedVideos.get(src);
-            }
-
-            try {
-              // 使用隱藏的預載影片元素
-              els.preloadVideo.src = src;
-              els.preloadVideo.currentTime = videoEl.currentTime || 0;
-              els.preloadVideo.muted = true;
-              
-              // 設置canplaythrough事件監聽器
-              const preloadPromise = new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                  cleanup();
-                  reject(new Error('預載超時'));
-                }, 5000); // 5秒超時
-
-                const onCanPlayThrough = () => {
-                  clearTimeout(timeout);
-                  cleanup();
-                  this.preloadedVideos.set(src, {
-                    element: els.preloadVideo.cloneNode(),
-                    currentTime: videoEl.currentTime || 0,
-                    ready: true
-                  });
-                  resolve(this.preloadedVideos.get(src));
-                };
-
-                const onError = () => {
-                  clearTimeout(timeout);
-                  cleanup();
-                  reject(new Error('預載失敗'));
-                };
-
-                const cleanup = () => {
-                  els.preloadVideo.removeEventListener('canplaythrough', onCanPlayThrough);
-                  els.preloadVideo.removeEventListener('error', onError);
-                };
-
-                els.preloadVideo.addEventListener('canplaythrough', onCanPlayThrough, { once: true });
-                els.preloadVideo.addEventListener('error', onError, { once: true });
-              });
-
-              // 開始預載
-              await els.preloadVideo.load();
-              return await preloadPromise;
-
-            } catch (error) {
-              console.log('影片預載失敗:', error);
-              return null;
-            }
-          }
-
-          getPreloadedVideo(src) {
-            return this.preloadedVideos.get(src);
-          }
-
-          clearCache() {
-            this.preloadedVideos.clear();
-          }
-        }
-
-        const videoPreloader = new VideoPreloader();
 
         // === 效能優化：預篩選有效影片 ===
         const validVideos = [els.video0, els.video1].filter(v => 
@@ -630,180 +424,21 @@
           }
         };
 
-        // === 真正全螢幕API支援 ===
-        function requestFullscreen(element) {
-          if (element.requestFullscreen) {
-            return element.requestFullscreen();
-          } else if (element.webkitRequestFullscreen) {
-            return element.webkitRequestFullscreen();
-          } else if (element.mozRequestFullScreen) {
-            return element.mozRequestFullScreen();
-          } else if (element.msRequestFullscreen) {
-            return element.msRequestFullscreen();
-          }
-          return Promise.resolve();
-        }
-
-        function exitFullscreen() {
-          if (document.exitFullscreen) {
-            return document.exitFullscreen();
-          } else if (document.webkitExitFullscreen) {
-            return document.webkitExitFullscreen();
-          } else if (document.mozCancelFullScreen) {
-            return document.mozCancelFullScreen();
-          } else if (document.msExitFullscreen) {
-            return document.msExitFullscreen();
-          }
-          return Promise.resolve();
-        }
-
-        function isFullscreen() {
-          return !!(document.fullscreenElement || 
-                   document.webkitFullscreenElement || 
-                   document.mozFullScreenElement || 
-                   document.msFullscreenElement);
-        }
-
-        // === 瀏覽器模式強制全螢幕處理 ===
-        function forceFullscreenMode(enable) {
-          if (enable) {
-            // 添加全螢幕狀態到 body
-            document.body.classList.add('fullscreen-active');
-            
-            // 嘗試隱藏地址欄（滾動技巧）
-            window.scrollTo(0, 1);
-            setTimeout(() => window.scrollTo(0, 0), 50);
-            
-            // 嘗試觸發瀏覽器自動隱藏UI
-            if (window.innerHeight < screen.height) {
-              // 檢測是否在瀏覽器模式（而非PWA模式）
-              const isInBrowserMode = window.navigator.standalone !== true && 
-                                    !window.matchMedia('(display-mode: standalone)').matches;
-              
-              if (isInBrowserMode) {
-                // 瀏覽器模式下的特殊處理
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-                
-                // 模擬用戶滾動來隱藏UI
-                const hideUI = () => {
-                  window.scrollTo(0, 1);
-                  setTimeout(() => {
-                    window.scrollTo(0, 0);
-                    els.fullscreenContainer.scrollTop = 0;
-                  }, 25);
-                };
-                
-                hideUI();
-                // 延遲再次嘗試
-                setTimeout(hideUI, 100);
-                setTimeout(hideUI, 250);
-              }
-            }
-          } else {
-            // 移除全螢幕狀態
-            document.body.classList.remove('fullscreen-active');
-            document.documentElement.style.overflow = '';
-            document.body.style.overflow = '';
-          }
-        }
-
-        // === 優化：超快速全螢幕切換 ===
-        async function switchToFullscreenVideo(sourceVideoEl) {
+        // === 效能優化：全螢幕切換（減少DOM操作） ===
+        function switchToFullscreenVideo(sourceVideoEl) {
           if (!sourceVideoEl || !sourceVideoEl.src || sourceVideoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          state.switchingToFullscreen = true;
+          // 批次設定屬性
+          Object.assign(els.fullscreenVideo, {
+            src: sourceVideoEl.src,
+            currentTime: sourceVideoEl.currentTime,
+            muted: !state.audioEnabled
+          });
           
-          // 立即顯示UI和載入指示器
-          forceFullscreenMode(true);
           els.fullscreenContainer.classList.add("visible");
-          els.loadingIndicator.classList.add("show");
           state.fullscreenVideoActive = true;
-
-          try {
-            // 檢查是否有預載的影片
-            const preloadedVideo = videoPreloader.getPreloadedVideo(sourceVideoEl.src);
-            
-            if (preloadedVideo && preloadedVideo.ready) {
-              // 使用預載的影片 - 幾乎瞬間切換
-              els.fullscreenVideo.src = sourceVideoEl.src;
-              els.fullscreenVideo.currentTime = sourceVideoEl.currentTime;
-              els.fullscreenVideo.muted = !state.audioEnabled;
-              
-              // 隱藏載入指示器
-              els.loadingIndicator.classList.remove("show");
-              
-              // 立即播放
-              await playVideo(els.fullscreenVideo);
-            } else {
-              // 沒有預載，使用快速載入策略
-              els.fullscreenVideo.src = sourceVideoEl.src;
-              els.fullscreenVideo.currentTime = sourceVideoEl.currentTime;
-              els.fullscreenVideo.muted = !state.audioEnabled;
-              
-              // 等待影片可以播放（使用canplay而不是canplaythrough來減少等待時間）
-              const quickLoadPromise = new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                  cleanup();
-                  // 即使載入超時也要繼續播放
-                  resolve();
-                }, 2000); // 2秒超時
-
-                const onCanPlay = () => {
-                  cleanup();
-                  resolve();
-                };
-
-                const onError = () => {
-                  cleanup();
-                  reject(new Error('影片載入失敗'));
-                };
-
-                const cleanup = () => {
-                  els.fullscreenVideo.removeEventListener('canplay', onCanPlay);
-                  els.fullscreenVideo.removeEventListener('error', onError);
-                };
-
-                els.fullscreenVideo.addEventListener('canplay', onCanPlay, { once: true });
-                els.fullscreenVideo.addEventListener('error', onError, { once: true });
-              });
-
-              // 並行載入和播放
-              const loadPromise = els.fullscreenVideo.load();
-              
-              try {
-                await Promise.race([quickLoadPromise, loadPromise]);
-                els.loadingIndicator.classList.remove("show");
-                await playVideo(els.fullscreenVideo);
-              } catch (error) {
-                console.log('快速載入失敗，嘗試直接播放:', error);
-                els.loadingIndicator.classList.remove("show");
-                await playVideo(els.fullscreenVideo);
-              }
-            }
-
-            // 嘗試進入真正的全螢幕模式
-            const tryFullscreen = () => {
-              if (screen.orientation && screen.orientation.angle !== 0) {
-                // 橫式時嘗試全螢幕API
-                requestFullscreen(els.fullscreenContainer).catch(() => {
-                  console.log("全螢幕API不可用，使用強制模式");
-                });
-              }
-            };
-            
-            // 立即嘗試，並在短暫延遲後再次嘗試
-            tryFullscreen();
-            setTimeout(tryFullscreen, 50);
-
-          } catch (error) {
-            console.log('全螢幕切換錯誤:', error);
-            els.loadingIndicator.classList.remove("show");
-            // 即使出錯也要嘗試播放
-            playVideo(els.fullscreenVideo);
-          } finally {
-            state.switchingToFullscreen = false;
-          }
+          
+          playVideo(els.fullscreenVideo);
         }
 
         function switchFromFullscreenVideo(targetVideoEl) {
@@ -813,50 +448,28 @@
             targetVideoEl.currentTime = els.fullscreenVideo.currentTime;
           }
           
-          // 退出瀏覽器全螢幕
-          if (isFullscreen()) {
-            exitFullscreen().catch(() => {});
-          }
-          
-          // 關閉強制全螢幕模式
-          forceFullscreenMode(false);
-          
           els.fullscreenContainer.classList.remove("visible");
-          els.loadingIndicator.classList.remove("show");
           state.fullscreenVideoActive = false;
           
           // 延遲清理以配合動畫
           setTimeout(() => {
-            if (!state.fullscreenVideoActive) {
-              els.fullscreenVideo.pause();
-              els.fullscreenVideo.src = "";
-            }
-          }, 150);
+            els.fullscreenVideo.pause();
+            els.fullscreenVideo.src = "";
+          }, 250);
         }
 
-        // === 效能優化：事件處理（瀏覽器模式全螢幕退出） ===
+        // === 效能優化：事件處理（使用 passive 監聽器） ===
         els.fullscreenContainer.addEventListener("click", () => {
           if (state.fullscreenVideoActive) {
-            // 退出瀏覽器全螢幕
-            if (isFullscreen()) {
-              exitFullscreen().catch(() => {});
-            }
-            
-            // 關閉強制全螢幕模式
-            forceFullscreenMode(false);
-            
             els.fullscreenContainer.classList.remove("visible");
-            els.loadingIndicator.classList.remove("show");
             state.fullscreenVideoActive = false;
             state.continuePlayEnabled = false;
             els.continuePlayButton.classList.remove("active");
             
             setTimeout(() => {
-              if (!state.fullscreenVideoActive) {
-                els.fullscreenVideo.pause();
-                els.fullscreenVideo.src = "";
-              }
-            }, 150);
+              els.fullscreenVideo.pause();
+              els.fullscreenVideo.src = "";
+            }, 250);
             
             if (state.targetCount > 0 && state.lastActiveVideo) {
               playVideo(state.lastActiveVideo);
@@ -867,69 +480,9 @@
             }
           }
         }, { passive: true });
-
-        // 監聽全螢幕狀態變化
-        const fullscreenChangeHandler = () => {
-          if (!isFullscreen() && state.fullscreenVideoActive) {
-            // 如果使用者通過其他方式退出全螢幕，同步狀態
-            forceFullscreenMode(false);
-            els.fullscreenContainer.classList.remove("visible");
-            els.loadingIndicator.classList.remove("show");
-            state.fullscreenVideoActive = false;
-            state.continuePlayEnabled = false;
-            els.continuePlayButton.classList.remove("active");
-            
-            setTimeout(() => {
-              if (!state.fullscreenVideoActive) {
-                els.fullscreenVideo.pause();
-                els.fullscreenVideo.src = "";
-              }
-            }, 150);
-            
-            if (state.targetCount > 0 && state.lastActiveVideo) {
-              playVideo(state.lastActiveVideo);
-            }
-            
-            if (state.targetCount === 0) {
-              els.scanningOverlay.classList.remove("hidden");
-            }
-          }
-        };
-
-        // 綁定全螢幕變化事件
-        document.addEventListener('fullscreenchange', fullscreenChangeHandler, { passive: true });
-        document.addEventListener('webkitfullscreenchange', fullscreenChangeHandler, { passive: true });
-        document.addEventListener('mozfullscreenchange', fullscreenChangeHandler, { passive: true });
-        document.addEventListener('MSFullscreenChange', fullscreenChangeHandler, { passive: true });
-
-        // === 瀏覽器模式特殊處理 ===
-        // 監聽視窗大小變化，嘗試保持全螢幕效果
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-          if (state.fullscreenVideoActive) {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-              // 重新應用強制全螢幕
-              if (document.body.classList.contains('fullscreen-active')) {
-                window.scrollTo(0, 1);
-                setTimeout(() => window.scrollTo(0, 0), 25);
-              }
-            }, 50);
-          }
-        }, { passive: true });
-
-        // === 優化：智能預載系統 ===
-        function preloadVideoForContinuePlay() {
-          if (state.lastActiveVideo && !state.switchingToFullscreen) {
-            // 背景預載最後播放的影片
-            videoPreloader.preloadVideo(state.lastActiveVideo).catch(() => {
-              console.log('背景預載失敗，但不影響使用');
-            });
-          }
-        }
 
         // 設定持續播放按鈕
-        els.continuePlayButton.addEventListener("click", async () => {
+        els.continuePlayButton.addEventListener("click", () => {
           if (!state.hasPlayedOnce) return;
           
           state.continuePlayEnabled = !state.continuePlayEnabled;
@@ -938,8 +491,7 @@
           if (state.continuePlayEnabled) {
             if (state.lastActiveVideo) {
               if (state.targetCount === 0) {
-                // 立即切換到全螢幕，使用預載或快速載入
-                await switchToFullscreenVideo(state.lastActiveVideo);
+                switchToFullscreenVideo(state.lastActiveVideo);
               } else if (state.lastActiveVideo.paused) {
                 playVideo(state.lastActiveVideo);
               }
@@ -959,30 +511,6 @@
             }
           }
         }, { passive: true });
-
-        // === 螢幕方向變化處理（瀏覽器模式優化） ===
-        const handleOrientationChange = () => {
-          // 如果在全螢幕模式且切換到橫式
-          if (state.fullscreenVideoActive) {
-            if (screen.orientation && screen.orientation.angle !== 0) {
-              // 橫式時重新應用強制全螢幕
-              setTimeout(() => {
-                forceFullscreenMode(true);
-                if (!isFullscreen()) {
-                  requestFullscreen(els.fullscreenContainer).catch(() => {});
-                }
-              }, 150); // 給螢幕旋轉一些時間
-            }
-          }
-        };
-
-        // 監聽螢幕方向變化
-        if (screen.orientation) {
-          screen.orientation.addEventListener('change', handleOrientationChange, { passive: true });
-        } else {
-          // 備用方案
-          window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
-        }
 
         // === 效能優化：目標事件處理 ===
         const targetFound = (videoEl, otherVideoEl) => {
@@ -1005,9 +533,6 @@
             clearTimeout(state.overlayTimer);
             state.overlayTimer = null;
           }
-
-          // 觸發預載（在背景進行）
-          setTimeout(() => preloadVideoForContinuePlay(), 500);
         };
 
         const targetLost = (videoEl) => {
@@ -1016,7 +541,6 @@
           if (state.targetCount > 0) state.targetCount--;
 
           if (state.continuePlayEnabled && state.targetCount === 0) {
-            // 立即切換到全螢幕，使用優化的快速載入
             switchToFullscreenVideo(videoEl);
           } else if (state.targetCount === 0) {
             pauseVideo(videoEl);
@@ -1027,11 +551,6 @@
                 els.scanningOverlay.classList.remove("hidden");
               }
             }, SCAN_OVERLAY_DELAY);
-          }
-
-          // 在目標丟失後立即開始預載，為可能的全螢幕切換做準備
-          if (state.targetCount === 0 && state.continuePlayEnabled) {
-            setTimeout(() => preloadVideoForContinuePlay(), 100);
           }
         };
 
@@ -1060,15 +579,6 @@
           }
         }, { passive: true });
 
-        // === 初始預載（應用啟動後預載第一個影片） ===
-        setTimeout(() => {
-          if (validVideos.length > 0) {
-            videoPreloader.preloadVideo(validVideos[0]).catch(() => {
-              console.log('初始預載失敗，但不影響使用');
-            });
-          }
-        }, 1000);
-
         // === 效能優化：延遲初始化 ===
         const sceneEl = document.querySelector("a-scene");
         const initAudio = () => {
@@ -1081,11 +591,6 @@
         } else {
           sceneEl.addEventListener('loaded', initAudio, { once: true });
         }
-
-        // === 清理資源（當頁面卸載時） ===
-        window.addEventListener('beforeunload', () => {
-          videoPreloader.clearCache();
-        }, { passive: true });
       }
     </script>
   </body>
