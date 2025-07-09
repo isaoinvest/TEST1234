@@ -245,7 +245,7 @@
         <video
           id="video"
           src="https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4"
-          preload="auto"
+          preload="metadata"
           loop
           crossorigin="anonymous"
           playsinline
@@ -255,7 +255,7 @@
         <video
           id="video1"
           src="YOUR_VIDEO1_URL.mp4"
-          preload="auto"
+          preload="metadata"
           loop
           crossorigin="anonymous"
           playsinline
@@ -367,12 +367,58 @@
           lastActiveVideo: null,
           isFullscreen: false,
           hasPlayedOnce: false,
+          videosReady: new Set()
         };
 
         // 有效影片列表
         const validVideos = [els.video0, els.video1].filter(v => 
           v && v.src && !v.src.includes("YOUR_VIDEO1_URL.mp4")
         );
+
+        // 預加載視頻以減少黑屏
+        function preloadVideos() {
+          validVideos.forEach(video => {
+            if (video.readyState < 3) { // 如果視頻還沒準備好
+              video.load();
+              
+              // 監聽視頻準備完成事件
+              const onCanPlay = () => {
+                state.videosReady.add(video);
+                video.removeEventListener('canplaythrough', onCanPlay);
+              };
+              video.addEventListener('canplaythrough', onCanPlay, { once: true });
+              
+              // 預播放一小段來準備解碼器
+              const prepareVideo = () => {
+                if (video.readyState >= 3) {
+                  video.currentTime = 0;
+                  const playPromise = video.play();
+                  if (playPromise) {
+                    playPromise.then(() => {
+                      video.pause();
+                      video.currentTime = 0;
+                      state.videosReady.add(video);
+                    }).catch(() => {
+                      // 靜音重試
+                      video.muted = true;
+                      video.play().then(() => {
+                        video.pause();
+                        video.currentTime = 0;
+                        state.videosReady.add(video);
+                      }).catch(() => {});
+                    });
+                  }
+                }
+              };
+              
+              if (video.readyState >= 3) {
+                prepareVideo();
+              } else {
+                video.addEventListener('canplaythrough', prepareVideo, { once: true });
+              }
+            }
+          });
+        }
 
         // 音訊控制
         function toggleAudio(enable) {
@@ -385,13 +431,28 @@
           els.audioButton.classList.toggle('active', enable);
         }
 
-        // 改進的影片播放控制
+        // 改進的影片播放控制 - 減少黑屏
         function playVideo(videoEl) {
           if (!videoEl || !videoEl.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return Promise.resolve();
           
-          // 預加載以提高響應速度
+          // 確保視頻已準備好
           if (videoEl.readyState < 2) {
             videoEl.load();
+          }
+          
+          // 如果視頻還沒預加載完成，等待一下
+          if (!state.videosReady.has(videoEl) && videoEl.readyState < 3) {
+            return new Promise((resolve) => {
+              const onReady = () => {
+                videoEl.removeEventListener('canplaythrough', onReady);
+                videoEl.play().then(resolve).catch(() => {
+                  videoEl.muted = true;
+                  toggleAudio(false);
+                  videoEl.play().then(resolve).catch(resolve);
+                });
+              };
+              videoEl.addEventListener('canplaythrough', onReady, { once: true });
+            });
           }
           
           return videoEl.play().catch(() => {
