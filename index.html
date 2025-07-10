@@ -164,6 +164,43 @@
         50% { transform: translateY(197px); }
         100% { transform: translateY(0); }
       }
+
+      /* 高性能模拟全屏播放容器 */
+      #continue-play-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 500;
+        background-color: rgba(0, 0, 0, 0.95);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      #continue-play-container.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      #continue-play-video {
+        max-width: 95vw;
+        max-height: 95vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        transform: scale(0.98);
+        transition: transform 0.15s ease-out;
+      }
+
+      #continue-play-container.visible #continue-play-video {
+        transform: scale(1);
+      }
     </style>
   </head>
   <body>
@@ -186,6 +223,10 @@
         <div class="corner corner-bottom-right"></div>
         <div class="scanning-text">目標掃描中</div>
       </div>
+    </div>
+    
+    <div id="continue-play-container">
+      <video id="continue-play-video" preload="none" playsinline webkit-playsinline></video>
     </div>
 
     <a-scene
@@ -263,30 +304,6 @@
     </a-scene>
 
     <script>
-      // 优化的元素缓存
-      const elements = {
-        video0: null,
-        video1: null,
-        target0: null,
-        target1: null,
-        scanningOverlay: null,
-        continuePlayButton: null,
-        audioButton: null,
-        soundOnIcon: null,
-        soundOffIcon: null
-      };
-
-      // 应用状态
-      const state = {
-        targetCount: 0,
-        overlayTimer: null,
-        audioEnabled: false,
-        continuePlayEnabled: false,
-        lastActiveVideo: null,
-        hasPlayedOnce: false,
-        validVideos: []
-      };
-
       // 等待 A-Frame 载入完成
       if (window.AFRAME) {
         initializeApp();
@@ -313,27 +330,40 @@
           },
         });
 
-        // 一次性获取所有元素
-        elements.video0 = document.querySelector("#video");
-        elements.video1 = document.querySelector("#video1");
-        elements.target0 = document.querySelector("#target0");
-        elements.target1 = document.querySelector("#target1");
-        elements.scanningOverlay = document.getElementById("scanning-overlay");
-        elements.continuePlayButton = document.getElementById("continue-play-button");
-        elements.audioButton = document.getElementById("audio-button");
-        elements.soundOnIcon = document.getElementById("sound-on-icon");
-        elements.soundOffIcon = document.getElementById("sound-off-icon");
+        // 元素缓存
+        const elements = {
+          video0: document.querySelector("#video"),
+          video1: document.querySelector("#video1"),
+          target0: document.querySelector("#target0"),
+          target1: document.querySelector("#target1"),
+          scanningOverlay: document.getElementById("scanning-overlay"),
+          continuePlayButton: document.getElementById("continue-play-button"),
+          audioButton: document.getElementById("audio-button"),
+          soundOnIcon: document.getElementById("sound-on-icon"),
+          soundOffIcon: document.getElementById("sound-off-icon"),
+          continuePlayContainer: document.getElementById("continue-play-container"),
+          continuePlayVideo: document.getElementById("continue-play-video")
+        };
+
+        // 应用状态
+        const state = {
+          targetCount: 0,
+          overlayTimer: null,
+          audioEnabled: false,
+          continuePlayEnabled: false,
+          lastActiveVideo: null,
+          hasPlayedOnce: false,
+          isContinuePlayMode: false
+        };
 
         // 筛选有效视频
-        state.validVideos = [elements.video0, elements.video1].filter(v => 
+        const validVideos = [elements.video0, elements.video1].filter(v => 
           v?.src && !v.src.includes("YOUR_VIDEO1_URL.mp4")
         );
 
         // 预加载视频
-        state.validVideos.forEach(video => {
-          if (video) {
-            video.load();
-          }
+        validVideos.forEach(video => {
+          if (video) video.load();
         });
 
         const SCAN_OVERLAY_DELAY = 200;
@@ -341,7 +371,12 @@
         // 音频控制
         function toggleAudio(enable) {
           state.audioEnabled = enable;
-          state.validVideos.forEach(v => v.muted = !enable);
+          validVideos.forEach(v => v.muted = !enable);
+          
+          // 同时控制继续播放视频的音频
+          if (elements.continuePlayVideo.src) {
+            elements.continuePlayVideo.muted = !enable;
+          }
           
           elements.soundOnIcon.style.display = enable ? 'block' : 'none';
           elements.soundOffIcon.style.display = enable ? 'none' : 'block';
@@ -368,44 +403,41 @@
           }
         }
 
-        // 强制显示视频实体
-        function forceShowVideo(videoEl) {
-          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+        // 高性能继续播放模式
+        function enterContinuePlayMode(sourceVideo) {
+          if (!sourceVideo?.src || sourceVideo.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          // 找到对应的目标实体
-          let targetEntity = null;
-          if (videoEl === elements.video0) {
-            targetEntity = elements.target0;
-          } else if (videoEl === elements.video1) {
-            targetEntity = elements.target1;
-          }
+          state.isContinuePlayMode = true;
           
-          if (targetEntity) {
-            // 强制显示目标实体
-            targetEntity.setAttribute('visible', true);
-            // 设置到相机前方位置
-            targetEntity.setAttribute('position', '0 0 -2');
-            targetEntity.setAttribute('scale', '2 2 2');
-          }
+          // 直接复制源视频属性，无需重新加载
+          const continueVideo = elements.continuePlayVideo;
+          continueVideo.src = sourceVideo.src;
+          continueVideo.currentTime = sourceVideo.currentTime;
+          continueVideo.muted = !state.audioEnabled;
+          continueVideo.loop = true;
+          
+          // 立即显示容器
+          elements.continuePlayContainer.classList.add("visible");
+          
+          // 开始播放
+          continueVideo.play().catch(() => {
+            continueVideo.muted = true;
+            toggleAudio(false);
+            continueVideo.play().catch(() => {});
+          });
         }
 
-        // 隐藏视频实体
-        function hideVideo(videoEl) {
-          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+        function exitContinuePlayMode() {
+          state.isContinuePlayMode = false;
           
-          let targetEntity = null;
-          if (videoEl === elements.video0) {
-            targetEntity = elements.target0;
-          } else if (videoEl === elements.video1) {
-            targetEntity = elements.target1;
-          }
+          // 立即隐藏
+          elements.continuePlayContainer.classList.remove("visible");
           
-          if (targetEntity) {
-            // 重置实体属性，让AR追踪接管
-            targetEntity.removeAttribute('position');
-            targetEntity.removeAttribute('scale');
-            targetEntity.setAttribute('visible', false);
-          }
+          // 快速清理
+          setTimeout(() => {
+            elements.continuePlayVideo.pause();
+            elements.continuePlayVideo.src = "";
+          }, 150);
         }
 
         // 事件监听器
@@ -420,21 +452,37 @@
           elements.continuePlayButton.classList.toggle("active", state.continuePlayEnabled);
           
           if (state.continuePlayEnabled) {
-            // 启用连续播放
             if (state.lastActiveVideo) {
               if (state.targetCount === 0) {
-                // 如果没有检测到目标，强制显示视频
-                forceShowVideo(state.lastActiveVideo);
+                // 没有检测到目标时，使用高性能继续播放模式
+                enterContinuePlayMode(state.lastActiveVideo);
+              } else {
+                // 有目标时，正常播放
+                playVideo(state.lastActiveVideo);
               }
-              playVideo(state.lastActiveVideo);
             }
-            // 隐藏扫描覆盖层
             elements.scanningOverlay.classList.add("hidden");
           } else {
             // 禁用连续播放
+            if (state.isContinuePlayMode) {
+              exitContinuePlayMode();
+            }
+            
             if (state.targetCount === 0 && state.lastActiveVideo) {
               pauseVideo(state.lastActiveVideo);
-              hideVideo(state.lastActiveVideo);
+              elements.scanningOverlay.classList.remove("hidden");
+            }
+          }
+        });
+
+        // 点击继续播放容器退出
+        elements.continuePlayContainer.addEventListener("click", () => {
+          if (state.isContinuePlayMode) {
+            state.continuePlayEnabled = false;
+            elements.continuePlayButton.classList.remove("active");
+            exitContinuePlayMode();
+            
+            if (state.targetCount === 0) {
               elements.scanningOverlay.classList.remove("hidden");
             }
           }
@@ -448,10 +496,14 @@
           state.lastActiveVideo = videoEl;
           state.hasPlayedOnce = true;
           
+          // 如果在继续播放模式，退出该模式
+          if (state.isContinuePlayMode) {
+            exitContinuePlayMode();
+          }
+          
           // 暂停其他视频
           if (otherVideoEl) {
             pauseVideo(otherVideoEl);
-            hideVideo(otherVideoEl);
           }
 
           // 播放当前视频
@@ -475,9 +527,8 @@
 
           if (state.targetCount === 0) {
             if (!state.continuePlayEnabled) {
-              // 如果未启用连续播放，暂停视频并隐藏
+              // 如果未启用连续播放，暂停视频
               pauseVideo(videoEl);
-              hideVideo(videoEl);
               
               // 延迟显示扫描覆盖层
               if (state.overlayTimer) clearTimeout(state.overlayTimer);
@@ -487,8 +538,8 @@
                 }
               }, SCAN_OVERLAY_DELAY);
             } else {
-              // 如果启用连续播放，强制显示视频继续播放
-              forceShowVideo(videoEl);
+              // 如果启用连续播放，切换到继续播放模式
+              enterContinuePlayMode(videoEl);
             }
           }
         }
@@ -516,10 +567,15 @@
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
             // 页面隐藏时暂停所有视频
-            state.validVideos.forEach(pauseVideo);
+            validVideos.forEach(pauseVideo);
+            if (state.isContinuePlayMode) {
+              elements.continuePlayVideo.pause();
+            }
           } else {
             // 页面显示时恢复播放
-            if (state.targetCount > 0 && state.lastActiveVideo) {
+            if (state.isContinuePlayMode) {
+              elements.continuePlayVideo.play().catch(() => {});
+            } else if (state.targetCount > 0 && state.lastActiveVideo) {
               playVideo(state.lastActiveVideo);
             } else if (state.continuePlayEnabled && state.lastActiveVideo) {
               playVideo(state.lastActiveVideo);
