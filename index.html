@@ -26,6 +26,14 @@
         z-index: 1000;
         display: flex;
         gap: 15px;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+      }
+
+      #controls-container.auto-hidden {
+        opacity: 0;
+        visibility: hidden;
       }
 
       /* 圖示按鈕樣式 */
@@ -201,9 +209,27 @@
       #continue-play-container.visible #continue-play-video {
         transform: scale(1);
       }
+
+      /* 全屏点击区域 */
+      #screen-tap-area {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1;
+        pointer-events: none;
+        cursor: pointer;
+      }
+
+      #screen-tap-area.active {
+        pointer-events: auto;
+      }
     </style>
   </head>
   <body>
+    <div id="screen-tap-area"></div>
+    
     <div id="controls-container">
       <button class="icon-button" id="audio-button">
         <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><path d="M0 0h24v24H0z" fill="none"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
@@ -342,7 +368,9 @@
           soundOnIcon: document.getElementById("sound-on-icon"),
           soundOffIcon: document.getElementById("sound-off-icon"),
           continuePlayContainer: document.getElementById("continue-play-container"),
-          continuePlayVideo: document.getElementById("continue-play-video")
+          continuePlayVideo: document.getElementById("continue-play-video"),
+          controlsContainer: document.getElementById("controls-container"),
+          screenTapArea: document.getElementById("screen-tap-area")
         };
 
         // 应用状态
@@ -353,7 +381,10 @@
           continuePlayEnabled: false,
           lastActiveVideo: null,
           hasPlayedOnce: false,
-          isContinuePlayMode: false
+          isContinuePlayMode: false,
+          controlsVisible: true,
+          hideControlsTimer: null,
+          userInteracting: false
         };
 
         // 筛选有效视频
@@ -367,6 +398,45 @@
         });
 
         const SCAN_OVERLAY_DELAY = 200;
+        const CONTROLS_AUTO_HIDE_DELAY = 4000; // 4秒后自动隐藏按钮
+
+        // 控制按钮显示/隐藏
+        function showControls() {
+          if (!state.controlsVisible) {
+            state.controlsVisible = true;
+            elements.controlsContainer.classList.remove("auto-hidden");
+            elements.screenTapArea.classList.remove("active");
+          }
+          
+          // 清除之前的定时器
+          if (state.hideControlsTimer) {
+            clearTimeout(state.hideControlsTimer);
+          }
+          
+          // 设置新的自动隐藏定时器
+          state.hideControlsTimer = setTimeout(() => {
+            hideControls();
+          }, CONTROLS_AUTO_HIDE_DELAY);
+        }
+
+        function hideControls() {
+          if (state.controlsVisible && !state.userInteracting) {
+            state.controlsVisible = false;
+            elements.controlsContainer.classList.add("auto-hidden");
+            elements.screenTapArea.classList.add("active");
+          }
+          
+          if (state.hideControlsTimer) {
+            clearTimeout(state.hideControlsTimer);
+            state.hideControlsTimer = null;
+          }
+        }
+
+        function resetControlsTimer() {
+          if (state.controlsVisible) {
+            showControls(); // 重新启动定时器
+          }
+        }
 
         // 音频控制
         function toggleAudio(enable) {
@@ -443,6 +513,7 @@
         // 事件监听器
         elements.audioButton.addEventListener('click', () => {
           toggleAudio(!state.audioEnabled);
+          resetControlsTimer();
         });
 
         elements.continuePlayButton.addEventListener("click", () => {
@@ -473,6 +544,31 @@
               elements.scanningOverlay.classList.remove("hidden");
             }
           }
+          
+          resetControlsTimer();
+        });
+
+        // 点击屏幕显示控制按钮
+        elements.screenTapArea.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showControls();
+        });
+
+        // 鼠标移动时重置定时器
+        document.addEventListener("mousemove", resetControlsTimer);
+        document.addEventListener("touchstart", resetControlsTimer);
+
+        // 按钮区域鼠标事件
+        elements.controlsContainer.addEventListener("mouseenter", () => {
+          state.userInteracting = true;
+          if (state.hideControlsTimer) {
+            clearTimeout(state.hideControlsTimer);
+          }
+        });
+
+        elements.controlsContainer.addEventListener("mouseleave", () => {
+          state.userInteracting = false;
+          resetControlsTimer();
         });
 
         // 点击继续播放容器退出
@@ -485,6 +581,9 @@
             if (state.targetCount === 0) {
               elements.scanningOverlay.classList.remove("hidden");
             }
+            
+            // 点击退出时显示控制按钮
+            showControls();
           }
         });
 
@@ -511,6 +610,9 @@
           
           // 隐藏扫描覆盖层
           elements.scanningOverlay.classList.add("hidden");
+          
+          // 开始自动隐藏控制按钮
+          showControls();
           
           // 清除定时器
           if (state.overlayTimer) {
@@ -566,10 +668,13 @@
         // 页面可见性处理
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
-            // 页面隐藏时暂停所有视频
+            // 页面隐藏时暂停所有视频和定时器
             validVideos.forEach(pauseVideo);
             if (state.isContinuePlayMode) {
               elements.continuePlayVideo.pause();
+            }
+            if (state.hideControlsTimer) {
+              clearTimeout(state.hideControlsTimer);
             }
           } else {
             // 页面显示时恢复播放
@@ -580,8 +685,13 @@
             } else if (state.continuePlayEnabled && state.lastActiveVideo) {
               playVideo(state.lastActiveVideo);
             }
+            // 重新启动控制按钮定时器
+            showControls();
           }
         });
+
+        // 初始化控制按钮定时器
+        showControls();
       }
     </script>
   </body>
