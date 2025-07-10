@@ -17,7 +17,7 @@
         height: 100vh;
       }
 
-      /* 控制按鈕容器 */
+      /* 智能隱藏的控制按鈕 */
       #controls-container {
         position: fixed;
         bottom: 20px;
@@ -26,42 +26,53 @@
         z-index: 1000;
         display: flex;
         gap: 15px;
-        opacity: 1;
-        visibility: visible;
-        transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
-      }
-
-      #controls-container.auto-hidden {
         opacity: 0;
         visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+        pointer-events: none;
       }
 
-      /* 圖示按鈕樣式 */
+      #controls-container.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      /* 懸浮顯示觸發區域 */
+      #hover-trigger {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        height: 100px;
+        z-index: 999;
+        pointer-events: auto;
+      }
+
       .icon-button {
         width: 50px;
         height: 50px;
-        background-color: rgba(0, 0, 0, 0.6);
-        border: 2px solid rgba(255, 255, 255, 0.5);
+        background-color: rgba(0, 0, 0, 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.3);
         border-radius: 50%;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
+        backdrop-filter: blur(5px);
       }
 
       .icon-button:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-        border-color: rgba(0, 255, 255, 0.7);
-      }
-      
-      .icon-button:active {
-        transform: scale(0.9);
+        background-color: rgba(0, 0, 0, 0.9);
+        border-color: rgba(0, 255, 255, 0.8);
+        transform: scale(1.1);
       }
 
       .icon-button.active {
-        background-color: rgba(0, 195, 255, 0.4);
-        border-color: rgba(0, 255, 255, 0.9);
+        background-color: rgba(0, 195, 255, 0.5);
+        border-color: rgba(0, 255, 255, 1);
       }
 
       .icon-button svg {
@@ -70,7 +81,7 @@
         fill: white;
       }
 
-      /* 掃描UI樣式 */
+      /* 精簡的掃描UI */
       #scanning-overlay {
         position: fixed;
         top: 0;
@@ -82,99 +93,53 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        background-color: rgba(0, 0, 0, 0.2);
+        background-color: rgba(0, 0, 0, 0.1);
         opacity: 1;
-        transition: opacity 0.3s;
+        transition: opacity 0.3s ease;
       }
 
       #scanning-overlay.hidden {
         opacity: 0;
       }
 
-      /* 掃描框 */
-      .scanner-inner {
+      .scanner-frame {
         width: 200px;
         height: 200px;
-        border: 2px solid rgba(0, 255, 255, 0.7);
+        border: 2px solid rgba(0, 255, 255, 0.6);
         border-radius: 10px;
         position: relative;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
       }
 
-      /* 掃描線 */
       .scanner-line {
         position: absolute;
-        height: 3px;
+        height: 2px;
         width: 100%;
-        background: linear-gradient(90deg, transparent, #00ffff, #00ffff, transparent);
+        background: linear-gradient(90deg, transparent, #00ffff, transparent);
         top: 0;
-        animation: scan 2.5s linear infinite;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-      }
-      
-      /* 角落標記 */
-      .corner {
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border-color: rgba(0, 255, 255, 0.9);
-        border-style: solid;
-        border-width: 0;
-      }
-      .corner-top-left {
-        top: 7px; 
-        left: 7px;
-        border-top-width: 3px;
-        border-left-width: 3px;
-        border-top-left-radius: 10px;
-      }
-      .corner-top-right {
-        top: 7px;
-        right: 7px;
-        border-top-width: 3px;
-        border-right-width: 3px;
-        border-top-right-radius: 10px;
-      }
-      .corner-bottom-left {
-        bottom: 7px;
-        left: 7px;
-        border-bottom-width: 3px;
-        border-left-width: 3px;
-        border-bottom-left-radius: 10px;
-      }
-      .corner-bottom-right {
-        bottom: 7px;
-        right: 7px;
-        border-bottom-width: 3px;
-        border-right-width: 3px;
-        border-bottom-right-radius: 10px;
+        animation: scan 2s linear infinite;
       }
 
-      /* 掃描文字 */
-      .scanning-text {
+      .scanner-text {
         position: absolute;
-        bottom: -35px;
+        bottom: -30px;
         left: 50%;
         transform: translateX(-50%);
-        width: 100%;
-        text-align: center;
+        color: rgba(0, 255, 255, 0.8);
         font-family: Arial, sans-serif;
-        color: rgba(0, 255, 255, 0.9);
-        text-transform: uppercase;
-        letter-spacing: 2px;
         font-size: 14px;
-        text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
 
-      /* 掃描動畫 */
       @keyframes scan {
         0% { transform: translateY(0); }
-        50% { transform: translateY(197px); }
+        50% { transform: translateY(196px); }
         100% { transform: translateY(0); }
       }
 
-      /* 高性能模拟全屏播放容器 */
-      #continue-play-container {
+      /* 全螢幕播放容器 */
+      #fullscreen-container {
         position: fixed;
         top: 0;
         left: 0;
@@ -184,34 +149,26 @@
         background-color: rgba(0, 0, 0, 0.95);
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+        transition: opacity 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
       }
 
-      #continue-play-container.visible {
+      #fullscreen-container.visible {
         opacity: 1;
         visibility: visible;
       }
 
-      #continue-play-video {
+      #fullscreen-video {
         max-width: 95vw;
         max-height: 95vh;
-        width: auto;
-        height: auto;
         object-fit: contain;
-        transform: scale(0.98);
-        transition: transform 0.15s ease-out;
       }
 
-      #continue-play-container.visible #continue-play-video {
-        transform: scale(1);
-      }
-
-      /* 全屏点击区域 */
-      #screen-tap-area {
+      /* 點擊區域 */
+      #tap-area {
         position: fixed;
         top: 0;
         left: 0;
@@ -222,37 +179,34 @@
         cursor: pointer;
       }
 
-      #screen-tap-area.active {
+      #tap-area.active {
         pointer-events: auto;
       }
     </style>
   </head>
   <body>
-    <div id="screen-tap-area"></div>
+    <div id="tap-area"></div>
+    <div id="hover-trigger"></div>
     
     <div id="controls-container">
-      <button class="icon-button" id="audio-button">
-        <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><path d="M0 0h24v24H0z" fill="none"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-        <svg id="sound-on-icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" style="display: none;"><path d="M0 0h24v24H0z" fill="none"/><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      <button class="icon-button" id="audio-btn">
+        <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
       </button>
-      <button class="icon-button" id="continue-play-button">
-         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px"><path d="M0 0h24v24H0z" fill="none"/><path d="M8 5v14l11-7z"/></svg>
+      <button class="icon-button" id="play-btn">
+         <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M8 5v14l11-7z"/></svg>
       </button>
     </div>
 
     <div id="scanning-overlay">
-      <div class="scanner-inner">
+      <div class="scanner-frame">
         <div class="scanner-line"></div>
-        <div class="corner corner-top-left"></div>
-        <div class="corner corner-top-right"></div>
-        <div class="corner corner-bottom-left"></div>
-        <div class="corner corner-bottom-right"></div>
-        <div class="scanning-text">目標掃描中</div>
+        <div class="scanner-text">掃描中...</div>
       </div>
     </div>
     
-    <div id="continue-play-container">
-      <video id="continue-play-video" preload="none" playsinline webkit-playsinline></video>
+    <div id="fullscreen-container">
+      <video id="fullscreen-video" preload="none" playsinline webkit-playsinline></video>
     </div>
 
     <a-scene
@@ -330,15 +284,15 @@
     </a-scene>
 
     <script>
-      // 等待 A-Frame 载入完成
+      // 等待 A-Frame 載入
       if (window.AFRAME) {
-        initializeApp();
+        initApp();
       } else {
-        document.addEventListener('DOMContentLoaded', initializeApp);
+        document.addEventListener('DOMContentLoaded', initApp);
       }
 
-      function initializeApp() {
-        // 自适应影片比例组件
+      function initApp() {
+        // 自適應影片比例組件
         AFRAME.registerComponent("fit-video-to-target-ratio", {
           schema: { videoSelector: { type: "string" } },
           init: function () {
@@ -356,342 +310,206 @@
           },
         });
 
-        // 元素缓存
-        const elements = {
+        // 元素引用
+        const els = {
           video0: document.querySelector("#video"),
           video1: document.querySelector("#video1"),
           target0: document.querySelector("#target0"),
           target1: document.querySelector("#target1"),
           scanningOverlay: document.getElementById("scanning-overlay"),
-          continuePlayButton: document.getElementById("continue-play-button"),
-          audioButton: document.getElementById("audio-button"),
-          soundOnIcon: document.getElementById("sound-on-icon"),
-          soundOffIcon: document.getElementById("sound-off-icon"),
-          continuePlayContainer: document.getElementById("continue-play-container"),
-          continuePlayVideo: document.getElementById("continue-play-video"),
+          playBtn: document.getElementById("play-btn"),
+          audioBtn: document.getElementById("audio-btn"),
+          soundIcon: document.getElementById("sound-icon"),
+          muteIcon: document.getElementById("mute-icon"),
+          fullscreenContainer: document.getElementById("fullscreen-container"),
+          fullscreenVideo: document.getElementById("fullscreen-video"),
           controlsContainer: document.getElementById("controls-container"),
-          screenTapArea: document.getElementById("screen-tap-area")
+          hoverTrigger: document.getElementById("hover-trigger"),
+          tapArea: document.getElementById("tap-area")
         };
 
-        // 应用状态
+        // 應用狀態
         const state = {
           targetCount: 0,
-          overlayTimer: null,
           audioEnabled: false,
-          continuePlayEnabled: false,
-          lastActiveVideo: null,
-          hasPlayedOnce: false,
-          isContinuePlayMode: false,
-          controlsVisible: true,
-          hideControlsTimer: null,
-          userInteracting: false
+          playEnabled: false,
+          lastVideo: null,
+          isFullscreen: false,
+          controlsTimer: null
         };
 
-        // 筛选有效视频
-        const validVideos = [elements.video0, elements.video1].filter(v => 
+        // 有效視頻過濾
+        const validVideos = [els.video0, els.video1].filter(v => 
           v?.src && !v.src.includes("YOUR_VIDEO1_URL.mp4")
         );
 
-        // 预加载视频
-        validVideos.forEach(video => {
-          if (video) video.load();
-        });
+        // 預載視頻
+        validVideos.forEach(v => v?.load());
 
-        const SCAN_OVERLAY_DELAY = 200;
-        const CONTROLS_AUTO_HIDE_DELAY = 4000; // 4秒后自动隐藏按钮
-
-        // 控制按钮显示/隐藏
+        // 控制按鈕顯示邏輯
         function showControls() {
-          if (!state.controlsVisible) {
-            state.controlsVisible = true;
-            elements.controlsContainer.classList.remove("auto-hidden");
-            elements.screenTapArea.classList.remove("active");
-          }
+          els.controlsContainer.classList.add("show");
+          els.tapArea.classList.remove("active");
           
-          // 清除之前的定时器
-          if (state.hideControlsTimer) {
-            clearTimeout(state.hideControlsTimer);
-          }
-          
-          // 设置新的自动隐藏定时器
-          state.hideControlsTimer = setTimeout(() => {
-            hideControls();
-          }, CONTROLS_AUTO_HIDE_DELAY);
+          if (state.controlsTimer) clearTimeout(state.controlsTimer);
+          state.controlsTimer = setTimeout(hideControls, 3000);
         }
 
         function hideControls() {
-          if (state.controlsVisible && !state.userInteracting) {
-            state.controlsVisible = false;
-            elements.controlsContainer.classList.add("auto-hidden");
-            elements.screenTapArea.classList.add("active");
-          }
-          
-          if (state.hideControlsTimer) {
-            clearTimeout(state.hideControlsTimer);
-            state.hideControlsTimer = null;
-          }
+          els.controlsContainer.classList.remove("show");
+          els.tapArea.classList.add("active");
         }
 
-        function resetControlsTimer() {
-          if (state.controlsVisible) {
-            showControls(); // 重新启动定时器
+        // 音頻控制
+        function toggleAudio() {
+          state.audioEnabled = !state.audioEnabled;
+          validVideos.forEach(v => v.muted = !state.audioEnabled);
+          
+          if (els.fullscreenVideo.src) {
+            els.fullscreenVideo.muted = !state.audioEnabled;
           }
+          
+          els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
+          els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
+          els.audioBtn.classList.toggle('active', state.audioEnabled);
         }
 
-        // 音频控制
-        function toggleAudio(enable) {
-          state.audioEnabled = enable;
-          validVideos.forEach(v => v.muted = !enable);
+        // 視頻播放控制
+        function playVideo(video) {
+          if (!video?.src || video.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          // 同时控制继续播放视频的音频
-          if (elements.continuePlayVideo.src) {
-            elements.continuePlayVideo.muted = !enable;
-          }
-          
-          elements.soundOnIcon.style.display = enable ? 'block' : 'none';
-          elements.soundOffIcon.style.display = enable ? 'none' : 'block';
-          elements.audioButton.classList.toggle('active', enable);
-        }
-
-        // 快速播放视频
-        function playVideo(videoEl) {
-          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) {
-            return Promise.resolve();
-          }
-          
-          return videoEl.play().catch(() => {
-            videoEl.muted = true;
-            toggleAudio(false);
-            return videoEl.play().catch(() => {});
+          video.play().catch(() => {
+            video.muted = true;
+            state.audioEnabled = false;
+            toggleAudio();
+            video.play().catch(() => {});
           });
         }
 
-        // 暂停视频
-        function pauseVideo(videoEl) {
-          if (videoEl?.src && !videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) {
-            videoEl.pause();
+        function pauseVideo(video) {
+          if (video?.src && !video.src.includes("YOUR_VIDEO1_URL.mp4")) {
+            video.pause();
           }
         }
 
-        // 高性能继续播放模式
-        function enterContinuePlayMode(sourceVideo) {
+        // 全螢幕播放
+        function enterFullscreen(sourceVideo) {
           if (!sourceVideo?.src || sourceVideo.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          state.isContinuePlayMode = true;
+          state.isFullscreen = true;
+          const fsVideo = els.fullscreenVideo;
           
-          // 直接复制源视频属性，无需重新加载
-          const continueVideo = elements.continuePlayVideo;
-          continueVideo.src = sourceVideo.src;
-          continueVideo.currentTime = sourceVideo.currentTime;
-          continueVideo.muted = !state.audioEnabled;
-          continueVideo.loop = true;
+          fsVideo.src = sourceVideo.src;
+          fsVideo.currentTime = sourceVideo.currentTime;
+          fsVideo.muted = !state.audioEnabled;
+          fsVideo.loop = true;
           
-          // 立即显示容器
-          elements.continuePlayContainer.classList.add("visible");
-          
-          // 开始播放
-          continueVideo.play().catch(() => {
-            continueVideo.muted = true;
-            toggleAudio(false);
-            continueVideo.play().catch(() => {});
+          els.fullscreenContainer.classList.add("visible");
+          fsVideo.play().catch(() => {
+            fsVideo.muted = true;
+            state.audioEnabled = false;
+            toggleAudio();
+            fsVideo.play().catch(() => {});
           });
         }
 
-        function exitContinuePlayMode() {
-          state.isContinuePlayMode = false;
+        function exitFullscreen() {
+          state.isFullscreen = false;
+          els.fullscreenContainer.classList.remove("visible");
           
-          // 立即隐藏
-          elements.continuePlayContainer.classList.remove("visible");
-          
-          // 快速清理
           setTimeout(() => {
-            elements.continuePlayVideo.pause();
-            elements.continuePlayVideo.src = "";
-          }, 150);
+            els.fullscreenVideo.pause();
+            els.fullscreenVideo.src = "";
+          }, 200);
         }
 
-        // 事件监听器
-        elements.audioButton.addEventListener('click', () => {
-          toggleAudio(!state.audioEnabled);
-          resetControlsTimer();
-        });
+        // 事件監聽
+        els.audioBtn.addEventListener('click', toggleAudio);
 
-        elements.continuePlayButton.addEventListener("click", () => {
-          if (!state.hasPlayedOnce) return;
+        els.playBtn.addEventListener("click", () => {
+          state.playEnabled = !state.playEnabled;
+          els.playBtn.classList.toggle("active", state.playEnabled);
           
-          state.continuePlayEnabled = !state.continuePlayEnabled;
-          elements.continuePlayButton.classList.toggle("active", state.continuePlayEnabled);
-          
-          if (state.continuePlayEnabled) {
-            if (state.lastActiveVideo) {
-              if (state.targetCount === 0) {
-                // 没有检测到目标时，使用高性能继续播放模式
-                enterContinuePlayMode(state.lastActiveVideo);
-              } else {
-                // 有目标时，正常播放
-                playVideo(state.lastActiveVideo);
-              }
+          if (state.playEnabled && state.lastVideo) {
+            if (state.targetCount === 0) {
+              enterFullscreen(state.lastVideo);
+            } else {
+              playVideo(state.lastVideo);
             }
-            elements.scanningOverlay.classList.add("hidden");
+            els.scanningOverlay.classList.add("hidden");
           } else {
-            // 禁用连续播放
-            if (state.isContinuePlayMode) {
-              exitContinuePlayMode();
+            if (state.isFullscreen) {
+              exitFullscreen();
             }
-            
-            if (state.targetCount === 0 && state.lastActiveVideo) {
-              pauseVideo(state.lastActiveVideo);
-              elements.scanningOverlay.classList.remove("hidden");
+            if (state.targetCount === 0 && state.lastVideo) {
+              pauseVideo(state.lastVideo);
+              els.scanningOverlay.classList.remove("hidden");
             }
           }
-          
-          resetControlsTimer();
         });
 
-        // 点击屏幕显示控制按钮
-        elements.screenTapArea.addEventListener("click", (e) => {
-          e.stopPropagation();
-          showControls();
-        });
+        // 智能按鈕顯示
+        els.hoverTrigger.addEventListener("mouseenter", showControls);
+        els.hoverTrigger.addEventListener("touchstart", showControls);
+        els.tapArea.addEventListener("click", showControls);
 
-        // 鼠标移动时重置定时器
-        document.addEventListener("mousemove", resetControlsTimer);
-        document.addEventListener("touchstart", resetControlsTimer);
-
-        // 按钮区域鼠标事件
-        elements.controlsContainer.addEventListener("mouseenter", () => {
-          state.userInteracting = true;
-          if (state.hideControlsTimer) {
-            clearTimeout(state.hideControlsTimer);
-          }
-        });
-
-        elements.controlsContainer.addEventListener("mouseleave", () => {
-          state.userInteracting = false;
-          resetControlsTimer();
-        });
-
-        // 点击继续播放容器退出
-        elements.continuePlayContainer.addEventListener("click", () => {
-          if (state.isContinuePlayMode) {
-            state.continuePlayEnabled = false;
-            elements.continuePlayButton.classList.remove("active");
-            exitContinuePlayMode();
+        // 全螢幕點擊退出
+        els.fullscreenContainer.addEventListener("click", () => {
+          if (state.isFullscreen) {
+            state.playEnabled = false;
+            els.playBtn.classList.remove("active");
+            exitFullscreen();
             
             if (state.targetCount === 0) {
-              elements.scanningOverlay.classList.remove("hidden");
+              els.scanningOverlay.classList.remove("hidden");
             }
-            
-            // 点击退出时显示控制按钮
             showControls();
           }
         });
 
-        // 目标找到事件处理
-        function onTargetFound(videoEl, otherVideoEl) {
-          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+        // 目標偵測事件
+        function onTargetFound(video, otherVideo) {
+          if (!video?.src || video.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
           state.targetCount++;
-          state.lastActiveVideo = videoEl;
-          state.hasPlayedOnce = true;
+          state.lastVideo = video;
           
-          // 如果在继续播放模式，退出该模式
-          if (state.isContinuePlayMode) {
-            exitContinuePlayMode();
-          }
-          
-          // 暂停其他视频
-          if (otherVideoEl) {
-            pauseVideo(otherVideoEl);
-          }
+          if (state.isFullscreen) exitFullscreen();
+          if (otherVideo) pauseVideo(otherVideo);
 
-          // 播放当前视频
-          playVideo(videoEl);
-          
-          // 隐藏扫描覆盖层
-          elements.scanningOverlay.classList.add("hidden");
-          
-          // 开始自动隐藏控制按钮
-          showControls();
-          
-          // 清除定时器
-          if (state.overlayTimer) {
-            clearTimeout(state.overlayTimer);
-            state.overlayTimer = null;
-          }
+          playVideo(video);
+          els.scanningOverlay.classList.add("hidden");
         }
 
-        // 目标丢失事件处理
-        function onTargetLost(videoEl) {
-          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+        function onTargetLost(video) {
+          if (!video?.src || video.src.includes("YOUR_VIDEO1_URL.mp4")) return;
 
           if (state.targetCount > 0) state.targetCount--;
 
           if (state.targetCount === 0) {
-            if (!state.continuePlayEnabled) {
-              // 如果未启用连续播放，暂停视频
-              pauseVideo(videoEl);
-              
-              // 延迟显示扫描覆盖层
-              if (state.overlayTimer) clearTimeout(state.overlayTimer);
-              state.overlayTimer = setTimeout(() => {
-                if (state.targetCount === 0 && !state.continuePlayEnabled) {
-                  elements.scanningOverlay.classList.remove("hidden");
-                }
-              }, SCAN_OVERLAY_DELAY);
+            if (state.playEnabled) {
+              enterFullscreen(video);
             } else {
-              // 如果启用连续播放，切换到继续播放模式
-              enterContinuePlayMode(videoEl);
+              pauseVideo(video);
+              setTimeout(() => {
+                if (state.targetCount === 0 && !state.playEnabled) {
+                  els.scanningOverlay.classList.remove("hidden");
+                }
+              }, 200);
             }
           }
         }
 
-        // 设置目标事件监听器
-        if (elements.target0 && elements.video0) {
-          elements.target0.addEventListener("targetFound", () => {
-            onTargetFound(elements.video0, elements.video1);
-          });
-          elements.target0.addEventListener("targetLost", () => {
-            onTargetLost(elements.video0);
-          });
+        // 設置目標事件
+        if (els.target0 && els.video0) {
+          els.target0.addEventListener("targetFound", () => onTargetFound(els.video0, els.video1));
+          els.target0.addEventListener("targetLost", () => onTargetLost(els.video0));
         }
 
-        if (elements.target1 && elements.video1 && !elements.video1.src.includes("YOUR_VIDEO1_URL.mp4")) {
-          elements.target1.addEventListener("targetFound", () => {
-            onTargetFound(elements.video1, elements.video0);
-          });
-          elements.target1.addEventListener("targetLost", () => {
-            onTargetLost(elements.video1);
-          });
+        if (els.target1 && els.video1 && !els.video1.src.includes("YOUR_VIDEO1_URL.mp4")) {
+          els.target1.addEventListener("targetFound", () => onTargetFound(els.video1, els.video0));
+          els.target1.addEventListener("targetLost", () => onTargetLost(els.video1));
         }
-
-        // 页面可见性处理
-        document.addEventListener("visibilitychange", () => {
-          if (document.hidden) {
-            // 页面隐藏时暂停所有视频和定时器
-            validVideos.forEach(pauseVideo);
-            if (state.isContinuePlayMode) {
-              elements.continuePlayVideo.pause();
-            }
-            if (state.hideControlsTimer) {
-              clearTimeout(state.hideControlsTimer);
-            }
-          } else {
-            // 页面显示时恢复播放
-            if (state.isContinuePlayMode) {
-              elements.continuePlayVideo.play().catch(() => {});
-            } else if (state.targetCount > 0 && state.lastActiveVideo) {
-              playVideo(state.lastActiveVideo);
-            } else if (state.continuePlayEnabled && state.lastActiveVideo) {
-              playVideo(state.lastActiveVideo);
-            }
-            // 重新启动控制按钮定时器
-            showControls();
-          }
-        });
-
-        // 初始化控制按钮定时器
-        showControls();
       }
     </script>
   </body>
