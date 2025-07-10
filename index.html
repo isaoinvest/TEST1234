@@ -325,12 +325,6 @@
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
           </svg>
         </button>
-        
-        <button class="icon-button" id="continue-play-btn" title="繼續播放模式">
-          <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
-            <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
-          </svg>
-        </button>
       </div>
     </div>
 
@@ -456,7 +450,6 @@
           pausePlayBtn: document.getElementById("pause-play-btn"),
           playIcon: document.getElementById("play-icon"),
           pauseIcon: document.getElementById("pause-icon"),
-          continuePlayBtn: document.getElementById("continue-play-btn"),
           audioBtn: document.getElementById("audio-btn"),
           soundIcon: document.getElementById("sound-icon"),
           muteIcon: document.getElementById("mute-icon"),
@@ -475,7 +468,6 @@
           targetCount: 0,
           audioEnabled: false,
           isPlaying: false,
-          continuePlayEnabled: false,
           lastVideo: null,
           isFullscreen: false,
           controlsTimer: null,
@@ -644,13 +636,33 @@
 
         // 播放/暫停切換
         function togglePlayPause() {
-          const video = getCurrentActiveVideo();
-          if (!video) return;
-          
-          if (state.isPlaying) {
-            pauseVideo(video);
+          // 如果沒有檢測到目標且有lastVideo，進入全螢幕播放
+          if (state.targetCount === 0 && state.lastVideo) {
+            if (state.isFullscreen) {
+              // 已經在全螢幕，切換播放/暫停
+              const video = getCurrentActiveVideo();
+              if (video) {
+                if (state.isPlaying) {
+                  pauseVideo(video);
+                } else {
+                  playVideo(video);
+                }
+              }
+            } else {
+              // 進入全螢幕播放
+              enterFullscreen(state.lastVideo);
+              els.scanningOverlay.classList.add("hidden");
+            }
           } else {
-            playVideo(video);
+            // 有目標時，正常控制播放
+            const video = getCurrentActiveVideo();
+            if (video) {
+              if (state.isPlaying) {
+                pauseVideo(video);
+              } else {
+                playVideo(video);
+              }
+            }
           }
         }
 
@@ -707,29 +719,6 @@
           togglePlayPause();
         });
 
-        els.continuePlayBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          state.continuePlayEnabled = !state.continuePlayEnabled;
-          els.continuePlayBtn.classList.toggle("active", state.continuePlayEnabled);
-          
-          if (state.continuePlayEnabled && state.lastVideo) {
-            if (state.targetCount === 0) {
-              enterFullscreen(state.lastVideo);
-            } else {
-              playVideo(state.lastVideo);
-            }
-            els.scanningOverlay.classList.add("hidden");
-          } else {
-            if (state.isFullscreen) {
-              exitFullscreen();
-            }
-            if (state.targetCount === 0 && state.lastVideo) {
-              pauseVideo(state.lastVideo);
-              els.scanningOverlay.classList.remove("hidden");
-            }
-          }
-        });
-
         // 進度條事件
         els.progressSlider.addEventListener('input', (e) => {
           const video = getCurrentActiveVideo();
@@ -763,8 +752,6 @@
         // 全螢幕點擊退出
         els.fullscreenContainer.addEventListener("click", (e) => {
           if (state.isFullscreen) {
-            state.continuePlayEnabled = false;
-            els.continuePlayBtn.classList.remove("active");
             exitFullscreen();
             
             if (state.targetCount === 0) {
@@ -793,16 +780,13 @@
           if (state.targetCount > 0) state.targetCount--;
 
           if (state.targetCount === 0) {
-            if (state.continuePlayEnabled) {
-              enterFullscreen(video);
-            } else {
-              pauseVideo(video);
-              setTimeout(() => {
-                if (state.targetCount === 0 && !state.continuePlayEnabled) {
-                  els.scanningOverlay.classList.remove("hidden");
-                }
-              }, 200);
-            }
+            // 目標丟失時，如果正在播放，暫停視頻並顯示掃描界面
+            pauseVideo(video);
+            setTimeout(() => {
+              if (state.targetCount === 0) {
+                els.scanningOverlay.classList.remove("hidden");
+              }
+            }, 200);
           }
         }
 
