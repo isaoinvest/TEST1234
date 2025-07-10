@@ -299,7 +299,7 @@
     <div id="tap-area"></div>
     
     <div id="tap-hint">
-      雙擊螢幕顯示控制按鈕
+      按鈕請點擊2下螢幕
     </div>
     
     <div id="controls-container">
@@ -472,7 +472,6 @@
           isFullscreen: false,
           controlsTimer: null,
           lastTapTime: 0,
-          hintTimer: null,
           hasShownHint: false,
           progressUpdateTimer: null,
           isDragging: false
@@ -508,17 +507,13 @@
         function showHint() {
           if (!state.hasShownHint) {
             els.tapHint.classList.add("show");
-            state.hintTimer = setTimeout(hideHint, 4000);
+            setTimeout(hideHint, 4000);
           }
         }
 
         function hideHint() {
           els.tapHint.classList.remove("show");
           state.hasShownHint = true;
-          if (state.hintTimer) {
-            clearTimeout(state.hintTimer);
-            state.hintTimer = null;
-          }
         }
 
         // 雙擊檢測和漣漪效果
@@ -555,7 +550,7 @@
         // 進度條更新
         function updateProgress() {
           const video = getCurrentActiveVideo();
-          if (video && !els.progressSlider.matches(':hover') && !state.isDragging) {
+          if (video && !state.isDragging) {
             const progress = (video.currentTime / video.duration) * 100;
             els.progressSlider.value = progress || 0;
             els.currentTimeDisplay.textContent = formatTime(video.currentTime || 0);
@@ -594,6 +589,10 @@
             els.fullscreenVideo.muted = !state.audioEnabled;
           }
           
+          updateAudioButton();
+        }
+
+        function updateAudioButton() {
           els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
           els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
           els.audioBtn.classList.toggle('active', state.audioEnabled);
@@ -610,7 +609,7 @@
           }).catch(() => {
             video.muted = true;
             state.audioEnabled = false;
-            toggleAudio();
+            updateAudioButton();
             video.play().then(() => {
               state.isPlaying = true;
               updatePlayButton();
@@ -686,7 +685,7 @@
           }).catch(() => {
             fsVideo.muted = true;
             state.audioEnabled = false;
-            toggleAudio();
+            updateAudioButton();
             fsVideo.play().then(() => {
               state.isPlaying = true;
               updatePlayButton();
@@ -722,27 +721,17 @@
         // 進度條事件
         els.progressSlider.addEventListener('input', (e) => {
           const video = getCurrentActiveVideo();
-          if (video && video.duration) {
-            const newTime = (e.target.value / 100) * video.duration;
-            video.currentTime = newTime;
-            updateProgress();
+          if (video?.duration) {
+            video.currentTime = (e.target.value / 100) * video.duration;
           }
         });
 
-        els.progressSlider.addEventListener('mousedown', () => {
-          state.isDragging = true;
+        ['mousedown', 'touchstart'].forEach(event => {
+          els.progressSlider.addEventListener(event, () => state.isDragging = true);
         });
 
-        els.progressSlider.addEventListener('mouseup', () => {
-          state.isDragging = false;
-        });
-
-        els.progressSlider.addEventListener('touchstart', () => {
-          state.isDragging = true;
-        });
-
-        els.progressSlider.addEventListener('touchend', () => {
-          state.isDragging = false;
+        ['mouseup', 'touchend'].forEach(event => {
+          els.progressSlider.addEventListener(event, () => state.isDragging = false);
         });
 
         // 雙擊事件監聽
