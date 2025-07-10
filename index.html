@@ -368,6 +368,46 @@
           }
         }
 
+        // 强制显示视频实体
+        function forceShowVideo(videoEl) {
+          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+          
+          // 找到对应的目标实体
+          let targetEntity = null;
+          if (videoEl === elements.video0) {
+            targetEntity = elements.target0;
+          } else if (videoEl === elements.video1) {
+            targetEntity = elements.target1;
+          }
+          
+          if (targetEntity) {
+            // 强制显示目标实体
+            targetEntity.setAttribute('visible', true);
+            // 设置到相机前方位置
+            targetEntity.setAttribute('position', '0 0 -2');
+            targetEntity.setAttribute('scale', '2 2 2');
+          }
+        }
+
+        // 隐藏视频实体
+        function hideVideo(videoEl) {
+          if (!videoEl?.src || videoEl.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+          
+          let targetEntity = null;
+          if (videoEl === elements.video0) {
+            targetEntity = elements.target0;
+          } else if (videoEl === elements.video1) {
+            targetEntity = elements.target1;
+          }
+          
+          if (targetEntity) {
+            // 重置实体属性，让AR追踪接管
+            targetEntity.removeAttribute('position');
+            targetEntity.removeAttribute('scale');
+            targetEntity.setAttribute('visible', false);
+          }
+        }
+
         // 事件监听器
         elements.audioButton.addEventListener('click', () => {
           toggleAudio(!state.audioEnabled);
@@ -380,8 +420,12 @@
           elements.continuePlayButton.classList.toggle("active", state.continuePlayEnabled);
           
           if (state.continuePlayEnabled) {
-            // 启用连续播放 - 直接播放最后活跃的视频
+            // 启用连续播放
             if (state.lastActiveVideo) {
+              if (state.targetCount === 0) {
+                // 如果没有检测到目标，强制显示视频
+                forceShowVideo(state.lastActiveVideo);
+              }
               playVideo(state.lastActiveVideo);
             }
             // 隐藏扫描覆盖层
@@ -390,6 +434,7 @@
             // 禁用连续播放
             if (state.targetCount === 0 && state.lastActiveVideo) {
               pauseVideo(state.lastActiveVideo);
+              hideVideo(state.lastActiveVideo);
               elements.scanningOverlay.classList.remove("hidden");
             }
           }
@@ -404,7 +449,10 @@
           state.hasPlayedOnce = true;
           
           // 暂停其他视频
-          if (otherVideoEl) pauseVideo(otherVideoEl);
+          if (otherVideoEl) {
+            pauseVideo(otherVideoEl);
+            hideVideo(otherVideoEl);
+          }
 
           // 播放当前视频
           playVideo(videoEl);
@@ -427,8 +475,9 @@
 
           if (state.targetCount === 0) {
             if (!state.continuePlayEnabled) {
-              // 如果未启用连续播放，暂停视频
+              // 如果未启用连续播放，暂停视频并隐藏
               pauseVideo(videoEl);
+              hideVideo(videoEl);
               
               // 延迟显示扫描覆盖层
               if (state.overlayTimer) clearTimeout(state.overlayTimer);
@@ -437,8 +486,10 @@
                   elements.scanningOverlay.classList.remove("hidden");
                 }
               }, SCAN_OVERLAY_DELAY);
+            } else {
+              // 如果启用连续播放，强制显示视频继续播放
+              forceShowVideo(videoEl);
             }
-            // 如果启用连续播放，视频继续播放，不显示扫描覆盖层
           }
         }
 
