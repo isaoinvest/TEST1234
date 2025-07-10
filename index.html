@@ -25,6 +25,8 @@
         transform: translateX(-50%);
         z-index: 1000;
         display: flex;
+        flex-direction: column;
+        align-items: center;
         gap: 15px;
         opacity: 0;
         visibility: hidden;
@@ -36,6 +38,104 @@
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
+      }
+
+      /* 播放控制區域 */
+      #playback-controls {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      /* 進度條容器 */
+      #progress-container {
+        display: flex;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.7);
+        border-radius: 25px;
+        padding: 10px 20px;
+        backdrop-filter: blur(5px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        gap: 15px;
+        min-width: 300px;
+      }
+
+      /* 時間顯示 */
+      .time-display {
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        min-width: 35px;
+        text-align: center;
+      }
+
+      /* 進度條滑塊 */
+      #progress-slider {
+        flex: 1;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        position: relative;
+        margin: 0 10px;
+      }
+
+      #progress-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #00ffff;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        transition: all 0.2s ease;
+      }
+
+      #progress-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+      }
+
+      #progress-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #00ffff;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+      }
+
+      .icon-button {
+        width: 50px;
+        height: 50px;
+        background-color: rgba(0, 0, 0, 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(5px);
+      }
+
+      .icon-button:hover {
+        background-color: rgba(0, 0, 0, 0.9);
+        border-color: rgba(0, 255, 255, 0.8);
+        transform: scale(1.1);
+      }
+
+      .icon-button.active {
+        background-color: rgba(0, 195, 255, 0.5);
+        border-color: rgba(0, 255, 255, 1);
+      }
+
+      .icon-button svg {
+        width: 60%;
+        height: 60%;
+        fill: white;
       }
 
       /* 雙擊提示 */
@@ -94,37 +194,6 @@
           height: 120px;
           opacity: 0;
         }
-      }
-
-      .icon-button {
-        width: 50px;
-        height: 50px;
-        background-color: rgba(0, 0, 0, 0.7);
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-        backdrop-filter: blur(5px);
-      }
-
-      .icon-button:hover {
-        background-color: rgba(0, 0, 0, 0.9);
-        border-color: rgba(0, 255, 255, 0.8);
-        transform: scale(1.1);
-      }
-
-      .icon-button.active {
-        background-color: rgba(0, 195, 255, 0.5);
-        border-color: rgba(0, 255, 255, 1);
-      }
-
-      .icon-button svg {
-        width: 60%;
-        height: 60%;
-        fill: white;
       }
 
       /* 精簡的掃描UI */
@@ -234,13 +303,35 @@
     </div>
     
     <div id="controls-container">
-      <button class="icon-button" id="audio-btn">
-        <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-        <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-      </button>
-      <button class="icon-button" id="play-btn">
-         <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M8 5v14l11-7z"/></svg>
-      </button>
+      <!-- 進度條控制區域 -->
+      <div id="progress-container">
+        <span class="time-display" id="current-time">0:00</span>
+        <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
+        <span class="time-display" id="total-time">0:00</span>
+      </div>
+      
+      <!-- 播放控制按鈕 -->
+      <div id="playback-controls">
+        <button class="icon-button" id="audio-btn" title="音效">
+          <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+          <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+        
+        <button class="icon-button" id="pause-play-btn" title="播放/暫停">
+          <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+        </button>
+        
+        <button class="icon-button" id="continue-play-btn" title="繼續播放模式">
+          <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
+            <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div id="scanning-overlay">
@@ -362,10 +453,16 @@
           target0: document.querySelector("#target0"),
           target1: document.querySelector("#target1"),
           scanningOverlay: document.getElementById("scanning-overlay"),
-          playBtn: document.getElementById("play-btn"),
+          pausePlayBtn: document.getElementById("pause-play-btn"),
+          playIcon: document.getElementById("play-icon"),
+          pauseIcon: document.getElementById("pause-icon"),
+          continuePlayBtn: document.getElementById("continue-play-btn"),
           audioBtn: document.getElementById("audio-btn"),
           soundIcon: document.getElementById("sound-icon"),
           muteIcon: document.getElementById("mute-icon"),
+          progressSlider: document.getElementById("progress-slider"),
+          currentTimeDisplay: document.getElementById("current-time"),
+          totalTimeDisplay: document.getElementById("total-time"),
           fullscreenContainer: document.getElementById("fullscreen-container"),
           fullscreenVideo: document.getElementById("fullscreen-video"),
           controlsContainer: document.getElementById("controls-container"),
@@ -377,13 +474,16 @@
         const state = {
           targetCount: 0,
           audioEnabled: false,
-          playEnabled: false,
+          isPlaying: false,
+          continuePlayEnabled: false,
           lastVideo: null,
           isFullscreen: false,
           controlsTimer: null,
           lastTapTime: 0,
           hintTimer: null,
-          hasShownHint: false
+          hasShownHint: false,
+          progressUpdateTimer: null,
+          isDragging: false
         };
 
         // 有效視頻過濾
@@ -405,6 +505,7 @@
 
         function hideControls() {
           els.controlsContainer.classList.remove("show");
+          
           if (state.controlsTimer) {
             clearTimeout(state.controlsTimer);
             state.controlsTimer = null;
@@ -444,13 +545,52 @@
           const tapDelay = currentTime - state.lastTapTime;
           
           if (tapDelay < 500 && tapDelay > 50) {
-            // 雙擊檢測成功
             createRipple(e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
             showControls();
             e.preventDefault();
           }
           
           state.lastTapTime = currentTime;
+        }
+
+        // 時間格式化
+        function formatTime(seconds) {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 進度條更新
+        function updateProgress() {
+          const video = getCurrentActiveVideo();
+          if (video && !els.progressSlider.matches(':hover') && !state.isDragging) {
+            const progress = (video.currentTime / video.duration) * 100;
+            els.progressSlider.value = progress || 0;
+            els.currentTimeDisplay.textContent = formatTime(video.currentTime || 0);
+            els.totalTimeDisplay.textContent = formatTime(video.duration || 0);
+          }
+        }
+
+        // 獲取當前活動視頻
+        function getCurrentActiveVideo() {
+          if (state.isFullscreen && els.fullscreenVideo.src) {
+            return els.fullscreenVideo;
+          }
+          return state.lastVideo;
+        }
+
+        // 開始進度更新
+        function startProgressUpdate() {
+          if (state.progressUpdateTimer) clearInterval(state.progressUpdateTimer);
+          state.progressUpdateTimer = setInterval(updateProgress, 100);
+        }
+
+        // 停止進度更新
+        function stopProgressUpdate() {
+          if (state.progressUpdateTimer) {
+            clearInterval(state.progressUpdateTimer);
+            state.progressUpdateTimer = null;
+          }
         }
 
         // 音頻控制
@@ -471,17 +611,46 @@
         function playVideo(video) {
           if (!video?.src || video.src.includes("YOUR_VIDEO1_URL.mp4")) return;
           
-          video.play().catch(() => {
+          video.play().then(() => {
+            state.isPlaying = true;
+            updatePlayButton();
+            startProgressUpdate();
+          }).catch(() => {
             video.muted = true;
             state.audioEnabled = false;
             toggleAudio();
-            video.play().catch(() => {});
+            video.play().then(() => {
+              state.isPlaying = true;
+              updatePlayButton();
+              startProgressUpdate();
+            }).catch(() => {});
           });
         }
 
         function pauseVideo(video) {
           if (video?.src && !video.src.includes("YOUR_VIDEO1_URL.mp4")) {
             video.pause();
+            state.isPlaying = false;
+            updatePlayButton();
+            stopProgressUpdate();
+          }
+        }
+
+        // 播放按鈕更新
+        function updatePlayButton() {
+          els.playIcon.style.display = state.isPlaying ? 'none' : 'block';
+          els.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
+        }
+
+        // 播放/暫停切換
+        function togglePlayPause() {
+          const video = getCurrentActiveVideo();
+          if (!video) return;
+          
+          if (state.isPlaying) {
+            pauseVideo(video);
+          } else {
+            playVideo(video);
           }
         }
 
@@ -498,21 +667,32 @@
           fsVideo.loop = true;
           
           els.fullscreenContainer.classList.add("visible");
-          fsVideo.play().catch(() => {
+          fsVideo.play().then(() => {
+            state.isPlaying = true;
+            updatePlayButton();
+            startProgressUpdate();
+          }).catch(() => {
             fsVideo.muted = true;
             state.audioEnabled = false;
             toggleAudio();
-            fsVideo.play().catch(() => {});
+            fsVideo.play().then(() => {
+              state.isPlaying = true;
+              updatePlayButton();
+              startProgressUpdate();
+            }).catch(() => {});
           });
         }
 
         function exitFullscreen() {
           state.isFullscreen = false;
           els.fullscreenContainer.classList.remove("visible");
+          stopProgressUpdate();
           
           setTimeout(() => {
             els.fullscreenVideo.pause();
             els.fullscreenVideo.src = "";
+            state.isPlaying = false;
+            updatePlayButton();
           }, 200);
         }
 
@@ -522,12 +702,17 @@
           toggleAudio();
         });
 
-        els.playBtn.addEventListener("click", (e) => {
+        els.pausePlayBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          state.playEnabled = !state.playEnabled;
-          els.playBtn.classList.toggle("active", state.playEnabled);
+          togglePlayPause();
+        });
+
+        els.continuePlayBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          state.continuePlayEnabled = !state.continuePlayEnabled;
+          els.continuePlayBtn.classList.toggle("active", state.continuePlayEnabled);
           
-          if (state.playEnabled && state.lastVideo) {
+          if (state.continuePlayEnabled && state.lastVideo) {
             if (state.targetCount === 0) {
               enterFullscreen(state.lastVideo);
             } else {
@@ -545,18 +730,41 @@
           }
         });
 
+        // 進度條事件
+        els.progressSlider.addEventListener('input', (e) => {
+          const video = getCurrentActiveVideo();
+          if (video && video.duration) {
+            const newTime = (e.target.value / 100) * video.duration;
+            video.currentTime = newTime;
+            updateProgress();
+          }
+        });
+
+        els.progressSlider.addEventListener('mousedown', () => {
+          state.isDragging = true;
+        });
+
+        els.progressSlider.addEventListener('mouseup', () => {
+          state.isDragging = false;
+        });
+
+        els.progressSlider.addEventListener('touchstart', () => {
+          state.isDragging = true;
+        });
+
+        els.progressSlider.addEventListener('touchend', () => {
+          state.isDragging = false;
+        });
+
         // 雙擊事件監聽
         els.tapArea.addEventListener("click", handleTap);
         els.tapArea.addEventListener("touchend", handleTap);
 
-        // 初始顯示提示
-        setTimeout(showHint, 2000);
-
         // 全螢幕點擊退出
         els.fullscreenContainer.addEventListener("click", (e) => {
           if (state.isFullscreen) {
-            state.playEnabled = false;
-            els.playBtn.classList.remove("active");
+            state.continuePlayEnabled = false;
+            els.continuePlayBtn.classList.remove("active");
             exitFullscreen();
             
             if (state.targetCount === 0) {
@@ -585,12 +793,12 @@
           if (state.targetCount > 0) state.targetCount--;
 
           if (state.targetCount === 0) {
-            if (state.playEnabled) {
+            if (state.continuePlayEnabled) {
               enterFullscreen(video);
             } else {
               pauseVideo(video);
               setTimeout(() => {
-                if (state.targetCount === 0 && !state.playEnabled) {
+                if (state.targetCount === 0 && !state.continuePlayEnabled) {
                   els.scanningOverlay.classList.remove("hidden");
                 }
               }, 200);
@@ -608,6 +816,10 @@
           els.target1.addEventListener("targetFound", () => onTargetFound(els.video1, els.video0));
           els.target1.addEventListener("targetLost", () => onTargetLost(els.video1));
         }
+
+        // 初始化
+        updatePlayButton();
+        setTimeout(showHint, 2000);
       }
     </script>
   </body>
