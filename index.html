@@ -38,16 +38,62 @@
         pointer-events: auto;
       }
 
-      /* 懸浮顯示觸發區域 */
-      #hover-trigger {
+      /* 雙擊提示 */
+      #tap-hint {
         position: fixed;
-        bottom: 0;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
-        width: 200px;
-        height: 100px;
-        z-index: 999;
-        pointer-events: auto;
+        transform: translate(-50%, -50%);
+        z-index: 100;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 25px;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        text-align: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(0, 255, 255, 0.3);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        pointer-events: none;
+      }
+
+      #tap-hint.show {
+        opacity: 1;
+        visibility: visible;
+        animation: gentle-pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes gentle-pulse {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.05); }
+      }
+
+      /* 雙擊漣漪效果 */
+      .tap-ripple {
+        position: fixed;
+        border: 3px solid rgba(0, 255, 255, 0.6);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 998;
+        animation: ripple-effect 0.6s ease-out forwards;
+      }
+
+      @keyframes ripple-effect {
+        0% {
+          width: 0;
+          height: 0;
+          opacity: 1;
+        }
+        100% {
+          width: 120px;
+          height: 120px;
+          opacity: 0;
+        }
       }
 
       .icon-button {
@@ -175,18 +221,17 @@
         width: 100vw;
         height: 100vh;
         z-index: 1;
-        pointer-events: none;
-        cursor: pointer;
-      }
-
-      #tap-area.active {
         pointer-events: auto;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
     <div id="tap-area"></div>
-    <div id="hover-trigger"></div>
+    
+    <div id="tap-hint">
+      雙擊螢幕顯示控制按鈕
+    </div>
     
     <div id="controls-container">
       <button class="icon-button" id="audio-btn">
@@ -324,8 +369,8 @@
           fullscreenContainer: document.getElementById("fullscreen-container"),
           fullscreenVideo: document.getElementById("fullscreen-video"),
           controlsContainer: document.getElementById("controls-container"),
-          hoverTrigger: document.getElementById("hover-trigger"),
-          tapArea: document.getElementById("tap-area")
+          tapArea: document.getElementById("tap-area"),
+          tapHint: document.getElementById("tap-hint")
         };
 
         // 應用狀態
@@ -335,7 +380,10 @@
           playEnabled: false,
           lastVideo: null,
           isFullscreen: false,
-          controlsTimer: null
+          controlsTimer: null,
+          lastTapTime: 0,
+          hintTimer: null,
+          hasShownHint: false
         };
 
         // 有效視頻過濾
@@ -349,15 +397,60 @@
         // 控制按鈕顯示邏輯
         function showControls() {
           els.controlsContainer.classList.add("show");
-          els.tapArea.classList.remove("active");
+          hideHint();
           
           if (state.controlsTimer) clearTimeout(state.controlsTimer);
-          state.controlsTimer = setTimeout(hideControls, 3000);
+          state.controlsTimer = setTimeout(hideControls, 5000);
         }
 
         function hideControls() {
           els.controlsContainer.classList.remove("show");
-          els.tapArea.classList.add("active");
+          if (state.controlsTimer) {
+            clearTimeout(state.controlsTimer);
+            state.controlsTimer = null;
+          }
+        }
+
+        // 提示系統
+        function showHint() {
+          if (!state.hasShownHint) {
+            els.tapHint.classList.add("show");
+            state.hintTimer = setTimeout(hideHint, 4000);
+          }
+        }
+
+        function hideHint() {
+          els.tapHint.classList.remove("show");
+          state.hasShownHint = true;
+          if (state.hintTimer) {
+            clearTimeout(state.hintTimer);
+            state.hintTimer = null;
+          }
+        }
+
+        // 雙擊檢測和漣漪效果
+        function createRipple(x, y) {
+          const ripple = document.createElement('div');
+          ripple.className = 'tap-ripple';
+          ripple.style.left = x + 'px';
+          ripple.style.top = y + 'px';
+          document.body.appendChild(ripple);
+          
+          setTimeout(() => ripple.remove(), 600);
+        }
+
+        function handleTap(e) {
+          const currentTime = Date.now();
+          const tapDelay = currentTime - state.lastTapTime;
+          
+          if (tapDelay < 500 && tapDelay > 50) {
+            // 雙擊檢測成功
+            createRipple(e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
+            showControls();
+            e.preventDefault();
+          }
+          
+          state.lastTapTime = currentTime;
         }
 
         // 音頻控制
@@ -424,9 +517,13 @@
         }
 
         // 事件監聽
-        els.audioBtn.addEventListener('click', toggleAudio);
+        els.audioBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleAudio();
+        });
 
-        els.playBtn.addEventListener("click", () => {
+        els.playBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
           state.playEnabled = !state.playEnabled;
           els.playBtn.classList.toggle("active", state.playEnabled);
           
@@ -448,13 +545,15 @@
           }
         });
 
-        // 智能按鈕顯示
-        els.hoverTrigger.addEventListener("mouseenter", showControls);
-        els.hoverTrigger.addEventListener("touchstart", showControls);
-        els.tapArea.addEventListener("click", showControls);
+        // 雙擊事件監聽
+        els.tapArea.addEventListener("click", handleTap);
+        els.tapArea.addEventListener("touchend", handleTap);
+
+        // 初始顯示提示
+        setTimeout(showHint, 2000);
 
         // 全螢幕點擊退出
-        els.fullscreenContainer.addEventListener("click", () => {
+        els.fullscreenContainer.addEventListener("click", (e) => {
           if (state.isFullscreen) {
             state.playEnabled = false;
             els.playBtn.classList.remove("active");
@@ -463,7 +562,6 @@
             if (state.targetCount === 0) {
               els.scanningOverlay.classList.remove("hidden");
             }
-            showControls();
           }
         });
 
