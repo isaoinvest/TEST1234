@@ -17,20 +17,20 @@
         height: 100vh;
       }
 
-      /* 智能控制按鈕系統 */
+      /* 控制按鈕系統 - 簡潔版 */
       #controls-container {
         position: fixed;
-        bottom: 20px;
+        bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 1000;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 15px;
+        gap: 20px;
         opacity: 1;
         visibility: visible;
-        transition: opacity 0.5s ease, visibility 0.5s ease, transform 0.5s ease;
+        transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
         pointer-events: auto;
       }
 
@@ -39,214 +39,116 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateX(-50%) translateY(100px);
+        transform: translateX(-50%) translateY(50px);
       }
 
-      /* 進度條容器 */
+      /* 進度條容器 - 簡潔版 */
       #progress-container {
         display: flex;
         align-items: center;
-        background: linear-gradient(135deg, rgba(0, 20, 40, 0.9), rgba(0, 40, 60, 0.8));
-        border-radius: 30px;
-        padding: 12px 24px;
+        background-color: rgba(0, 0, 0, 0.6);
+        border-radius: 20px;
+        padding: 8px 16px;
         backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 255, 255, 0.2);
-        box-shadow: 
-          0 8px 32px rgba(0, 0, 0, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        gap: 20px;
-        min-width: 320px;
-        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        position: relative;
-        overflow: hidden;
+        gap: 12px;
+        min-width: 250px;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
-      #progress-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.1), transparent);
-        transition: left 0.6s ease;
-      }
-
-      #progress-container:hover::before {
-        left: 100%;
-      }
-
-      /* 播放控制區域 */
+      /* 播放控制區域 - 簡潔版 */
       #playback-controls {
         display: flex;
-        gap: 20px;
+        gap: 12px;
         align-items: center;
       }
 
-      /* 時間顯示 */
+      /* 時間顯示 - 簡潔版 */
       .time-display {
-        color: #00ffff;
-        font-family: 'Courier New', monospace;
+        color: rgba(255, 255, 255, 0.9);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
         font-size: 11px;
-        font-weight: 600;
-        min-width: 40px;
+        font-weight: 500;
+        min-width: 30px;
         text-align: center;
-        text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
-        letter-spacing: 0.5px;
-        transition: all 0.3s ease;
-        border-radius: 8px;
-        padding: 4px 6px;
-        background: rgba(0, 255, 255, 0.05);
-        border: 1px solid rgba(0, 255, 255, 0.1);
       }
 
-      /* 進度條軌道容器 */
-      #progress-track {
-        flex: 1;
-        height: 8px;
-        position: relative;
-        margin: 0 12px;
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.1);
-        overflow: hidden;
-        cursor: pointer;
-      }
-
-      /* 進度條背景軌道 */
-      #progress-track::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, 
-          rgba(0, 255, 255, 0.1) 0%, 
-          rgba(0, 150, 255, 0.05) 50%, 
-          rgba(0, 255, 255, 0.1) 100%);
-        border-radius: 4px;
-      }
-
-      /* 進度條滑塊 */
+      /* 進度條滑塊 - 簡潔版 */
       #progress-slider {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: transparent;
+        flex: 1;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
         outline: none;
         cursor: pointer;
-        opacity: 0;
-        z-index: 3;
+        margin: 0 8px;
+        transition: height 0.2s ease;
+        -webkit-appearance: none;
+        appearance: none;
       }
 
-      /* 進度填充條 */
-      #progress-fill {
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, 
-          #00ffff 0%, 
-          #0099ff 50%, 
-          #00ffff 100%);
-        border-radius: 4px;
-        transition: width 0.1s ease;
-        box-shadow: 
-          0 0 10px rgba(0, 255, 255, 0.6),
-          inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        position: relative;
-        overflow: hidden;
+      #progress-slider:hover {
+        height: 6px;
       }
 
-      /* 進度條光效 */
-      #progress-fill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -30px;
-        width: 30px;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-        animation: progress-shine 2s infinite;
-      }
-
-      @keyframes progress-shine {
-        0% { left: -30px; }
-        100% { left: 100%; }
-      }
-
-      /* 進度點指示器 */
-      #progress-thumb {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
+      #progress-slider::-webkit-slider-thumb {
+        appearance: none;
         width: 12px;
         height: 12px;
-        background: radial-gradient(circle, #ffffff 30%, #00ffff 70%);
-        border: 2px solid rgba(0, 255, 255, 0.8);
         border-radius: 50%;
-        box-shadow: 
-          0 0 15px rgba(0, 255, 255, 0.8),
-          0 0 25px rgba(0, 255, 255, 0.4);
-        transition: all 0.2s ease;
+        background: #ffffff;
         cursor: pointer;
-        z-index: 2;
-        opacity: 0;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+        transition: all 0.2s ease;
       }
 
-      #progress-track:hover #progress-thumb {
-        opacity: 1;
-        transform: translateY(-50%) scale(1.2);
-        box-shadow: 
-          0 0 20px rgba(0, 255, 255, 1),
-          0 0 35px rgba(0, 255, 255, 0.6);
+      #progress-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        background: #00ffff;
+        box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
       }
 
-      /* 進度軌道hover效果 */
-      #progress-track:hover {
-        transform: scaleY(1.2);
-      }
-
-      #progress-track:hover::before {
-        background: linear-gradient(90deg, 
-          rgba(0, 255, 255, 0.2) 0%, 
-          rgba(0, 150, 255, 0.1) 50%, 
-          rgba(0, 255, 255, 0.2) 100%);
-      }
-
-      .icon-button {
-        width: 50px;
-        height: 50px;
-        background-color: rgba(0, 0, 0, 0.7);
-        border: 2px solid rgba(255, 255, 255, 0.3);
+      #progress-slider::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
+        background: #ffffff;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+      }
+
+      /* 控制按鈕 - 簡潔版 */
+      .icon-button {
+        width: 44px;
+        height: 44px;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 22px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(5px);
+        transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
       }
 
       .icon-button:hover {
-        background-color: rgba(0, 0, 0, 0.9);
-        border-color: rgba(0, 255, 255, 0.8);
-        transform: scale(1.1);
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.4);
+        transform: scale(1.05);
       }
 
       .icon-button.active {
-        background-color: rgba(0, 195, 255, 0.5);
-        border-color: rgba(0, 255, 255, 1);
+        background-color: rgba(0, 195, 255, 0.3);
+        border-color: rgba(0, 255, 255, 0.8);
       }
 
       .icon-button svg {
-        width: 60%;
-        height: 60%;
+        width: 20px;
+        height: 20px;
         fill: white;
-        transition: all 0.3s ease;
+        transition: fill 0.2s ease;
       }
 
       /* 全螢幕點擊區域 */
@@ -257,7 +159,7 @@
         width: 100vw;
         height: 100vh;
         z-index: 999;
-        pointer-events: auto;
+        pointer-events: none;
         background: transparent;
         cursor: pointer;
         opacity: 0;
@@ -267,7 +169,7 @@
         pointer-events: auto;
       }
 
-      /* 精簡的掃描UI */
+      /* 掃描UI - 簡潔版 */
       #scanning-overlay {
         position: fixed;
         top: 0;
@@ -279,7 +181,7 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        background-color: rgba(0, 0, 0, 0.1);
+        background-color: rgba(0, 0, 0, 0.05);
         opacity: 1;
         transition: opacity 0.3s ease;
       }
@@ -289,38 +191,26 @@
       }
 
       .scanner-frame {
-        width: 200px;
-        height: 200px;
-        border: 2px solid rgba(0, 255, 255, 0.6);
-        border-radius: 10px;
+        width: 180px;
+        height: 180px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-radius: 8px;
         position: relative;
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
       }
 
       .scanner-line {
         position: absolute;
         height: 2px;
         width: 100%;
-        background: linear-gradient(90deg, transparent, #00ffff, transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
         top: 0;
         animation: scan 2s linear infinite;
       }
 
-      .scanner-text {
-        position: absolute;
-        bottom: -30px;
-        left: 50%;
-        transform: translateX(-50%);
-        color: rgba(0, 255, 255, 0.8);
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        letter-spacing: 1px;
-        text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-      }
-
       @keyframes scan {
         0% { transform: translateY(0); }
-        50% { transform: translateY(196px); }
+        50% { transform: translateY(176px); }
         100% { transform: translateY(0); }
       }
 
@@ -332,10 +222,10 @@
         width: 100vw;
         height: 100vh;
         z-index: 500;
-        background-color: rgba(0, 0, 0, 0.95);
+        background-color: rgba(0, 0, 0, 0.98);
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.3s ease;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -352,51 +242,103 @@
         max-height: 95vh;
         object-fit: contain;
       }
+
+      /* 全螢幕控制按鈕 */
+      #fullscreen-controls {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 501;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+        pointer-events: none;
+      }
+
+      #fullscreen-controls.visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
     </style>
   </head>
   <body>
     <!-- 全螢幕點擊區域 -->
     <div id="screen-overlay"></div>
     
+    <!-- AR模式控制 -->
     <div id="controls-container">
       <!-- 進度條控制區域 -->
       <div id="progress-container">
         <span class="time-display" id="current-time">0:00</span>
-        <div id="progress-track">
-          <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
-          <div id="progress-fill"></div>
-          <div id="progress-thumb"></div>
-        </div>
+        <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
         <span class="time-display" id="total-time">0:00</span>
       </div>
       
       <!-- 播放控制按鈕 -->
       <div id="playback-controls">
         <button class="icon-button" id="audio-btn" title="音效">
-          <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-          <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+          <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
         </button>
         
-        <button class="icon-button" id="pause-play-btn" title="播放/全螢幕">
-          <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
+        <button class="icon-button" id="pause-play-btn" title="播放/暫停">
+          <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
           </svg>
-          <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;">
+          <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;">
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
           </svg>
         </button>
       </div>
     </div>
 
+    <!-- 掃描UI -->
     <div id="scanning-overlay">
       <div class="scanner-frame">
         <div class="scanner-line"></div>
-        <div class="scanner-text">掃描中...</div>
       </div>
     </div>
     
+    <!-- 全螢幕播放 -->
     <div id="fullscreen-container">
       <video id="fullscreen-video" preload="none" playsinline webkit-playsinline></video>
+      
+      <!-- 全螢幕模式控制 -->
+      <div id="fullscreen-controls">
+        <div id="fullscreen-progress-container" style="display: flex; align-items: center; background-color: rgba(0, 0, 0, 0.6); border-radius: 20px; padding: 8px 16px; backdrop-filter: blur(10px); gap: 12px; min-width: 250px; border: 1px solid rgba(255, 255, 255, 0.2);">
+          <span class="time-display" id="fullscreen-current-time">0:00</span>
+          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" step="0.1" style="flex: 1; height: 4px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; outline: none; cursor: pointer; margin: 0 8px; -webkit-appearance: none; appearance: none;">
+          <span class="time-display" id="fullscreen-total-time">0:00</span>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <button class="icon-button" id="fullscreen-audio-btn" title="音效">
+            <svg id="fullscreen-mute-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            <svg id="fullscreen-sound-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          </button>
+          
+          <button class="icon-button" id="fullscreen-pause-play-btn" title="播放/暫停">
+            <svg id="fullscreen-play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg id="fullscreen-pause-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          </button>
+
+          <button class="icon-button" id="exit-fullscreen-btn" title="退出全螢幕">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <a-scene
@@ -507,6 +449,9 @@
           target0: document.querySelector("#target0"),
           target1: document.querySelector("#target1"),
           scanningOverlay: document.getElementById("scanning-overlay"),
+          
+          // AR模式控制
+          controlsContainer: document.getElementById("controls-container"),
           pausePlayBtn: document.getElementById("pause-play-btn"),
           playIcon: document.getElementById("play-icon"),
           pauseIcon: document.getElementById("pause-icon"),
@@ -514,14 +459,24 @@
           soundIcon: document.getElementById("sound-icon"),
           muteIcon: document.getElementById("mute-icon"),
           progressSlider: document.getElementById("progress-slider"),
-          progressFill: document.getElementById("progress-fill"),
-          progressThumb: document.getElementById("progress-thumb"),
-          progressTrack: document.getElementById("progress-track"),
           currentTimeDisplay: document.getElementById("current-time"),
           totalTimeDisplay: document.getElementById("total-time"),
+          
+          // 全螢幕模式
           fullscreenContainer: document.getElementById("fullscreen-container"),
           fullscreenVideo: document.getElementById("fullscreen-video"),
-          controlsContainer: document.getElementById("controls-container"),
+          fullscreenControls: document.getElementById("fullscreen-controls"),
+          fullscreenPausePlayBtn: document.getElementById("fullscreen-pause-play-btn"),
+          fullscreenPlayIcon: document.getElementById("fullscreen-play-icon"),
+          fullscreenPauseIcon: document.getElementById("fullscreen-pause-icon"),
+          fullscreenAudioBtn: document.getElementById("fullscreen-audio-btn"),
+          fullscreenSoundIcon: document.getElementById("fullscreen-sound-icon"),
+          fullscreenMuteIcon: document.getElementById("fullscreen-mute-icon"),
+          fullscreenProgressSlider: document.getElementById("fullscreen-progress-slider"),
+          fullscreenCurrentTimeDisplay: document.getElementById("fullscreen-current-time"),
+          fullscreenTotalTimeDisplay: document.getElementById("fullscreen-total-time"),
+          exitFullscreenBtn: document.getElementById("exit-fullscreen-btn"),
+          
           screenOverlay: document.getElementById("screen-overlay")
         };
 
@@ -535,6 +490,7 @@
           progressUpdateTimer: null,
           isDragging: false,
           controlsHideTimer: null,
+          fullscreenControlsHideTimer: null,
           userInteractionTime: Date.now()
         };
 
@@ -546,7 +502,7 @@
         // 預載視頻
         validVideos.forEach(v => v?.load());
 
-        // 控制按鈕顯示/隱藏邏輯
+        // AR模式控制顯示/隱藏
         function showControls() {
           els.controlsContainer.classList.remove('hidden');
           els.screenOverlay.classList.remove('active');
@@ -564,7 +520,9 @@
           state.userInteractionTime = Date.now();
           
           state.controlsHideTimer = setTimeout(() => {
-            hideControls();
+            if (state.targetCount > 0) { // 只有在有目標時才隱藏
+              hideControls();
+            }
           }, 5000);
         }
 
@@ -575,11 +533,47 @@
           }
         }
 
+        // 全螢幕模式控制顯示/隱藏
+        function showFullscreenControls() {
+          els.fullscreenControls.classList.add('visible');
+          resetFullscreenHideTimer();
+        }
+
+        function hideFullscreenControls() {
+          els.fullscreenControls.classList.remove('visible');
+          clearFullscreenHideTimer();
+        }
+
+        function resetFullscreenHideTimer() {
+          clearFullscreenHideTimer();
+          
+          state.fullscreenControlsHideTimer = setTimeout(() => {
+            if (state.isFullscreen) {
+              hideFullscreenControls();
+            }
+          }, 5000);
+        }
+
+        function clearFullscreenHideTimer() {
+          if (state.fullscreenControlsHideTimer) {
+            clearTimeout(state.fullscreenControlsHideTimer);
+            state.fullscreenControlsHideTimer = null;
+          }
+        }
+
         function onUserInteraction() {
-          if (els.controlsContainer.classList.contains('hidden')) {
-            showControls();
+          if (state.isFullscreen) {
+            if (els.fullscreenControls.classList.contains('visible')) {
+              resetFullscreenHideTimer();
+            } else {
+              showFullscreenControls();
+            }
           } else {
-            resetHideTimer();
+            if (els.controlsContainer.classList.contains('hidden')) {
+              showControls();
+            } else {
+              resetHideTimer();
+            }
           }
         }
 
@@ -595,15 +589,16 @@
           const video = getCurrentActiveVideo();
           if (video && !state.isDragging) {
             const progress = (video.currentTime / video.duration) * 100;
-            els.progressSlider.value = progress || 0;
-            els.progressFill.style.width = (progress || 0) + '%';
             
-            // 更新進度點位置
-            const thumbPosition = (progress || 0) + '%';
-            els.progressThumb.style.left = thumbPosition;
-            
-            els.currentTimeDisplay.textContent = formatTime(video.currentTime || 0);
-            els.totalTimeDisplay.textContent = formatTime(video.duration || 0);
+            if (state.isFullscreen) {
+              els.fullscreenProgressSlider.value = progress || 0;
+              els.fullscreenCurrentTimeDisplay.textContent = formatTime(video.currentTime || 0);
+              els.fullscreenTotalTimeDisplay.textContent = formatTime(video.duration || 0);
+            } else {
+              els.progressSlider.value = progress || 0;
+              els.currentTimeDisplay.textContent = formatTime(video.currentTime || 0);
+              els.totalTimeDisplay.textContent = formatTime(video.duration || 0);
+            }
           }
         }
 
@@ -638,14 +633,20 @@
             els.fullscreenVideo.muted = !state.audioEnabled;
           }
           
-          updateAudioButton();
+          updateAudioButtons();
           onUserInteraction();
         }
 
-        function updateAudioButton() {
+        function updateAudioButtons() {
+          // AR模式按鈕
           els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
           els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
           els.audioBtn.classList.toggle('active', state.audioEnabled);
+          
+          // 全螢幕模式按鈕
+          els.fullscreenSoundIcon.style.display = state.audioEnabled ? 'block' : 'none';
+          els.fullscreenMuteIcon.style.display = state.audioEnabled ? 'none' : 'block';
+          els.fullscreenAudioBtn.classList.toggle('active', state.audioEnabled);
         }
 
         // 視頻播放控制
@@ -654,15 +655,15 @@
           
           video.play().then(() => {
             state.isPlaying = true;
-            updatePlayButton();
+            updatePlayButtons();
             startProgressUpdate();
           }).catch(() => {
             video.muted = true;
             state.audioEnabled = false;
-            updateAudioButton();
+            updateAudioButtons();
             video.play().then(() => {
               state.isPlaying = true;
-              updatePlayButton();
+              updatePlayButtons();
               startProgressUpdate();
             }).catch(console.error);
           });
@@ -672,7 +673,7 @@
           if (video) {
             video.pause();
             state.isPlaying = false;
-            updatePlayButton();
+            updatePlayButtons();
             stopProgressUpdate();
           }
         }
@@ -682,28 +683,38 @@
           if (!video) return;
           
           if (state.isPlaying) {
-            if (state.isFullscreen) {
-              exitFullscreen();
-            } else {
-              pauseVideo(video);
-            }
+            pauseVideo(video);
           } else {
-            if (!state.isFullscreen && state.lastVideo) {
-              enterFullscreen(state.lastVideo);
-            } else {
-              playVideo(video);
-            }
+            playVideo(video);
           }
           onUserInteraction();
         }
 
-        function updatePlayButton() {
+        function updatePlayButtons() {
+          // AR模式按鈕
           els.playIcon.style.display = state.isPlaying ? 'none' : 'block';
           els.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
           els.pausePlayBtn.classList.toggle('active', state.isPlaying);
+          
+          // 全螢幕模式按鈕
+          els.fullscreenPlayIcon.style.display = state.isPlaying ? 'none' : 'block';
+          els.fullscreenPauseIcon.style.display = state.isPlaying ? 'block' : 'none';
+          els.fullscreenPausePlayBtn.classList.toggle('active', state.isPlaying);
         }
 
         // 全螢幕播放
+        function toggleFullscreen() {
+          const video = state.lastVideo;
+          if (!video) return;
+          
+          if (state.isFullscreen) {
+            exitFullscreen();
+          } else {
+            enterFullscreen(video);
+          }
+          onUserInteraction();
+        }
+
         function enterFullscreen(video) {
           els.fullscreenVideo.src = video.src;
           els.fullscreenVideo.currentTime = video.currentTime;
@@ -714,13 +725,17 @@
           
           video.pause();
           playVideo(els.fullscreenVideo);
+          showFullscreenControls(); // 進入全螢幕時顯示控制按鈕
         }
 
         function exitFullscreen() {
           const currentTime = els.fullscreenVideo.currentTime;
           
           els.fullscreenContainer.classList.remove('visible');
+          els.fullscreenControls.classList.remove('visible');
           state.isFullscreen = false;
+          
+          clearFullscreenHideTimer();
           
           els.fullscreenVideo.pause();
           els.fullscreenVideo.src = '';
@@ -728,6 +743,7 @@
           if (state.lastVideo) {
             state.lastVideo.currentTime = currentTime;
             playVideo(state.lastVideo);
+            showControls(); // 退出全螢幕時顯示AR控制按鈕
           }
         }
 
@@ -739,7 +755,7 @@
           els.scanningOverlay.classList.add("hidden");
           
           playVideo(videoEl);
-          showControls();
+          showControls(); // 找到目標時顯示控制按鈕
           
           updateProgress();
         }
@@ -754,71 +770,90 @@
             if (state.isFullscreen) {
               exitFullscreen();
             }
-            clearHideTimer();
+            clearHideTimer(); // 沒有目標時清除隱藏計時器，保持按鈕顯示
+            showControls(); // 確保按鈕顯示
           }
         }
 
-        // 進度條事件
-        els.progressSlider.addEventListener('input', (e) => {
+        // 進度條事件處理
+        function handleProgressInput(slider, isFullscreen = false) {
           state.isDragging = true;
           const video = getCurrentActiveVideo();
           if (video) {
-            const newTime = (els.progressSlider.value / 100) * video.duration;
+            const newTime = (slider.value / 100) * video.duration;
             video.currentTime = newTime;
-            
-            // 即時更新視覺進度
-            els.progressFill.style.width = els.progressSlider.value + '%';
-            els.progressThumb.style.left = els.progressSlider.value + '%';
           }
           onUserInteraction();
+        }
+
+        function handleProgressChange() {
+          state.isDragging = false;
+          onUserInteraction();
+        }
+
+        // AR模式進度條事件
+        els.progressSlider.addEventListener('input', () => {
+          handleProgressInput(els.progressSlider, false);
         });
 
-        els.progressSlider.addEventListener('change', () => {
-          state.isDragging = false;
+        els.progressSlider.addEventListener('change', handleProgressChange);
+
+        // 全螢幕模式進度條事件
+        els.fullscreenProgressSlider.addEventListener('input', () => {
+          handleProgressInput(els.fullscreenProgressSlider, true);
+        });
+
+        els.fullscreenProgressSlider.addEventListener('change', handleProgressChange);
+
+        // AR模式按鈕事件
+        els.audioBtn.addEventListener('click', toggleAudio);
+        els.pausePlayBtn.addEventListener('click', togglePlayPause);
+
+        // 全螢幕模式按鈕事件
+        els.fullscreenAudioBtn.addEventListener('click', toggleAudio);
+        els.fullscreenPausePlayBtn.addEventListener('click', togglePlayPause);
+        els.exitFullscreenBtn.addEventListener('click', exitFullscreen);
+
+        // 螢幕點擊事件
+        els.screenOverlay.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
           onUserInteraction();
         });
 
-        // 進度條軌道點擊事件
-        els.progressTrack.addEventListener('click', (e) => {
-          const video = getCurrentActiveVideo();
-          if (video && e.target === els.progressTrack) {
-            const rect = els.progressTrack.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const percentage = (clickX / rect.width) * 100;
-            
-            els.progressSlider.value = Math.max(0, Math.min(100, percentage));
-            const newTime = (els.progressSlider.value / 100) * video.duration;
-            video.currentTime = newTime;
-            
-            // 更新視覺進度
-            els.progressFill.style.width = els.progressSlider.value + '%';
-            els.progressThumb.style.left = els.progressSlider.value + '%';
-            
+        // 全螢幕容器點擊事件
+        els.fullscreenContainer.addEventListener('click', (e) => {
+          if (e.target === els.fullscreenContainer || e.target === els.fullscreenVideo) {
             onUserInteraction();
           }
         });
 
-        // 按鈕事件監聽器
-        els.audioBtn.addEventListener('click', toggleAudio);
-        els.pausePlayBtn.addEventListener('click', togglePlayPause);
-        els.fullscreenContainer.addEventListener('click', exitFullscreen);
-        
-        // 螢幕點擊事件
-        els.screenOverlay.addEventListener('click', showControls);
-        
         // 控制容器點擊事件（防止事件冒泡）
         els.controlsContainer.addEventListener('click', (e) => {
           e.stopPropagation();
           onUserInteraction();
         });
 
+        els.fullscreenControls.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onUserInteraction();
+        });
+
         // 全域點擊事件監聽
         document.addEventListener('click', (e) => {
-          if (!els.controlsContainer.contains(e.target) && !els.fullscreenContainer.contains(e.target)) {
-            if (els.controlsContainer.classList.contains('hidden')) {
-              showControls();
-            } else {
-              onUserInteraction();
+          if (!els.controlsContainer.contains(e.target) && 
+              !els.fullscreenControls.contains(e.target) && 
+              !els.fullscreenContainer.contains(e.target)) {
+            onUserInteraction();
+          }
+        });
+
+        // 雙擊進入全螢幕
+        document.addEventListener('dblclick', (e) => {
+          if (!els.controlsContainer.contains(e.target) && 
+              !els.fullscreenControls.contains(e.target)) {
+            if (state.lastVideo && !state.isFullscreen) {
+              toggleFullscreen();
             }
           }
         });
@@ -841,10 +876,13 @@
           }
         });
 
+        // 全螢幕視頻載入事件
+        els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress);
+
         // 初始化
-        updateAudioButton();
-        updatePlayButton();
-        showControls();
+        updateAudioButtons();
+        updatePlayButtons();
+        showControls(); // 應用啟動時顯示控制按鈕
       }
     </script>
   </body>
