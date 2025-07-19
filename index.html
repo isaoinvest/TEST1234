@@ -601,9 +601,11 @@
           document.querySelector('a-scene').style.display = 'none';
           els.scanningOverlay.style.display = 'none';
           
+          // 確保全螢幕視頻正確設置
           els.fullscreenVideo.src = els.video.src;
           els.fullscreenVideo.currentTime = els.video.currentTime || 0;
           els.fullscreenVideo.muted = !state.audioEnabled;
+          els.fullscreenVideo.preload = "auto"; // 確保視頻能夠載入
           
           els.fullscreenContainer.classList.add('visible');
           state.isFullscreen = true;
@@ -611,13 +613,18 @@
           manageTimer('controls', 'clear');
           els.controlsContainer.classList.add('hidden');
           
-          playVideo(els.fullscreenVideo);
+          // 等待視頻準備好後再播放
+          setTimeout(() => {
+            playVideo(els.fullscreenVideo);
+          }, 100);
+          
           showFullscreenControls();
         }
 
         function exitFullscreen() {
           pauseVideo(els.fullscreenVideo);
           els.fullscreenVideo.src = '';
+          els.fullscreenVideo.preload = "none"; // 重置預載入設定
           
           els.fullscreenContainer.classList.remove('visible');
           els.fullscreenControls.classList.remove('visible');
@@ -747,9 +754,9 @@
         els.target0.addEventListener("targetFound", onTargetFound);
         els.target0.addEventListener("targetLost", onTargetLost);
         
-        // 視頻事件 - 優化：使用 once 選項
-        els.video.addEventListener('loadedmetadata', updateProgress, { once: true });
-        els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress, { once: true });
+        // 視頻事件 - 修正：移除 once 選項以支援多次進入全螢幕
+        els.video.addEventListener('loadedmetadata', updateProgress);
+        els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress);
 
         // 移動設備觸控支援 - 優化：使用防抖
         let touchTimer;
