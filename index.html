@@ -537,7 +537,7 @@
         // 全螢幕模式控制顯示/隱藏
         function showFullscreenControls() {
           els.fullscreenControls.classList.add('visible');
-          resetFullscreenHideTimer(); // 確保每次顯示都會啟動自動隱藏計時器
+          resetFullscreenHideTimer();
         }
 
         function hideFullscreenControls() {
@@ -547,7 +547,6 @@
 
         function resetFullscreenHideTimer() {
           clearFullscreenHideTimer();
-          // 在全螢幕模式下，無論是否有目標圖都要自動隱藏控制按鈕
           state.fullscreenControlsHideTimer = setTimeout(() => {
             if (state.isFullscreen) {
               hideFullscreenControls();
@@ -605,7 +604,7 @@
 
         // 獲取當前活動視頻
         function getCurrentActiveVideo() {
-          if (state.isFullscreen && els.fullscreenVideo.src) {
+          if (state.isFullscreen) {
             return els.fullscreenVideo;
           }
           return state.lastVideo;
@@ -704,17 +703,30 @@
         }
 
         function togglePlayPause() {
-          if (state.targetCount === 0 && !state.isFullscreen) {
-            return;
-          }
-          
-          const video = getCurrentActiveVideo();
-          if (!video) return;
-          
-          if (state.isPlaying) {
-            pauseVideo(video);
+          // 在全螢幕模式下，播放控制只對全螢幕視頻有效
+          if (state.isFullscreen) {
+            const video = els.fullscreenVideo;
+            if (!video || !video.src) return;
+            
+            if (state.isPlaying) {
+              pauseVideo(video);
+            } else {
+              playVideo(video);
+            }
           } else {
-            playVideo(video);
+            // AR模式下，只有在偵測到目標時才能播放
+            if (state.targetCount === 0) {
+              return;
+            }
+            
+            const video = state.lastVideo;
+            if (!video) return;
+            
+            if (state.isPlaying) {
+              pauseVideo(video);
+            } else {
+              playVideo(video);
+            }
           }
           onUserInteraction();
         }
@@ -748,11 +760,20 @@
 
         function enterFullscreen() {
           // 使用第一個有效視頻作為全螢幕播放源
-          const sourceVideo = validVideos[0]; // 直接使用第一個有效視頻
+          const sourceVideo = validVideos[0];
           if (!sourceVideo) return;
 
+          // 暫停所有AR視頻
+          validVideos.forEach(v => v.pause());
+          
+          // 禁用AR場景
+          const scene = document.querySelector('a-scene');
+          if (scene) {
+            scene.style.display = 'none'; // 完全隱藏AR場景
+          }
+
           els.fullscreenVideo.src = sourceVideo.src;
-          els.fullscreenVideo.currentTime = 0; // 從頭開始播放
+          els.fullscreenVideo.currentTime = 0;
           els.fullscreenVideo.muted = !state.audioEnabled;
           els.fullscreenVideo.preload = "auto";
           
@@ -762,11 +783,30 @@
           updateFullscreenButtonState();
           
           // 直接播放全螢幕視頻
-          playVideo(els.fullscreenVideo);
+          els.fullscreenVideo.play().then(() => {
+            state.isPlaying = true;
+            updatePlayButtons();
+            startProgressUpdate();
+          }).catch(() => {
+            els.fullscreenVideo.muted = true;
+            state.audioEnabled = false;
+            updateAudioButtons();
+            els.fullscreenVideo.play().then(() => {
+              state.isPlaying = true;
+              updatePlayButtons();
+              startProgressUpdate();
+            }).catch(console.error);
+          });
+          
           showFullscreenControls();
         }
 
         function exitFullscreen() {
+          // 停止全螢幕視頻播放
+          els.fullscreenVideo.pause();
+          els.fullscreenVideo.src = '';
+          els.fullscreenVideo.preload = "none";
+          
           els.fullscreenContainer.classList.remove('visible');
           els.fullscreenControls.classList.remove('visible');
           state.isFullscreen = false;
@@ -774,19 +814,31 @@
           clearFullscreenHideTimer();
           updateFullscreenButtonState();
           
-          // 停止全螢幕視頻播放
-          els.fullscreenVideo.pause();
-          els.fullscreenVideo.src = '';
-          els.fullscreenVideo.preload = "none";
+          // 重新啟用AR場景
+          const scene = document.querySelector('a-scene');
+          if (scene) {
+            scene.style.display = 'block';
+          }
           
-          // 更新播放狀態 - 全螢幕結束後總是停止播放
+          // 全螢幕結束後重置播放狀態
           state.isPlaying = false;
           updatePlayButtons();
           stopProgressUpdate();
+          
+          // 如果有目標圖，恢復AR播放
+          if (state.targetCount > 0 && state.lastVideo) {
+            playVideo(state.lastVideo);
+          }
+          
           showControls();
         }
 
         function onTargetFound(targetEl, videoEl) {
+          // 如果正在全螢幕模式，忽略目標圖偵測
+          if (state.isFullscreen) {
+            return;
+          }
+          
           state.targetCount++;
           state.lastVideo = videoEl;
           
@@ -799,15 +851,17 @@
         }
 
         function onTargetLost(targetEl, videoEl) {
+          // 如果正在全螢幕模式，忽略目標圖遺失
+          if (state.isFullscreen) {
+            return;
+          }
+          
           state.targetCount = Math.max(0, state.targetCount - 1);
           
           pauseVideo(videoEl);
           
           if (state.targetCount === 0) {
             els.scanningOverlay.classList.remove("hidden");
-            if (state.isFullscreen) {
-              exitFullscreen();
-            }
             clearHideTimer();
             showControls();
           }
@@ -893,7 +947,7 @@
         // 初始化
         updateAudioButtons();
         updatePlayButtons();
-        updateFullscreenButtonState();
+        updateFullscreenButtonState(); // 全螢幕按鈕始終可用
         showControls();
       }
     </script>
