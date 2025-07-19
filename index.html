@@ -500,14 +500,21 @@
 
         function onUserInteraction() {
           if (state.isFullscreen) {
-            els.fullscreenControls.classList.contains('visible') 
-              ? resetFullscreenHideTimer() 
-              : showFullscreenControls();
+            // 全螢幕模式：切換全螢幕控制項顯示
+            if (els.fullscreenControls.classList.contains('visible')) {
+              resetFullscreenHideTimer();
+            } else {
+              showFullscreenControls();
+            }
           } else if (state.isTargetVisible) {
-            els.controlsContainer.classList.contains('hidden') 
-              ? showControls() 
-              : resetHideTimer();
+            // AR 模式且目標可見：切換 AR 控制項顯示
+            if (els.controlsContainer.classList.contains('hidden')) {
+              showControls();
+            } else {
+              resetHideTimer();
+            }
           }
+          // 如果不在全螢幕且目標不可見，則不做任何操作（保持掃描狀態）
         }
 
         function formatTime(seconds) {
@@ -666,31 +673,46 @@
         }
 
         function exitFullscreen() {
+          // 記錄全螢幕視頻的播放時間
+          const currentTime = els.fullscreenVideo.currentTime || 0;
+          
           // 暫停全螢幕視頻
           pauseVideo(els.fullscreenVideo);
           els.fullscreenVideo.src = '';
           els.fullscreenVideo.preload = "none";
           
-          // 隱藏全螢幕容器
+          // 隱藏全螢幕容器和控制項
           els.fullscreenContainer.classList.remove('visible');
           els.fullscreenControls.classList.remove('visible');
           clearFullscreenHideTimer();
           
+          // 重要：先設置狀態為非全螢幕
           state.isFullscreen = false;
           
           // 恢復 AR 場景
           document.querySelector('a-scene').style.display = 'block';
-          els.scanningOverlay.style.display = 'flex';
           
           // 重置播放狀態
           state.isPlaying = false;
           updatePlayButtons();
           stopProgressUpdate();
           
-          // 如果目標仍然可見，恢復 AR 視頻播放
+          // 根據目標是否可見來決定後續行為
           if (state.isTargetVisible) {
+            // 目標可見：隱藏掃描UI，恢復AR視頻播放，顯示控制項
+            els.scanningOverlay.style.display = 'none';
+            els.scanningOverlay.classList.add('hidden');
+            
+            // 同步播放時間
+            els.video.currentTime = currentTime;
             playVideo(els.video);
             showControls();
+          } else {
+            // 目標不可見：顯示掃描UI，隱藏控制項
+            els.scanningOverlay.style.display = 'flex';
+            els.scanningOverlay.classList.remove('hidden');
+            els.controlsContainer.classList.add('hidden');
+            els.screenOverlay.classList.remove('active');
           }
         }
 
@@ -698,6 +720,7 @@
           if (state.isFullscreen) return;
           
           state.isTargetVisible = true;
+          els.scanningOverlay.style.display = 'none';
           els.scanningOverlay.classList.add("hidden");
           
           // 自動播放影片，不需要按播放按鈕
@@ -711,9 +734,15 @@
           
           state.isTargetVisible = false;
           pauseVideo(els.video);
+          
+          // 顯示掃描UI
+          els.scanningOverlay.style.display = 'flex';
           els.scanningOverlay.classList.remove("hidden");
+          
+          // 隱藏控制項並清除定時器
           clearHideTimer();
-          showControls();
+          els.controlsContainer.classList.add('hidden');
+          els.screenOverlay.classList.remove('active');
         }
 
         function handleProgressInput(slider) {
