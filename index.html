@@ -469,19 +469,23 @@
           if (!state.isFullscreen) return;
           els.fullscreenControls.classList.add('visible');
           resetFullscreenHideTimer();
+          console.log('全螢幕控制項已顯示，5秒後自動隱藏'); // 調試用
         }
 
         function hideFullscreenControls() {
           if (!state.isFullscreen) return;
           els.fullscreenControls.classList.remove('visible');
           clearFullscreenHideTimer();
+          console.log('全螢幕控制項已隱藏'); // 調試用
         }
 
         function resetFullscreenHideTimer() {
           clearFullscreenHideTimer();
           if (state.isFullscreen) {
             state.fullscreenControlsHideTimer = setTimeout(() => {
-              if (state.isFullscreen) hideFullscreenControls();
+              if (state.isFullscreen && !state.isDragging) {
+                hideFullscreenControls();
+              }
             }, 5000);
           }
         }
@@ -661,15 +665,12 @@
           clearHideTimer();
           els.controlsContainer.classList.add('hidden');
           
-          // 播放全螢幕視頻並顯示控制項
+          // 播放全螢幕視頻
           playVideo(els.fullscreenVideo);
           
-          // 確保全螢幕控制項正確顯示並啟動5秒隱藏計時器
-          setTimeout(() => {
-            if (state.isFullscreen) {
-              showFullscreenControls();
-            }
-          }, 100);
+          // 立即顯示全螢幕控制項並啟動5秒隱藏計時器
+          console.log('進入全螢幕模式'); // 調試用
+          showFullscreenControls();
         }
 
         function exitFullscreen() {
