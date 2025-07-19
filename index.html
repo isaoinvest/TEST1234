@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="cache-control" content="no-cache">
-    <meta name="expires" content="0">
-    <meta name="pragma" content="no-cache">
     <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/mindar-image-aframe.prod.js"></script>
 
@@ -17,7 +15,7 @@
         height: 100vh;
       }
 
-      #controls-container {
+      #controls-container, #fullscreen-controls {
         position: fixed;
         bottom: 30px;
         left: 50%;
@@ -36,6 +34,19 @@
         visibility: hidden;
         pointer-events: none;
         transform: translateX(-50%) translateY(50px);
+      }
+
+      #fullscreen-controls {
+        z-index: 10001;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      #fullscreen-controls.visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
       }
 
       .progress-bar-container {
@@ -91,11 +102,6 @@
         box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
       }
 
-      .progress-slider::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-        background: #00ffff;
-      }
-
       .progress-slider::-moz-range-thumb {
         width: 12px;
         height: 12px;
@@ -145,7 +151,6 @@
         height: 100vh;
         z-index: 999;
         pointer-events: none;
-        background: transparent;
         cursor: pointer;
       }
 
@@ -190,9 +195,8 @@
       }
 
       @keyframes scan {
-        0% { transform: translateY(0); }
+        0%, 100% { transform: translateY(0); }
         50% { transform: translateY(176px); }
-        100% { transform: translateY(0); }
       }
 
       #fullscreen-container {
@@ -221,26 +225,6 @@
         max-width: 95vw;
         max-height: 95vh;
         object-fit: contain;
-      }
-
-      #fullscreen-controls {
-        position: fixed;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 10001;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 15px;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
-        pointer-events: none;
-      }
-
-      #fullscreen-controls.visible {
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
       }
     </style>
   </head>
@@ -367,13 +351,8 @@
     </a-scene>
 
     <script>
-      if (window.AFRAME) {
-        initApp();
-      } else {
-        document.addEventListener('DOMContentLoaded', initApp);
-      }
-
-      function initApp() {
+      // 立即執行初始化
+      (function initApp() {
         AFRAME.registerComponent("fit-video-to-target-ratio", {
           schema: { videoSelector: { type: "string" } },
           init: function () {
@@ -427,93 +406,58 @@
           isPlaying: false,
           isFullscreen: false,
           isDragging: false,
-          controlsHideTimer: null,
-          fullscreenControlsHideTimer: null
+          controlsTimer: null,
+          fullscreenTimer: null
         };
 
-        els.video.load();
-        els.video.preload = "auto";
-        els.fullscreenVideo.preload = "none";
-
-        function showControls() {
-          if (state.isFullscreen) return;
-          els.controlsContainer.classList.remove('hidden');
-          els.screenOverlay.classList.remove('active');
-          resetHideTimer();
-        }
-
-        function hideControls() {
-          if (state.isFullscreen) return;
-          els.controlsContainer.classList.add('hidden');
-          els.screenOverlay.classList.add('active');
-          clearHideTimer();
-        }
-
-        function resetHideTimer() {
-          clearHideTimer();
-          if (!state.isFullscreen) {
-            state.controlsHideTimer = setTimeout(() => {
-              if (state.isTargetVisible && !state.isFullscreen) hideControls();
-            }, 5000);
+        // 優化：使用單一定時器管理函數
+        function manageTimer(type, action) {
+          const timerKey = type === 'fullscreen' ? 'fullscreenTimer' : 'controlsTimer';
+          
+          if (state[timerKey]) {
+            clearTimeout(state[timerKey]);
+            state[timerKey] = null;
           }
-        }
-
-        function clearHideTimer() {
-          if (state.controlsHideTimer) {
-            clearTimeout(state.controlsHideTimer);
-            state.controlsHideTimer = null;
-          }
-        }
-
-        function showFullscreenControls() {
-          if (!state.isFullscreen) return;
-          els.fullscreenControls.classList.add('visible');
-          resetFullscreenHideTimer();
-          console.log('全螢幕控制項已顯示，5秒後自動隱藏'); // 調試用
-        }
-
-        function hideFullscreenControls() {
-          if (!state.isFullscreen) return;
-          els.fullscreenControls.classList.remove('visible');
-          clearFullscreenHideTimer();
-          console.log('全螢幕控制項已隱藏'); // 調試用
-        }
-
-        function resetFullscreenHideTimer() {
-          clearFullscreenHideTimer();
-          if (state.isFullscreen) {
-            state.fullscreenControlsHideTimer = setTimeout(() => {
-              if (state.isFullscreen && !state.isDragging) {
-                hideFullscreenControls();
+          
+          if (action === 'start') {
+            state[timerKey] = setTimeout(() => {
+              if (type === 'fullscreen' && state.isFullscreen && !state.isDragging) {
+                els.fullscreenControls.classList.remove('visible');
+              } else if (type === 'controls' && state.isTargetVisible && !state.isFullscreen) {
+                els.controlsContainer.classList.add('hidden');
+                els.screenOverlay.classList.add('active');
               }
             }, 5000);
           }
         }
 
-        function clearFullscreenHideTimer() {
-          if (state.fullscreenControlsHideTimer) {
-            clearTimeout(state.fullscreenControlsHideTimer);
-            state.fullscreenControlsHideTimer = null;
-          }
+        function showControls() {
+          if (state.isFullscreen) return;
+          els.controlsContainer.classList.remove('hidden');
+          els.screenOverlay.classList.remove('active');
+          manageTimer('controls', 'start');
+        }
+
+        function showFullscreenControls() {
+          if (!state.isFullscreen) return;
+          els.fullscreenControls.classList.add('visible');
+          manageTimer('fullscreen', 'start');
         }
 
         function onUserInteraction() {
           if (state.isFullscreen) {
-            // 全螢幕模式：切換全螢幕控制項顯示
             if (els.fullscreenControls.classList.contains('visible')) {
-              resetFullscreenHideTimer();
+              manageTimer('fullscreen', 'start');
             } else {
               showFullscreenControls();
             }
           } else if (state.isTargetVisible) {
-            // AR 模式且目標可見：切換 AR 控制項顯示
             if (els.controlsContainer.classList.contains('hidden')) {
               showControls();
             } else {
-              resetHideTimer();
+              manageTimer('controls', 'start');
             }
           }
-          // 如果不在全螢幕且目標不可見，則不做任何操作（保持掃描狀態）
         }
 
         function formatTime(seconds) {
@@ -522,26 +466,21 @@
           return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // 優化的進度更新系統
+        // 優化：使用單一進度更新函數
         let animationFrameId = null;
         
         function updateProgress() {
           const video = state.isFullscreen ? els.fullscreenVideo : els.video;
-          if (video && !state.isDragging && video.duration > 0) {
-            const progress = (video.currentTime / video.duration) * 100;
-            const currentTime = formatTime(video.currentTime);
-            const totalTime = formatTime(video.duration);
-            
-            if (state.isFullscreen) {
-              els.fullscreenProgressSlider.value = progress;
-              els.fullscreenCurrentTimeDisplay.textContent = currentTime;
-              els.fullscreenTotalTimeDisplay.textContent = totalTime;
-            } else {
-              els.progressSlider.value = progress;
-              els.currentTimeDisplay.textContent = currentTime;
-              els.totalTimeDisplay.textContent = totalTime;
-            }
-          }
+          if (!video || state.isDragging || !video.duration) return;
+          
+          const progress = (video.currentTime / video.duration) * 100;
+          const currentTime = formatTime(video.currentTime);
+          const totalTime = formatTime(video.duration);
+          
+          const prefix = state.isFullscreen ? 'fullscreen' : '';
+          els[`${prefix}${prefix ? 'P' : 'p'}rogressSlider`].value = progress;
+          els[`${prefix}${prefix ? 'C' : 'c'}urrentTimeDisplay`].textContent = currentTime;
+          els[`${prefix}${prefix ? 'T' : 't'}otalTimeDisplay`].textContent = totalTime;
         }
 
         function startProgressUpdate() {
@@ -566,14 +505,11 @@
           els.video.muted = !state.audioEnabled;
           els.fullscreenVideo.muted = !state.audioEnabled;
           
-          // 更新音效按鈕圖示
-          els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
-          els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
-          els.audioBtn.classList.toggle('active', state.audioEnabled);
-          
-          els.fullscreenSoundIcon.style.display = state.audioEnabled ? 'block' : 'none';
-          els.fullscreenMuteIcon.style.display = state.audioEnabled ? 'none' : 'block';
-          els.fullscreenAudioBtn.classList.toggle('active', state.audioEnabled);
+          // 優化：合併圖示更新
+          const display = state.audioEnabled ? ['block', 'none'] : ['none', 'block'];
+          [els.soundIcon, els.fullscreenSoundIcon].forEach(icon => icon.style.display = display[0]);
+          [els.muteIcon, els.fullscreenMuteIcon].forEach(icon => icon.style.display = display[1]);
+          [els.audioBtn, els.fullscreenAudioBtn].forEach(btn => btn.classList.toggle('active', state.audioEnabled));
           
           onUserInteraction();
         }
@@ -581,27 +517,24 @@
         function playVideo(video) {
           if (!video?.src) return;
           
-          const playPromise = video.play();
-          if (playPromise) {
-            playPromise.then(() => {
+          video.play().then(() => {
+            state.isPlaying = true;
+            updatePlayButtons();
+            startProgressUpdate();
+          }).catch(() => {
+            // 靜音重試
+            video.muted = true;
+            els.video.muted = true;
+            els.fullscreenVideo.muted = true;
+            state.audioEnabled = false;
+            toggleAudio();
+            
+            video.play().then(() => {
               state.isPlaying = true;
               updatePlayButtons();
               startProgressUpdate();
-            }).catch(() => {
-              // 自動靜音重試
-              video.muted = true;
-              els.video.muted = true;
-              els.fullscreenVideo.muted = true;
-              state.audioEnabled = false;
-              updateAudioButtons();
-              
-              video.play().then(() => {
-                state.isPlaying = true;
-                updatePlayButtons();
-                startProgressUpdate();
-              }).catch(console.error);
-            });
-          }
+            }).catch(console.error);
+          });
         }
 
         function pauseVideo(video) {
@@ -622,105 +555,69 @@
         }
 
         function updatePlayButtons() {
-          els.playIcon.style.display = state.isPlaying ? 'none' : 'block';
-          els.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
-          els.pausePlayBtn.classList.toggle('active', state.isPlaying);
-          
-          els.fullscreenPlayIcon.style.display = state.isPlaying ? 'none' : 'block';
-          els.fullscreenPauseIcon.style.display = state.isPlaying ? 'block' : 'none';
-          els.fullscreenPausePlayBtn.classList.toggle('active', state.isPlaying);
-        }
-
-        function updateAudioButtons() {
-          els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
-          els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
-          els.audioBtn.classList.toggle('active', state.audioEnabled);
-          
-          els.fullscreenSoundIcon.style.display = state.audioEnabled ? 'block' : 'none';
-          els.fullscreenMuteIcon.style.display = state.audioEnabled ? 'none' : 'block';
-          els.fullscreenAudioBtn.classList.toggle('active', state.audioEnabled);
+          const display = state.isPlaying ? ['none', 'block'] : ['block', 'none'];
+          [els.playIcon, els.fullscreenPlayIcon].forEach(icon => icon.style.display = display[0]);
+          [els.pauseIcon, els.fullscreenPauseIcon].forEach(icon => icon.style.display = display[1]);
+          [els.pausePlayBtn, els.fullscreenPausePlayBtn].forEach(btn => btn.classList.toggle('active', state.isPlaying));
         }
 
         function enterFullscreen() {
           if (!els.video.src || !state.isTargetVisible) return;
           
-          // 暫停 AR 視頻並隱藏場景
           pauseVideo(els.video);
           document.querySelector('a-scene').style.display = 'none';
-          
-          // 隱藏掃描 UI
           els.scanningOverlay.style.display = 'none';
           
-          // 設置全螢幕視頻
           els.fullscreenVideo.src = els.video.src;
           els.fullscreenVideo.currentTime = els.video.currentTime || 0;
           els.fullscreenVideo.muted = !state.audioEnabled;
-          els.fullscreenVideo.preload = "auto";
           
-          // 顯示全螢幕容器
           els.fullscreenContainer.classList.add('visible');
           state.isFullscreen = true;
           
-          // 隱藏 AR 控制項
-          clearHideTimer();
+          manageTimer('controls', 'clear');
           els.controlsContainer.classList.add('hidden');
           
-          // 播放全螢幕視頻
           playVideo(els.fullscreenVideo);
-          
-          // 立即顯示全螢幕控制項並啟動5秒隱藏計時器
-          console.log('進入全螢幕模式'); // 調試用
           showFullscreenControls();
         }
 
         function exitFullscreen() {
-          // 暫停全螢幕視頻
           pauseVideo(els.fullscreenVideo);
           els.fullscreenVideo.src = '';
-          els.fullscreenVideo.preload = "none";
           
-          // 隱藏全螢幕容器和控制項
           els.fullscreenContainer.classList.remove('visible');
           els.fullscreenControls.classList.remove('visible');
-          clearFullscreenHideTimer();
+          manageTimer('fullscreen', 'clear');
           
-          // 重要：先設置狀態為非全螢幕
           state.isFullscreen = false;
           
-          // 恢復 AR 場景
           document.querySelector('a-scene').style.display = 'block';
           
-          // 重置播放狀態
           state.isPlaying = false;
           updatePlayButtons();
           stopProgressUpdate();
           
-          // 暫停 AR 視頻
           pauseVideo(els.video);
           els.video.currentTime = 0;
           
-          // 暫時顯示掃描 UI，給 MindAR 一點時間重新初始化
           els.scanningOverlay.style.display = 'flex';
           els.scanningOverlay.classList.remove('hidden');
           els.controlsContainer.classList.add('hidden');
           els.screenOverlay.classList.remove('active');
-          clearHideTimer();
+          manageTimer('controls', 'clear');
           
-          // 重要：給 MindAR 一些時間重新檢測目標狀態
           setTimeout(() => {
-            if (!state.isFullscreen) { // 確保沒有再次進入全螢幕
-              // 檢查 MindAR 的實際目標狀態
+            if (!state.isFullscreen) {
               const targetEntity = document.querySelector('#target0');
               if (targetEntity && targetEntity.object3D.visible) {
-                // 目標確實可見，觸發 targetFound 邏輯
                 state.isTargetVisible = true;
                 onTargetFound();
               } else {
-                // 目標不可見，保持掃描狀態
                 state.isTargetVisible = false;
               }
             }
-          }, 300); // 給 300ms 讓 MindAR 重新渲染和檢測
+          }, 300);
         }
 
         function onTargetFound() {
@@ -730,10 +627,7 @@
           els.scanningOverlay.style.display = 'none';
           els.scanningOverlay.classList.add("hidden");
           
-          // 確保視頻從頭開始播放
           els.video.currentTime = 0;
-          
-          // 自動播放影片，不需要按播放按鈕
           playVideo(els.video);
           showControls();
           updateProgress();
@@ -745,12 +639,10 @@
           state.isTargetVisible = false;
           pauseVideo(els.video);
           
-          // 顯示掃描UI
           els.scanningOverlay.style.display = 'flex';
           els.scanningOverlay.classList.remove("hidden");
           
-          // 隱藏控制項並清除定時器
-          clearHideTimer();
+          manageTimer('controls', 'clear');
           els.controlsContainer.classList.add('hidden');
           els.screenOverlay.classList.remove('active');
         }
@@ -764,23 +656,40 @@
           onUserInteraction();
         }
 
-        // 事件監聽器設置 - 合併相似事件
+        // 事件監聽器 - 優化合併
+        const progressHandlers = {
+          'input': (e) => handleProgressInput(e.target),
+          'change': () => state.isDragging = false,
+          'mousedown': () => state.isDragging = true,
+          'touchstart': () => state.isDragging = true
+        };
+
         [els.progressSlider, els.fullscreenProgressSlider].forEach(slider => {
-          slider.addEventListener('input', () => handleProgressInput(slider));
-          slider.addEventListener('change', () => state.isDragging = false);
-          slider.addEventListener('mousedown', () => state.isDragging = true);
-          slider.addEventListener('touchstart', () => state.isDragging = true);
+          Object.entries(progressHandlers).forEach(([event, handler]) => {
+            slider.addEventListener(event, handler);
+          });
         });
 
-        // 按鈕事件 - 加入用戶交互觸發
-        els.audioBtn.addEventListener('click', () => { toggleAudio(); onUserInteraction(); });
-        els.pausePlayBtn.addEventListener('click', () => { togglePlayPause(); onUserInteraction(); });
-        els.fullscreenBtn.addEventListener('click', enterFullscreen);
-        els.fullscreenAudioBtn.addEventListener('click', () => { toggleAudio(); onUserInteraction(); });
-        els.fullscreenPausePlayBtn.addEventListener('click', () => { togglePlayPause(); onUserInteraction(); });
-        els.exitFullscreenBtn.addEventListener('click', exitFullscreen);
+        // 按鈕事件
+        const buttonHandlers = {
+          [els.audioBtn.id]: toggleAudio,
+          [els.pausePlayBtn.id]: togglePlayPause,
+          [els.fullscreenBtn.id]: enterFullscreen,
+          [els.fullscreenAudioBtn.id]: toggleAudio,
+          [els.fullscreenPausePlayBtn.id]: togglePlayPause,
+          [els.exitFullscreenBtn.id]: exitFullscreen
+        };
 
-        // 交互和 MindAR 事件
+        Object.entries(buttonHandlers).forEach(([id, handler]) => {
+          document.getElementById(id).addEventListener('click', () => {
+            handler();
+            if (id !== els.fullscreenBtn.id && id !== els.exitFullscreenBtn.id) {
+              onUserInteraction();
+            }
+          });
+        });
+
+        // 交互事件
         els.screenOverlay.addEventListener('click', onUserInteraction);
         els.fullscreenContainer.addEventListener('click', (e) => {
           if (e.target === els.fullscreenContainer || e.target === els.fullscreenVideo) {
@@ -790,20 +699,28 @@
 
         els.controlsContainer.addEventListener('click', (e) => e.stopPropagation());
         els.fullscreenControls.addEventListener('click', (e) => e.stopPropagation());
-        document.addEventListener('click', onUserInteraction);
 
+        // MindAR 事件
         els.target.addEventListener("targetFound", onTargetFound);
         els.target.addEventListener("targetLost", onTargetLost);
         
-        // 視頻事件 - 只監聽必要事件
+        // 視頻事件
         els.video.addEventListener('loadedmetadata', updateProgress);
         els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress);
+
+        // 移動設備觸控支援
+        let touchTimer;
+        document.addEventListener('touchstart', () => {
+          clearTimeout(touchTimer);
+          onUserInteraction();
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', () => {
+          clearTimeout(touchTimer);
+          touchTimer = setTimeout(onUserInteraction, 100);
+        }, { passive: true });
 
         // 初始化
         els.video.load();
         updatePlayButtons();
-        updateAudioButtons();
-      }
-    </script>
-  </body>
-</html>
+      })();
