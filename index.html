@@ -6,9 +6,7 @@
     <meta name="cache-control" content="no-cache">
     <meta name="expires" content="0">
     <meta name="pragma" content="no-cache">
-    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/mindar-image-aframe.prod.js"></script>
-
+    
     <style>
       body {
         margin: 0;
@@ -41,8 +39,8 @@
         transform: translateX(-50%) translateY(50px);
       }
 
-      /* 進度條容器 */
-      #progress-container {
+      /* 【優化】進度條容器 - 抽離為共用 Class */
+      .progress-bar-container {
         display: flex;
         align-items: center;
         background-color: rgba(0, 0, 0, 0.6);
@@ -54,8 +52,8 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
-      /* 播放控制區域 */
-      #playback-controls {
+      /* 【優化】播放控制區域 - 抽離為共用 Class */
+      .playback-buttons-group {
         display: flex;
         gap: 12px;
         align-items: center;
@@ -72,7 +70,7 @@
       }
 
       /* 進度條滑塊 */
-      #progress-slider {
+      #progress-slider, #fullscreen-progress-slider {
         flex: 1;
         height: 4px;
         background: rgba(255, 255, 255, 0.3);
@@ -85,11 +83,11 @@
         appearance: none;
       }
 
-      #progress-slider:hover {
+      #progress-slider:hover, #fullscreen-progress-slider:hover {
         height: 6px;
       }
 
-      #progress-slider::-webkit-slider-thumb {
+      #progress-slider::-webkit-slider-thumb, #fullscreen-progress-slider::-webkit-slider-thumb {
         appearance: none;
         width: 12px;
         height: 12px;
@@ -100,13 +98,13 @@
         transition: all 0.2s ease;
       }
 
-      #progress-slider::-webkit-slider-thumb:hover {
+      #progress-slider::-webkit-slider-thumb:hover, #fullscreen-progress-slider::-webkit-slider-thumb:hover {
         transform: scale(1.2);
         background: #00ffff;
         box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
       }
 
-      #progress-slider::-moz-range-thumb {
+      #progress-slider::-moz-range-thumb, #fullscreen-progress-slider::-moz-range-thumb {
         width: 12px;
         height: 12px;
         border-radius: 50%;
@@ -266,17 +264,14 @@
   <body>
     <div id="screen-overlay"></div>
     
-    <!-- AR模式控制 -->
     <div id="controls-container">
-      <!-- 進度條控制區域 -->
-      <div id="progress-container">
+      <div id="progress-container" class="progress-bar-container">
         <span class="time-display" id="current-time">0:00</span>
         <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
         <span class="time-display" id="total-time">0:00</span>
       </div>
       
-      <!-- 播放控制按鈕 -->
-      <div id="playback-controls">
+      <div id="playback-controls" class="playback-buttons-group">
         <button class="icon-button" id="audio-btn" title="音效">
           <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
           <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -299,26 +294,23 @@
       </div>
     </div>
 
-    <!-- 掃描UI -->
     <div id="scanning-overlay">
       <div class="scanner-frame">
         <div class="scanner-line"></div>
       </div>
     </div>
     
-    <!-- 全螢幕播放 -->
     <div id="fullscreen-container">
       <video id="fullscreen-video" preload="none" playsinline webkit-playsinline></video>
       
-      <!-- 全螢幕模式控制 -->
       <div id="fullscreen-controls">
-        <div style="display: flex; align-items: center; background-color: rgba(0, 0, 0, 0.6); border-radius: 20px; padding: 8px 16px; backdrop-filter: blur(10px); gap: 12px; min-width: 250px; border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div class="progress-bar-container">
           <span class="time-display" id="fullscreen-current-time">0:00</span>
-          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" step="0.1" style="flex: 1; height: 4px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; outline: none; cursor: pointer; margin: 0 8px; -webkit-appearance: none; appearance: none;">
+          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" step="0.1">
           <span class="time-display" id="fullscreen-total-time">0:00</span>
         </div>
         
-        <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="playback-buttons-group">
           <button class="icon-button" id="fullscreen-audio-btn" title="音效">
             <svg id="fullscreen-mute-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
             <svg id="fullscreen-sound-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -344,11 +336,11 @@
 
     <a-scene
       mindar-image="imageTargetSrc:https://raw.githubusercontent.com/isaoinvest/TEST1234/main/targets.mind;
-                    warmupTolerance: 5;
-                    missTolerance: 150;
-                    filterMinCF: 0.000001; 
-                    filterBeta: 250;
-                    uiScanning: #scanning-overlay;"
+                   warmupTolerance: 5;
+                   missTolerance: 150;
+                   filterMinCF: 0.000001; 
+                   filterBeta: 250;
+                   uiScanning: #scanning-overlay;"
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrect: true"
       vr-mode-ui="enabled: false"
@@ -369,8 +361,7 @@
         <video
           id="video1"
           src="YOUR_VIDEO1_URL.mp4"
-          preload="metadata"
-          loop
+          preload="none" loop
           crossorigin="anonymous"
           playsinline
           webkit-playsinline
@@ -416,6 +407,8 @@
       </a-entity>
     </a-scene>
 
+    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/mindar-image-aframe.prod.js"></script>
     <script>
       if (window.AFRAME) {
         initApp();
@@ -488,11 +481,12 @@
           isPlaying: false,
           lastVideo: null,
           isFullscreen: false,
-          progressUpdateTimer: null,
           isDragging: false,
           controlsHideTimer: null,
           fullscreenControlsHideTimer: null,
-          hasDetectedTarget: false // 記錄是否曾經偵測到目標圖
+          hasDetectedTarget: false,
+          // 【優化】使用 isUpdatingProgress 旗標取代計時器 ID
+          isUpdatingProgress: false 
         };
 
         // 有效視頻過濾
@@ -616,20 +610,23 @@
           return state.lastVideo;
         }
 
-        // 開始進度更新
+        // 【優化】使用 requestAnimationFrame 進行進度更新
+        function progressLoop() {
+          if (!state.isUpdatingProgress) return;
+          updateProgress();
+          requestAnimationFrame(progressLoop);
+        }
+
         function startProgressUpdate() {
-          if (state.progressUpdateTimer) clearInterval(state.progressUpdateTimer);
-          state.progressUpdateTimer = setInterval(updateProgress, 100);
+          if (state.isUpdatingProgress) return;
+          state.isUpdatingProgress = true;
+          requestAnimationFrame(progressLoop);
         }
 
-        // 停止進度更新
         function stopProgressUpdate() {
-          if (state.progressUpdateTimer) {
-            clearInterval(state.progressUpdateTimer);
-            state.progressUpdateTimer = null;
-          }
+          state.isUpdatingProgress = false;
         }
-
+        
         // 音頻控制
         function toggleAudio() {
           state.audioEnabled = !state.audioEnabled;
@@ -667,7 +664,7 @@
           video.play().then(() => {
             state.isPlaying = true;
             updatePlayButtons();
-            startProgressUpdate(); // 確保進度更新啟動
+            startProgressUpdate(); // 【優化】呼叫新的函式
           }).catch(() => {
             video.muted = true;
             state.audioEnabled = false;
@@ -675,7 +672,7 @@
             video.play().then(() => {
               state.isPlaying = true;
               updatePlayButtons();
-              startProgressUpdate(); // 確保進度更新啟動
+              startProgressUpdate(); // 【優化】呼叫新的函式
             }).catch(console.error);
           });
         }
@@ -685,14 +682,13 @@
             video.pause();
             state.isPlaying = false;
             updatePlayButtons();
-            stopProgressUpdate();
+            stopProgressUpdate(); // 【優化】呼叫新的函式
           }
         }
 
         function togglePlayPause() {
-          // 只有在偵測到目標或全螢幕模式下才能播放
           if (state.targetCount === 0 && !state.isFullscreen) {
-            return; // 無效果
+            return;
           }
           
           const video = getCurrentActiveVideo();
@@ -707,18 +703,15 @@
         }
 
         function updatePlayButtons() {
-          // AR模式按鈕
           els.playIcon.style.display = state.isPlaying ? 'none' : 'block';
           els.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
           els.pausePlayBtn.classList.toggle('active', state.isPlaying);
           
-          // 全螢幕模式按鈕
           els.fullscreenPlayIcon.style.display = state.isPlaying ? 'none' : 'block';
           els.fullscreenPauseIcon.style.display = state.isPlaying ? 'block' : 'none';
           els.fullscreenPausePlayBtn.classList.toggle('active', state.isPlaying);
         }
 
-        // 更新全螢幕按鈕狀態
         function updateFullscreenButtonState() {
           if (state.hasDetectedTarget) {
             els.fullscreenBtn.classList.toggle('active', state.isFullscreen);
@@ -731,11 +724,9 @@
           }
         }
 
-        // 全螢幕播放
         function toggleFullscreen() {
-          // 只有在曾經偵測到目標後才能使用全螢幕功能
           if (!state.hasDetectedTarget || !state.lastVideo) {
-            return; // 無效果
+            return;
           }
           
           if (state.isFullscreen) {
@@ -747,29 +738,24 @@
         }
 
         function enterFullscreen(video) {
-          // 預先設置全螢幕視頻以加快載入
           els.fullscreenVideo.src = video.src;
           els.fullscreenVideo.currentTime = video.currentTime;
           els.fullscreenVideo.muted = !state.audioEnabled;
-          els.fullscreenVideo.preload = "auto"; // 確保快速載入
+          els.fullscreenVideo.preload = "auto";
           
           els.fullscreenContainer.classList.add('visible');
           state.isFullscreen = true;
           
-          // 更新全螢幕按鈕狀態
           updateFullscreenButtonState();
           
-          // 暫停AR模式的視頻
           video.pause();
           
-          // 立即播放全螢幕視頻並強制開始進度更新
           playVideo(els.fullscreenVideo);
           
-          // 強制啟動進度更新，確保即使在沒有目標圖時也能正常運作
-          if (state.progressUpdateTimer) clearInterval(state.progressUpdateTimer);
-          state.progressUpdateTimer = setInterval(updateProgress, 100);
+          // 【優化】這裡的 startProgressUpdate 已經包含在 playVideo 中，但為確保全螢幕下一定啟動，保留也無妨
+          startProgressUpdate();
           
-          showFullscreenControls(); // 進入全螢幕時顯示控制按鈕並開始計時
+          showFullscreenControls();
         }
 
         function exitFullscreen() {
@@ -781,41 +767,35 @@
           
           clearFullscreenHideTimer();
           
-          // 更新全螢幕按鈕狀態
           updateFullscreenButtonState();
           
           els.fullscreenVideo.pause();
           els.fullscreenVideo.src = '';
-          els.fullscreenVideo.preload = "none"; // 釋放資源
+          els.fullscreenVideo.preload = "none";
           
-          // 檢查是否有目標圖，如果沒有則停止播放
           if (state.targetCount > 0 && state.lastVideo) {
-            // 有目標圖，恢復AR模式播放
             state.lastVideo.currentTime = currentTime;
             playVideo(state.lastVideo);
             showControls();
           } else {
-            // 沒有目標圖，停止播放
             if (state.lastVideo) {
               state.lastVideo.pause();
               state.lastVideo.currentTime = currentTime;
             }
             state.isPlaying = false;
             updatePlayButtons();
-            stopProgressUpdate();
+            stopProgressUpdate(); // 【優化】呼叫新的函式
             showControls();
           }
         }
 
-        // 目標檢測事件處理
         function onTargetFound(targetEl, videoEl) {
           state.targetCount++;
           state.lastVideo = videoEl;
-          state.hasDetectedTarget = true; // 標記已偵測到目標圖
+          state.hasDetectedTarget = true;
           
           els.scanningOverlay.classList.add("hidden");
           
-          // 更新全螢幕按鈕狀態
           updateFullscreenButtonState();
           
           playVideo(videoEl);
@@ -839,7 +819,6 @@
           }
         }
 
-        // 進度條事件處理
         function handleProgressInput(slider) {
           state.isDragging = true;
           const video = getCurrentActiveVideo();
@@ -861,31 +840,26 @@
         els.fullscreenProgressSlider.addEventListener('input', () => handleProgressInput(els.fullscreenProgressSlider));
         els.fullscreenProgressSlider.addEventListener('change', handleProgressChange);
 
-        // AR模式按鈕事件
         els.audioBtn.addEventListener('click', toggleAudio);
         els.pausePlayBtn.addEventListener('click', togglePlayPause);
         els.fullscreenBtn.addEventListener('click', toggleFullscreen);
 
-        // 全螢幕模式按鈕事件
         els.fullscreenAudioBtn.addEventListener('click', toggleAudio);
         els.fullscreenPausePlayBtn.addEventListener('click', togglePlayPause);
         els.exitFullscreenBtn.addEventListener('click', exitFullscreen);
 
-        // 螢幕點擊事件
         els.screenOverlay.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           onUserInteraction();
         });
 
-        // 全螢幕容器點擊事件
         els.fullscreenContainer.addEventListener('click', (e) => {
           if (e.target === els.fullscreenContainer || e.target === els.fullscreenVideo) {
             onUserInteraction();
           }
         });
 
-        // 控制容器點擊事件（防止事件冒泡）
         els.controlsContainer.addEventListener('click', (e) => {
           e.stopPropagation();
           onUserInteraction();
@@ -896,7 +870,6 @@
           onUserInteraction();
         });
 
-        // 全域點擊事件監聽
         document.addEventListener('click', (e) => {
           if (!els.controlsContainer.contains(e.target) && 
               !els.fullscreenControls.contains(e.target) && 
@@ -905,7 +878,6 @@
           }
         });
 
-        // 目標元素事件監聽
         [els.target0, els.target1].forEach((target, index) => {
           if (target) {
             const video = validVideos[index];
@@ -916,7 +888,6 @@
           }
         });
 
-        // 視頻載入事件
         validVideos.forEach(video => {
           if (video) {
             video.addEventListener('loadedmetadata', updateProgress);
@@ -928,7 +899,7 @@
         // 初始化
         updateAudioButtons();
         updatePlayButtons();
-        updateFullscreenButtonState(); // 初始化全螢幕按鈕狀態
+        updateFullscreenButtonState();
         showControls();
       }
     </script>
