@@ -472,6 +472,7 @@
         }
 
         function hideFullscreenControls() {
+          if (!state.isFullscreen) return;
           els.fullscreenControls.classList.remove('visible');
           clearFullscreenHideTimer();
         }
@@ -662,7 +663,13 @@
           
           // 播放全螢幕視頻並顯示控制項
           playVideo(els.fullscreenVideo);
-          setTimeout(() => showFullscreenControls(), 100);
+          
+          // 確保全螢幕控制項正確顯示並啟動5秒隱藏計時器
+          setTimeout(() => {
+            if (state.isFullscreen) {
+              showFullscreenControls();
+            }
+          }, 100);
         }
 
         function exitFullscreen() {
@@ -764,12 +771,12 @@
           slider.addEventListener('touchstart', () => state.isDragging = true);
         });
 
-        // 按鈕事件
-        els.audioBtn.addEventListener('click', toggleAudio);
-        els.pausePlayBtn.addEventListener('click', togglePlayPause);
+        // 按鈕事件 - 加入用戶交互觸發
+        els.audioBtn.addEventListener('click', () => { toggleAudio(); onUserInteraction(); });
+        els.pausePlayBtn.addEventListener('click', () => { togglePlayPause(); onUserInteraction(); });
         els.fullscreenBtn.addEventListener('click', enterFullscreen);
-        els.fullscreenAudioBtn.addEventListener('click', toggleAudio);
-        els.fullscreenPausePlayBtn.addEventListener('click', togglePlayPause);
+        els.fullscreenAudioBtn.addEventListener('click', () => { toggleAudio(); onUserInteraction(); });
+        els.fullscreenPausePlayBtn.addEventListener('click', () => { togglePlayPause(); onUserInteraction(); });
         els.exitFullscreenBtn.addEventListener('click', exitFullscreen);
 
         // 交互和 MindAR 事件
