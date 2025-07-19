@@ -527,7 +527,12 @@
             els.video.muted = true;
             els.fullscreenVideo.muted = true;
             state.audioEnabled = false;
-            toggleAudio();
+            
+            // 更新音效按鈕狀態
+            const display = ['none', 'block'];
+            [els.soundIcon, els.fullscreenSoundIcon].forEach(icon => icon.style.display = display[0]);
+            [els.muteIcon, els.fullscreenMuteIcon].forEach(icon => icon.style.display = display[1]);
+            [els.audioBtn, els.fullscreenAudioBtn].forEach(btn => btn.classList.remove('active'));
             
             video.play().then(() => {
               state.isPlaying = true;
