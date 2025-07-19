@@ -377,7 +377,7 @@
           <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
         </button>
         
-        <button class="icon-button" id="pause-play-btn" title="播放/暫停">
+        <button class="icon-button" id="pause-play-btn" title="播放/全螢幕">
           <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
             <path d="M8 5v14l11-7z"/>
           </svg>
@@ -682,9 +682,17 @@
           if (!video) return;
           
           if (state.isPlaying) {
-            pauseVideo(video);
+            if (state.isFullscreen) {
+              exitFullscreen();
+            } else {
+              pauseVideo(video);
+            }
           } else {
-            playVideo(video);
+            if (!state.isFullscreen && state.lastVideo) {
+              enterFullscreen(state.lastVideo);
+            } else {
+              playVideo(video);
+            }
           }
           onUserInteraction();
         }
@@ -696,18 +704,6 @@
         }
 
         // 全螢幕播放
-        function toggleFullscreen() {
-          const video = state.lastVideo;
-          if (!video) return;
-          
-          if (state.isFullscreen) {
-            exitFullscreen();
-          } else {
-            enterFullscreen(video);
-          }
-          onUserInteraction();
-        }
-
         function enterFullscreen(video) {
           els.fullscreenVideo.src = video.src;
           els.fullscreenVideo.currentTime = video.currentTime;
@@ -743,7 +739,7 @@
           els.scanningOverlay.classList.add("hidden");
           
           playVideo(videoEl);
-          showControls(); // 找到目標時顯示控制按鈕並開始計時
+          showControls();
           
           updateProgress();
         }
@@ -758,7 +754,7 @@
             if (state.isFullscreen) {
               exitFullscreen();
             }
-            clearHideTimer(); // 沒有目標時清除隱藏計時器
+            clearHideTimer();
           }
         }
 
@@ -808,34 +804,22 @@
         els.fullscreenContainer.addEventListener('click', exitFullscreen);
         
         // 螢幕點擊事件
-        els.screenOverlay.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          showControls();
-        });
-
+        els.screenOverlay.addEventListener('click', showControls);
+        
         // 控制容器點擊事件（防止事件冒泡）
         els.controlsContainer.addEventListener('click', (e) => {
           e.stopPropagation();
           onUserInteraction();
         });
 
-        // 全域點擊事件監聽（用於桌面版本）
+        // 全域點擊事件監聽
         document.addEventListener('click', (e) => {
-          // 如果點擊的不是控制按鈕或其子元素
           if (!els.controlsContainer.contains(e.target) && !els.fullscreenContainer.contains(e.target)) {
             if (els.controlsContainer.classList.contains('hidden')) {
               showControls();
             } else {
               onUserInteraction();
             }
-          }
-        });
-
-        // 雙擊進入全螢幕
-        document.addEventListener('dblclick', (e) => {
-          if (!els.controlsContainer.contains(e.target)) {
-            toggleFullscreen();
           }
         });
 
@@ -860,7 +844,7 @@
         // 初始化
         updateAudioButton();
         updatePlayButton();
-        showControls(); // 應用啟動時顯示控制按鈕
+        showControls();
       }
     </script>
   </body>
