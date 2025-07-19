@@ -204,7 +204,7 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z Где есть лишний код, который можно удалить для оптимизации? Как улучшить производительность? -index: 500;
+        z-index: 10000;
         background-color: rgba(0, 0, 0, 0.98);
         opacity: 0;
         visibility: hidden;
@@ -231,13 +231,13 @@
         bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
-        z-index: 501;
+        z-index: 10001;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 15px;
         opacity: 0;
-        visibility noon: hidden;
+        visibility: hidden;
         transition: opacity 0.3s ease, visibility 0.3s ease;
         pointer-events: none;
       }
@@ -305,7 +305,7 @@
           </button>
           
           <button class="icon-button" id="fullscreen-pause-play-btn" title="播放/暫停">
-            <svg id="-union-play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <svg id="fullscreen-play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
             <svg id="fullscreen-pause-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;">
@@ -442,12 +442,14 @@
         els.fullscreenVideo.preload = "none";
 
         function showControls() {
+          if (state.isFullscreen) return;
           els.controlsContainer.classList.remove('hidden');
           els.screenOverlay.classList.remove('active');
           resetHideTimer();
         }
 
         function hideControls() {
+          if (state.isFullscreen) return;
           els.controlsContainer.classList.add('hidden');
           els.screenOverlay.classList.add('active');
           clearHideTimer();
@@ -455,9 +457,11 @@
 
         function resetHideTimer() {
           clearHideTimer();
-          state.controlsHideTimer = setTimeout(() => {
-            if (state.isTargetVisible) hideControls();
-          }, 5000);
+          if (!state.isFullscreen) {
+            state.controlsHideTimer = setTimeout(() => {
+              if (state.isTargetVisible && !state.isFullscreen) hideControls();
+            }, 5000);
+          }
         }
 
         function clearHideTimer() {
@@ -468,6 +472,7 @@
         }
 
         function showFullscreenControls() {
+          if (!state.isFullscreen) return;
           els.fullscreenControls.classList.add('visible');
           resetFullscreenHideTimer();
         }
@@ -479,9 +484,11 @@
 
         function resetFullscreenHideTimer() {
           clearFullscreenHideTimer();
-          state.fullscreenControlsHideTimer = setTimeout(() => {
-            if (state.isFullscreen) hideFullscreenControls();
-          }, 5000);
+          if (state.isFullscreen) {
+            state.fullscreenControlsHideTimer = setTimeout(() => {
+              if (state.isFullscreen) hideFullscreenControls();
+            }, 5000);
+          }
         }
 
         function clearFullscreenHideTimer() {
@@ -493,9 +500,13 @@
 
         function onUserInteraction() {
           if (state.isFullscreen) {
-            els.fullscreenControls.classList.contains('visible') ? resetFullscreenHideTimer() : showFullscreenControls();
-          } else {
-            els.controlsContainer.classList.contains('hidden') ? showControls() : resetHideTimer();
+            els.fullscreenControls.classList.contains('visible') 
+              ? resetFullscreenHideTimer() 
+              : showFullscreenControls();
+          } else if (state.isTargetVisible) {
+            els.controlsContainer.classList.contains('hidden') 
+              ? showControls() 
+              : resetHideTimer();
           }
         }
 
@@ -511,6 +522,7 @@
             const progress = (video.currentTime / video.duration) * 100;
             const currentTime = formatTime(video.currentTime || 0);
             const totalTime = formatTime(video.duration || 0);
+            
             if (state.isFullscreen) {
               els.fullscreenProgressSlider.value = progress;
               els.fullscreenCurrentTimeDisplay.textContent = currentTime;
@@ -543,18 +555,23 @@
           state.audioEnabled = !state.audioEnabled;
           els.video.muted = !state.audioEnabled;
           els.fullscreenVideo.muted = !state.audioEnabled;
+          
+          // 更新音效按鈕圖示
           els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
           els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
           els.audioBtn.classList.toggle('active', state.audioEnabled);
+          
           els.fullscreenSoundIcon.style.display = state.audioEnabled ? 'block' : 'none';
           els.fullscreenMuteIcon.style.display = state.audioEnabled ? 'none' : 'block';
           els.fullscreenAudioBtn.classList.toggle('active', state.audioEnabled);
+          
           onUserInteraction();
         }
 
         function playVideo(video) {
           if (!video?.src) return;
           video.preload = "auto";
+          
           const playPromise = video.play();
           if (playPromise) {
             playPromise.then(() => {
@@ -562,9 +579,13 @@
               updatePlayButtons();
               startProgressUpdate();
             }).catch(() => {
+              // 如果播放失敗，嘗試靜音播放
               video.muted = true;
+              els.video.muted = true;
+              els.fullscreenVideo.muted = true;
               state.audioEnabled = false;
-              toggleAudio();
+              updateAudioButtons();
+              
               video.play().then(() => {
                 state.isPlaying = true;
                 updatePlayButtons();
@@ -589,7 +610,8 @@
 
         function togglePlayPause() {
           const video = state.isFullscreen ? els.fullscreenVideo : els.video;
-          if (!video || !video.src || !state.isTargetVisible && !state.isFullscreen) return;
+          if (!video?.src || (!state.isTargetVisible && !state.isFullscreen)) return;
+          
           state.isPlaying ? pauseVideo(video) : playVideo(video);
           onUserInteraction();
         }
@@ -598,45 +620,87 @@
           els.playIcon.style.display = state.isPlaying ? 'none' : 'block';
           els.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
           els.pausePlayBtn.classList.toggle('active', state.isPlaying);
+          
           els.fullscreenPlayIcon.style.display = state.isPlaying ? 'none' : 'block';
           els.fullscreenPauseIcon.style.display = state.isPlaying ? 'block' : 'none';
           els.fullscreenPausePlayBtn.classList.toggle('active', state.isPlaying);
         }
 
+        function updateAudioButtons() {
+          els.soundIcon.style.display = state.audioEnabled ? 'block' : 'none';
+          els.muteIcon.style.display = state.audioEnabled ? 'none' : 'block';
+          els.audioBtn.classList.toggle('active', state.audioEnabled);
+          
+          els.fullscreenSoundIcon.style.display = state.audioEnabled ? 'block' : 'none';
+          els.fullscreenMuteIcon.style.display = state.audioEnabled ? 'none' : 'block';
+          els.fullscreenAudioBtn.classList.toggle('active', state.audioEnabled);
+        }
+
         function enterFullscreen() {
           if (!els.video.src) return;
-          els.video.pause();
+          
+          // 暫停 AR 視頻並隱藏場景
+          pauseVideo(els.video);
           document.querySelector('a-scene').style.display = 'none';
+          
+          // 隱藏掃描 UI
+          els.scanningOverlay.style.display = 'none';
+          
+          // 設置全螢幕視頻
           els.fullscreenVideo.src = els.video.src;
-          els.fullscreenVideo.currentTime = 0;
+          els.fullscreenVideo.currentTime = els.video.currentTime || 0;
           els.fullscreenVideo.muted = !state.audioEnabled;
           els.fullscreenVideo.preload = "auto";
+          
+          // 顯示全螢幕容器
           els.fullscreenContainer.classList.add('visible');
           state.isFullscreen = true;
+          
+          // 隱藏 AR 控制項
+          clearHideTimer();
+          els.controlsContainer.classList.add('hidden');
+          
+          // 播放全螢幕視頻並顯示控制項
           playVideo(els.fullscreenVideo);
-          showFullscreenControls();
+          setTimeout(() => showFullscreenControls(), 100);
         }
 
         function exitFullscreen() {
-          els.fullscreenVideo.pause();
+          // 暫停全螢幕視頻
+          pauseVideo(els.fullscreenVideo);
           els.fullscreenVideo.src = '';
           els.fullscreenVideo.preload = "none";
+          
+          // 隱藏全螢幕容器
           els.fullscreenContainer.classList.remove('visible');
           els.fullscreenControls.classList.remove('visible');
-          state.isFullscreen = false;
           clearFullscreenHideTimer();
+          
+          state.isFullscreen = false;
+          
+          // 恢復 AR 場景
           document.querySelector('a-scene').style.display = 'block';
+          els.scanningOverlay.style.display = 'flex';
+          
+          // 重置播放狀態
           state.isPlaying = false;
           updatePlayButtons();
           stopProgressUpdate();
-          if (state.isTargetVisible) playVideo(els.video);
-          showControls();
+          
+          // 如果目標仍然可見，恢復 AR 視頻播放
+          if (state.isTargetVisible) {
+            playVideo(els.video);
+            showControls();
+          }
         }
 
         function onTargetFound() {
           if (state.isFullscreen) return;
+          
           state.isTargetVisible = true;
           els.scanningOverlay.classList.add("hidden");
+          
+          // 自動播放影片，不需要按播放按鈕
           playVideo(els.video);
           showControls();
           updateProgress();
@@ -644,6 +708,7 @@
 
         function onTargetLost() {
           if (state.isFullscreen) return;
+          
           state.isTargetVisible = false;
           pauseVideo(els.video);
           els.scanningOverlay.classList.remove("hidden");
@@ -654,16 +719,22 @@
         function handleProgressInput(slider) {
           state.isDragging = true;
           const video = state.isFullscreen ? els.fullscreenVideo : els.video;
-          if (video) {
+          if (video && !isNaN(video.duration) && video.duration > 0) {
             video.currentTime = (slider.value / 100) * video.duration;
           }
           onUserInteraction();
         }
 
+        // 事件監聽器設置
         els.progressSlider.addEventListener('input', () => handleProgressInput(els.progressSlider));
         els.progressSlider.addEventListener('change', () => state.isDragging = false);
+        els.progressSlider.addEventListener('mousedown', () => state.isDragging = true);
+        els.progressSlider.addEventListener('touchstart', () => state.isDragging = true);
+
         els.fullscreenProgressSlider.addEventListener('input', () => handleProgressInput(els.fullscreenProgressSlider));
         els.fullscreenProgressSlider.addEventListener('change', () => state.isDragging = false);
+        els.fullscreenProgressSlider.addEventListener('mousedown', () => state.isDragging = true);
+        els.fullscreenProgressSlider.addEventListener('touchstart', () => state.isDragging = true);
 
         els.audioBtn.addEventListener('click', toggleAudio);
         els.pausePlayBtn.addEventListener('click', togglePlayPause);
@@ -674,20 +745,44 @@
 
         els.screenOverlay.addEventListener('click', onUserInteraction);
         els.fullscreenContainer.addEventListener('click', (e) => {
-          if (e.target === els.fullscreenContainer || e.target === els.fullscreenVideo) onUserInteraction();
+          if (e.target === els.fullscreenContainer || e.target === els.fullscreenVideo) {
+            onUserInteraction();
+          }
         });
 
+        // 防止控制項點擊事件冒泡
         els.controlsContainer.addEventListener('click', (e) => e.stopPropagation());
         els.fullscreenControls.addEventListener('click', (e) => e.stopPropagation());
 
+        // 全域點擊事件
         document.addEventListener('click', onUserInteraction);
 
+        // MindAR 事件監聽
         els.target.addEventListener("targetFound", onTargetFound);
         els.target.addEventListener("targetLost", onTargetLost);
+        
+        // 視頻事件監聽
         els.video.addEventListener('loadedmetadata', updateProgress);
         els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress);
+        els.video.addEventListener('timeupdate', updateProgress);
+        els.fullscreenVideo.addEventListener('timeupdate', updateProgress);
+        
+        // 全螢幕視頻結束事件
+        els.fullscreenVideo.addEventListener('ended', () => {
+          state.isPlaying = false;
+          updatePlayButtons();
+          stopProgressUpdate();
+        });
+        
+        els.video.addEventListener('ended', () => {
+          state.isPlaying = false;
+          updatePlayButtons();
+          stopProgressUpdate();
+        });
 
+        // 初始化
         updatePlayButtons();
+        updateAudioButtons();
         showControls();
       }
     </script>
