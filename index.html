@@ -34,120 +34,187 @@
         pointer-events: auto;
       }
 
-      /* 當有目標時，按鈕會縮小並移到角落 */
-      #controls-container.minimized {
-        opacity: 0.3;
-        transform: translateX(-50%) scale(0.7);
-        bottom: 10px;
-        transition: opacity 0.3s ease, transform 0.3s ease;
-      }
-
-      /* hover 時恢復完整顯示 */
-      #controls-container.minimized:hover {
-        opacity: 1;
-        transform: translateX(-50%) scale(1);
-      }
-
-      /* 完全隱藏模式 */
+      /* 隱藏模式 */
       #controls-container.hidden {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateX(-50%) translateY(100%);
-      }
-
-      /* 播放控制區域 */
-      #playback-controls {
-        display: flex;
-        gap: 15px;
-        align-items: center;
+        transform: translateX(-50%) translateY(100px);
       }
 
       /* 進度條容器 */
       #progress-container {
         display: flex;
         align-items: center;
-        background-color: rgba(0, 0, 0, 0.7);
-        border-radius: 25px;
-        padding: 10px 20px;
-        backdrop-filter: blur(5px);
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        gap: 15px;
-        min-width: 300px;
-        transition: all 0.3s ease;
+        background: linear-gradient(135deg, rgba(0, 20, 40, 0.9), rgba(0, 40, 60, 0.8));
+        border-radius: 30px;
+        padding: 12px 24px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        box-shadow: 
+          0 8px 32px rgba(0, 0, 0, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        gap: 20px;
+        min-width: 320px;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        overflow: hidden;
       }
 
-      .minimized #progress-container {
-        min-width: 200px;
-        padding: 6px 15px;
+      #progress-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+        transition: left 0.6s ease;
+      }
+
+      #progress-container:hover::before {
+        left: 100%;
+      }
+
+      /* 播放控制區域 */
+      #playback-controls {
+        display: flex;
+        gap: 20px;
+        align-items: center;
       }
 
       /* 時間顯示 */
       .time-display {
-        color: white;
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-        min-width: 35px;
+        color: #00ffff;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        min-width: 40px;
         text-align: center;
-        transition: font-size 0.3s ease;
+        text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        padding: 4px 6px;
+        background: rgba(0, 255, 255, 0.05);
+        border: 1px solid rgba(0, 255, 255, 0.1);
       }
 
-      .minimized .time-display {
-        font-size: 10px;
-        min-width: 30px;
+      /* 進度條軌道容器 */
+      #progress-track {
+        flex: 1;
+        height: 8px;
+        position: relative;
+        margin: 0 12px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+        cursor: pointer;
+      }
+
+      /* 進度條背景軌道 */
+      #progress-track::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+          rgba(0, 255, 255, 0.1) 0%, 
+          rgba(0, 150, 255, 0.05) 50%, 
+          rgba(0, 255, 255, 0.1) 100%);
+        border-radius: 4px;
       }
 
       /* 進度條滑塊 */
       #progress-slider {
-        flex: 1;
-        height: 6px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 3px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
         outline: none;
         cursor: pointer;
+        opacity: 0;
+        z-index: 3;
+      }
+
+      /* 進度填充條 */
+      #progress-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, 
+          #00ffff 0%, 
+          #0099ff 50%, 
+          #00ffff 100%);
+        border-radius: 4px;
+        transition: width 0.1s ease;
+        box-shadow: 
+          0 0 10px rgba(0, 255, 255, 0.6),
+          inset 0 1px 0 rgba(255, 255, 255, 0.3);
         position: relative;
-        margin: 0 10px;
-        transition: height 0.3s ease;
+        overflow: hidden;
       }
 
-      .minimized #progress-slider {
-        height: 4px;
+      /* 進度條光效 */
+      #progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -30px;
+        width: 30px;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: progress-shine 2s infinite;
       }
 
-      #progress-slider::-webkit-slider-thumb {
-        appearance: none;
-        width: 16px;
-        height: 16px;
+      @keyframes progress-shine {
+        0% { left: -30px; }
+        100% { left: 100%; }
+      }
+
+      /* 進度點指示器 */
+      #progress-thumb {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 12px;
+        height: 12px;
+        background: radial-gradient(circle, #ffffff 30%, #00ffff 70%);
+        border: 2px solid rgba(0, 255, 255, 0.8);
         border-radius: 50%;
-        background: #00ffff;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        box-shadow: 
+          0 0 15px rgba(0, 255, 255, 0.8),
+          0 0 25px rgba(0, 255, 255, 0.4);
         transition: all 0.2s ease;
-      }
-
-      .minimized #progress-slider::-webkit-slider-thumb {
-        width: 12px;
-        height: 12px;
-      }
-
-      #progress-slider::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
-      }
-
-      #progress-slider::-moz-range-thumb {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: #00ffff;
         cursor: pointer;
-        border: none;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        z-index: 2;
+        opacity: 0;
       }
 
-      .minimized #progress-slider::-moz-range-thumb {
-        width: 12px;
-        height: 12px;
+      #progress-track:hover #progress-thumb {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.2);
+        box-shadow: 
+          0 0 20px rgba(0, 255, 255, 1),
+          0 0 35px rgba(0, 255, 255, 0.6);
+      }
+
+      /* 進度軌道hover效果 */
+      #progress-track:hover {
+        transform: scaleY(1.2);
+      }
+
+      #progress-track:hover::before {
+        background: linear-gradient(90deg, 
+          rgba(0, 255, 255, 0.2) 0%, 
+          rgba(0, 150, 255, 0.1) 50%, 
+          rgba(0, 255, 255, 0.2) 100%);
       }
 
       .icon-button {
@@ -162,11 +229,6 @@
         justify-content: center;
         transition: all 0.3s ease;
         backdrop-filter: blur(5px);
-      }
-
-      .minimized .icon-button {
-        width: 40px;
-        height: 40px;
       }
 
       .icon-button:hover {
@@ -187,58 +249,22 @@
         transition: all 0.3s ease;
       }
 
-      /* 螢幕邊緣觸發區域 */
-      #edge-trigger {
+      /* 全螢幕點擊區域 */
+      #screen-overlay {
         position: fixed;
-        bottom: 0;
+        top: 0;
         left: 0;
         width: 100vw;
-        height: 80px;
+        height: 100vh;
         z-index: 999;
         pointer-events: auto;
-        background: linear-gradient(to top, rgba(0, 255, 255, 0.05), transparent);
+        background: transparent;
+        cursor: pointer;
         opacity: 0;
-        transition: opacity 0.3s ease;
       }
 
-      /* 當控制按鈕被隱藏時，顯示觸發區域提示 */
-      #edge-trigger.show-hint {
-        opacity: 1;
-        animation: gentle-glow 3s ease-in-out infinite;
-      }
-
-      @keyframes gentle-glow {
-        0%, 100% { background: linear-gradient(to top, rgba(0, 255, 255, 0.05), transparent); }
-        50% { background: linear-gradient(to top, rgba(0, 255, 255, 0.15), transparent); }
-      }
-
-      /* 觸控提示 */
-      #touch-hint {
-        position: fixed;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 998;
-        color: rgba(0, 255, 255, 0.8);
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        text-align: center;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.5s ease, visibility 0.5s ease;
-        pointer-events: none;
-        text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-      }
-
-      #touch-hint.show {
-        opacity: 1;
-        visibility: visible;
-        animation: gentle-pulse 2s ease-in-out infinite;
-      }
-
-      @keyframes gentle-pulse {
-        0%, 100% { transform: translateX(-50%) scale(1); }
-        50% { transform: translateX(-50%) scale(1.05); }
+      #screen-overlay.active {
+        pointer-events: auto;
       }
 
       /* 精簡的掃描UI */
@@ -326,70 +352,21 @@
         max-height: 95vh;
         object-fit: contain;
       }
-
-      /* 沉浸模式切換按鈕 */
-      #immersive-toggle {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1001;
-        width: 40px;
-        height: 40px;
-        background-color: rgba(0, 0, 0, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(5px);
-        opacity: 0;
-        visibility: hidden;
-      }
-
-      #immersive-toggle.show {
-        opacity: 1;
-        visibility: visible;
-      }
-
-      #immersive-toggle:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-        border-color: rgba(0, 255, 255, 0.8);
-        transform: scale(1.1);
-      }
-
-      #immersive-toggle svg {
-        width: 20px;
-        height: 20px;
-        fill: white;
-      }
     </style>
   </head>
   <body>
-    <!-- 螢幕邊緣觸發區域 -->
-    <div id="edge-trigger"></div>
-    
-    <!-- 觸控提示 -->
-    <div id="touch-hint">
-      觸碰螢幕底部顯示控制按鈕
-    </div>
-    
-    <!-- 沉浸模式切換按鈕 -->
-    <button id="immersive-toggle" title="沉浸模式切換">
-      <svg id="hide-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
-        <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
-      </svg>
-      <svg id="show-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;">
-        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-      </svg>
-    </button>
+    <!-- 全螢幕點擊區域 -->
+    <div id="screen-overlay"></div>
     
     <div id="controls-container">
       <!-- 進度條控制區域 -->
       <div id="progress-container">
         <span class="time-display" id="current-time">0:00</span>
-        <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
+        <div id="progress-track">
+          <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
+          <div id="progress-fill"></div>
+          <div id="progress-thumb"></div>
+        </div>
         <span class="time-display" id="total-time">0:00</span>
       </div>
       
@@ -537,16 +514,15 @@
           soundIcon: document.getElementById("sound-icon"),
           muteIcon: document.getElementById("mute-icon"),
           progressSlider: document.getElementById("progress-slider"),
+          progressFill: document.getElementById("progress-fill"),
+          progressThumb: document.getElementById("progress-thumb"),
+          progressTrack: document.getElementById("progress-track"),
           currentTimeDisplay: document.getElementById("current-time"),
           totalTimeDisplay: document.getElementById("total-time"),
           fullscreenContainer: document.getElementById("fullscreen-container"),
           fullscreenVideo: document.getElementById("fullscreen-video"),
           controlsContainer: document.getElementById("controls-container"),
-          edgeTrigger: document.getElementById("edge-trigger"),
-          touchHint: document.getElementById("touch-hint"),
-          immersiveToggle: document.getElementById("immersive-toggle"),
-          hideIcon: document.getElementById("hide-icon"),
-          showIcon: document.getElementById("show-icon")
+          screenOverlay: document.getElementById("screen-overlay")
         };
 
         // 應用狀態
@@ -558,9 +534,8 @@
           isFullscreen: false,
           progressUpdateTimer: null,
           isDragging: false,
-          immersiveMode: false,
-          hintTimer: null,
-          edgeTriggerTimer: null
+          controlsHideTimer: null,
+          userInteractionTime: Date.now()
         };
 
         // 有效視頻過濾
@@ -571,87 +546,40 @@
         // 預載視頻
         validVideos.forEach(v => v?.load());
 
-        // 控制按鈕顯示邏輯
-        function setControlsMode(mode) {
-          els.controlsContainer.classList.remove('minimized', 'hidden');
+        // 控制按鈕顯示/隱藏邏輯
+        function showControls() {
+          els.controlsContainer.classList.remove('hidden');
+          els.screenOverlay.classList.remove('active');
+          resetHideTimer();
+        }
+
+        function hideControls() {
+          els.controlsContainer.classList.add('hidden');
+          els.screenOverlay.classList.add('active');
+          clearHideTimer();
+        }
+
+        function resetHideTimer() {
+          clearHideTimer();
+          state.userInteractionTime = Date.now();
           
-          switch(mode) {
-            case 'normal':
-              // 正常顯示
-              break;
-            case 'minimized':
-              // 縮小顯示
-              els.controlsContainer.classList.add('minimized');
-              break;
-            case 'hidden':
-              // 完全隱藏
-              els.controlsContainer.classList.add('hidden');
-              break;
+          state.controlsHideTimer = setTimeout(() => {
+            hideControls();
+          }, 5000);
+        }
+
+        function clearHideTimer() {
+          if (state.controlsHideTimer) {
+            clearTimeout(state.controlsHideTimer);
+            state.controlsHideTimer = null;
           }
         }
 
-        function showControlsTemporarily() {
-          if (state.immersiveMode) {
-            setControlsMode('normal');
-            hideHint();
-            
-            // 3秒後自動隱藏
-            if (state.edgeTriggerTimer) clearTimeout(state.edgeTriggerTimer);
-            state.edgeTriggerTimer = setTimeout(() => {
-              if (state.immersiveMode && state.targetCount > 0) {
-                setControlsMode('hidden');
-                showEdgeTriggerHint();
-              }
-            }, 3000);
-          }
-        }
-
-        // 提示系統
-        function showHint() {
-          els.touchHint.classList.add("show");
-          if (state.hintTimer) clearTimeout(state.hintTimer);
-          state.hintTimer = setTimeout(hideHint, 4000);
-        }
-
-        function hideHint() {
-          els.touchHint.classList.remove("show");
-          if (state.hintTimer) {
-            clearTimeout(state.hintTimer);
-            state.hintTimer = null;
-          }
-        }
-
-        function showEdgeTriggerHint() {
-          if (state.immersiveMode && state.targetCount > 0) {
-            els.edgeTrigger.classList.add("show-hint");
-            setTimeout(() => {
-              els.edgeTrigger.classList.remove("show-hint");
-            }, 3000);
-          }
-        }
-
-        // 沉浸模式切換
-        function toggleImmersiveMode() {
-          state.immersiveMode = !state.immersiveMode;
-          
-          // 更新按鈕圖示
-          els.hideIcon.style.display = state.immersiveMode ? 'none' : 'block';
-          els.showIcon.style.display = state.immersiveMode ? 'block' : 'none';
-          
-          if (state.immersiveMode) {
-            // 進入沉浸模式
-            if (state.targetCount > 0) {
-              setControlsMode('hidden');
-              showEdgeTriggerHint();
-            }
+        function onUserInteraction() {
+          if (els.controlsContainer.classList.contains('hidden')) {
+            showControls();
           } else {
-            // 退出沉浸模式
-            if (state.targetCount > 0) {
-              setControlsMode('minimized');
-            } else {
-              setControlsMode('normal');
-            }
-            els.edgeTrigger.classList.remove("show-hint");
+            resetHideTimer();
           }
         }
 
@@ -668,6 +596,12 @@
           if (video && !state.isDragging) {
             const progress = (video.currentTime / video.duration) * 100;
             els.progressSlider.value = progress || 0;
+            els.progressFill.style.width = (progress || 0) + '%';
+            
+            // 更新進度點位置
+            const thumbPosition = (progress || 0) + '%';
+            els.progressThumb.style.left = thumbPosition;
+            
             els.currentTimeDisplay.textContent = formatTime(video.currentTime || 0);
             els.totalTimeDisplay.textContent = formatTime(video.duration || 0);
           }
@@ -705,6 +639,7 @@
           }
           
           updateAudioButton();
+          onUserInteraction();
         }
 
         function updateAudioButton() {
@@ -729,12 +664,12 @@
               state.isPlaying = true;
               updatePlayButton();
               startProgressUpdate();
-            }).catch(() => {});
+            }).catch(console.error);
           });
         }
 
         function pauseVideo(video) {
-          if (video?.src && !video.src.includes("YOUR_VIDEO1_URL.mp4")) {
+          if (video) {
             video.pause();
             state.isPlaying = false;
             updatePlayButton();
@@ -742,228 +677,190 @@
           }
         }
 
-        // 播放按鈕更新
+        function togglePlayPause() {
+          const video = getCurrentActiveVideo();
+          if (!video) return;
+          
+          if (state.isPlaying) {
+            pauseVideo(video);
+          } else {
+            playVideo(video);
+          }
+          onUserInteraction();
+        }
+
         function updatePlayButton() {
           els.playIcon.style.display = state.isPlaying ? 'none' : 'block';
           els.pauseIcon.style.display = state.isPlaying ? 'block' : 'none';
-        }
-
-        // 播放/暫停切換
-        function togglePlayPause() {
-          // 如果沒有檢測到目標且有lastVideo，進入全螢幕播放
-          if (state.targetCount === 0 && state.lastVideo) {
-            if (state.isFullscreen) {
-              // 已經在全螢幕，切換播放/暫停
-              const video = getCurrentActiveVideo();
-              if (video) {
-                if (state.isPlaying) {
-                  pauseVideo(video);
-                } else {
-                  playVideo(video);
-                }
-              }
-            } else {
-              // 進入全螢幕播放
-              enterFullscreen(state.lastVideo);
-              els.scanningOverlay.classList.add("hidden");
-            }
-          } else {
-            // 有目標時，正常控制播放
-            const video = getCurrentActiveVideo();
-            if (video) {
-              if (state.isPlaying) {
-                pauseVideo(video);
-              } else {
-                playVideo(video);
-              }
-            }
-          }
+          els.pausePlayBtn.classList.toggle('active', state.isPlaying);
         }
 
         // 全螢幕播放
-        function enterFullscreen(sourceVideo) {
-          if (!sourceVideo?.src || sourceVideo.src.includes("YOUR_VIDEO1_URL.mp4")) return;
+        function toggleFullscreen() {
+          const video = state.lastVideo;
+          if (!video) return;
           
+          if (state.isFullscreen) {
+            exitFullscreen();
+          } else {
+            enterFullscreen(video);
+          }
+          onUserInteraction();
+        }
+
+        function enterFullscreen(video) {
+          els.fullscreenVideo.src = video.src;
+          els.fullscreenVideo.currentTime = video.currentTime;
+          els.fullscreenVideo.muted = !state.audioEnabled;
+          
+          els.fullscreenContainer.classList.add('visible');
           state.isFullscreen = true;
-          const fsVideo = els.fullscreenVideo;
           
-          fsVideo.src = sourceVideo.src;
-          fsVideo.currentTime = sourceVideo.currentTime;
-          fsVideo.muted = !state.audioEnabled;
-          fsVideo.loop = true;
-          
-          els.fullscreenContainer.classList.add("visible");
-          fsVideo.play().then(() => {
-            state.isPlaying = true;
-            updatePlayButton();
-            startProgressUpdate();
-          }).catch(() => {
-            fsVideo.muted = true;
-            state.audioEnabled = false;
-            updateAudioButton();
-            fsVideo.play().then(() => {
-              state.isPlaying = true;
-              updatePlayButton();
-              startProgressUpdate();
-            }).catch(() => {});
-          });
+          video.pause();
+          playVideo(els.fullscreenVideo);
         }
 
         function exitFullscreen() {
-          state.isFullscreen = false;
-          els.fullscreenContainer.classList.remove("visible");
-          stopProgressUpdate();
+          const currentTime = els.fullscreenVideo.currentTime;
           
-          setTimeout(() => {
-            els.fullscreenVideo.pause();
-            els.fullscreenVideo.src = "";
-            state.isPlaying = false;
-            updatePlayButton();
-          }, 200);
+          els.fullscreenContainer.classList.remove('visible');
+          state.isFullscreen = false;
+          
+          els.fullscreenVideo.pause();
+          els.fullscreenVideo.src = '';
+          
+          if (state.lastVideo) {
+            state.lastVideo.currentTime = currentTime;
+            playVideo(state.lastVideo);
+          }
         }
 
-        // 事件監聽
-        els.audioBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleAudio();
-        });
+        // 目標檢測事件處理
+        function onTargetFound(targetEl, videoEl) {
+          state.targetCount++;
+          state.lastVideo = videoEl;
+          
+          els.scanningOverlay.classList.add("hidden");
+          
+          playVideo(videoEl);
+          showControls(); // 找到目標時顯示控制按鈕並開始計時
+          
+          updateProgress();
+        }
 
-        els.pausePlayBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          togglePlayPause();
-        });
-
-        // 沉浸模式切換按鈕
-        els.immersiveToggle.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleImmersiveMode();
-        });
+        function onTargetLost(targetEl, videoEl) {
+          state.targetCount = Math.max(0, state.targetCount - 1);
+          
+          pauseVideo(videoEl);
+          
+          if (state.targetCount === 0) {
+            els.scanningOverlay.classList.remove("hidden");
+            if (state.isFullscreen) {
+              exitFullscreen();
+            }
+            clearHideTimer(); // 沒有目標時清除隱藏計時器
+          }
+        }
 
         // 進度條事件
         els.progressSlider.addEventListener('input', (e) => {
+          state.isDragging = true;
           const video = getCurrentActiveVideo();
-          if (video?.duration) {
-            video.currentTime = (e.target.value / 100) * video.duration;
-          }
-        });
-
-        ['mousedown', 'touchstart'].forEach(event => {
-          els.progressSlider.addEventListener(event, () => state.isDragging = true);
-        });
-
-        ['mouseup', 'touchend'].forEach(event => {
-          els.progressSlider.addEventListener(event, () => state.isDragging = false);
-        });
-
-        // 螢幕邊緣觸發事件
-        els.edgeTrigger.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          showControlsTemporarily();
-        });
-
-        els.edgeTrigger.addEventListener('mouseenter', () => {
-          showControlsTemporarily();
-        });
-
-        // 控制容器hover事件
-        els.controlsContainer.addEventListener('mouseenter', () => {
-          if (state.edgeTriggerTimer) {
-            clearTimeout(state.edgeTriggerTimer);
-            state.edgeTriggerTimer = null;
-          }
-        });
-
-        els.controlsContainer.addEventListener('mouseleave', () => {
-          if (state.immersiveMode && state.targetCount > 0) {
-            if (state.edgeTriggerTimer) clearTimeout(state.edgeTriggerTimer);
-            state.edgeTriggerTimer = setTimeout(() => {
-              setControlsMode('hidden');
-              showEdgeTriggerHint();
-            }, 1000);
-          }
-        });
-
-        // 全螢幕點擊退出
-        els.fullscreenContainer.addEventListener("click", (e) => {
-          if (state.isFullscreen) {
-            exitFullscreen();
+          if (video) {
+            const newTime = (els.progressSlider.value / 100) * video.duration;
+            video.currentTime = newTime;
             
-            if (state.targetCount === 0) {
-              els.scanningOverlay.classList.remove("hidden");
+            // 即時更新視覺進度
+            els.progressFill.style.width = els.progressSlider.value + '%';
+            els.progressThumb.style.left = els.progressSlider.value + '%';
+          }
+          onUserInteraction();
+        });
+
+        els.progressSlider.addEventListener('change', () => {
+          state.isDragging = false;
+          onUserInteraction();
+        });
+
+        // 進度條軌道點擊事件
+        els.progressTrack.addEventListener('click', (e) => {
+          const video = getCurrentActiveVideo();
+          if (video && e.target === els.progressTrack) {
+            const rect = els.progressTrack.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percentage = (clickX / rect.width) * 100;
+            
+            els.progressSlider.value = Math.max(0, Math.min(100, percentage));
+            const newTime = (els.progressSlider.value / 100) * video.duration;
+            video.currentTime = newTime;
+            
+            // 更新視覺進度
+            els.progressFill.style.width = els.progressSlider.value + '%';
+            els.progressThumb.style.left = els.progressSlider.value + '%';
+            
+            onUserInteraction();
+          }
+        });
+
+        // 按鈕事件監聽器
+        els.audioBtn.addEventListener('click', toggleAudio);
+        els.pausePlayBtn.addEventListener('click', togglePlayPause);
+        els.fullscreenContainer.addEventListener('click', exitFullscreen);
+        
+        // 螢幕點擊事件
+        els.screenOverlay.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showControls();
+        });
+
+        // 控制容器點擊事件（防止事件冒泡）
+        els.controlsContainer.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onUserInteraction();
+        });
+
+        // 全域點擊事件監聽（用於桌面版本）
+        document.addEventListener('click', (e) => {
+          // 如果點擊的不是控制按鈕或其子元素
+          if (!els.controlsContainer.contains(e.target) && !els.fullscreenContainer.contains(e.target)) {
+            if (els.controlsContainer.classList.contains('hidden')) {
+              showControls();
+            } else {
+              onUserInteraction();
             }
           }
         });
 
-        // 目標偵測事件
-        function onTargetFound(video, otherVideo) {
-          if (!video?.src || video.src.includes("YOUR_VIDEO1_URL.mp4")) return;
-
-          state.targetCount++;
-          state.lastVideo = video;
-          
-          if (state.isFullscreen) exitFullscreen();
-          if (otherVideo) pauseVideo(otherVideo);
-
-          playVideo(video);
-          els.scanningOverlay.classList.add("hidden");
-          
-          // 顯示沉浸模式切換按鈕
-          els.immersiveToggle.classList.add("show");
-          
-          // 根據沉浸模式設置控制按鈕顯示
-          if (state.immersiveMode) {
-            setControlsMode('hidden');
-            setTimeout(showEdgeTriggerHint, 1000);
-          } else {
-            setControlsMode('minimized');
+        // 雙擊進入全螢幕
+        document.addEventListener('dblclick', (e) => {
+          if (!els.controlsContainer.contains(e.target)) {
+            toggleFullscreen();
           }
-        }
+        });
 
-        function onTargetLost(video) {
-          if (!video?.src || video.src.includes("YOUR_VIDEO1_URL.mp4")) return;
-
-          if (state.targetCount > 0) state.targetCount--;
-
-          if (state.targetCount === 0) {
-            // 目標丟失時，暫停視頻並顯示掃描界面
-            pauseVideo(video);
-            
-            // 隱藏沉浸模式切換按鈕
-            els.immersiveToggle.classList.remove("show");
-            
-            // 恢復正常控制顯示
-            setControlsMode('normal');
-            els.edgeTrigger.classList.remove("show-hint");
-            
-            setTimeout(() => {
-              if (state.targetCount === 0) {
-                els.scanningOverlay.classList.remove("hidden");
-              }
-            }, 200);
+        // 目標元素事件監聽
+        [els.target0, els.target1].forEach((target, index) => {
+          if (target) {
+            const video = validVideos[index];
+            if (video) {
+              target.addEventListener("targetFound", () => onTargetFound(target, video));
+              target.addEventListener("targetLost", () => onTargetLost(target, video));
+            }
           }
-        }
+        });
 
-        // 設置目標事件
-        if (els.target0 && els.video0) {
-          els.target0.addEventListener("targetFound", () => onTargetFound(els.video0, els.video1));
-          els.target0.addEventListener("targetLost", () => onTargetLost(els.video0));
-        }
-
-        if (els.target1 && els.video1 && !els.video1.src.includes("YOUR_VIDEO1_URL.mp4")) {
-          els.target1.addEventListener("targetFound", () => onTargetFound(els.video1, els.video0));
-          els.target1.addEventListener("targetLost", () => onTargetLost(els.video1));
-        }
+        // 視頻載入事件
+        validVideos.forEach(video => {
+          if (video) {
+            video.addEventListener('loadedmetadata', updateProgress);
+          }
+        });
 
         // 初始化
-        updatePlayButton();
         updateAudioButton();
-        
-        // 初始顯示提示
-        setTimeout(() => {
-          if (state.targetCount === 0) {
-            showHint();
-          }
-        }, 3000);
+        updatePlayButton();
+        showControls(); // 應用啟動時顯示控制按鈕
       }
     </script>
   </body>
