@@ -17,7 +17,7 @@
         height: 100vh;
       }
 
-      /* 控制按鈕系統 - 簡潔版 */
+      /* 控制按鈕系統 */
       #controls-container {
         position: fixed;
         bottom: 30px;
@@ -34,7 +34,6 @@
         pointer-events: auto;
       }
 
-      /* 隱藏模式 */
       #controls-container.hidden {
         opacity: 0;
         visibility: hidden;
@@ -42,7 +41,7 @@
         transform: translateX(-50%) translateY(50px);
       }
 
-      /* 進度條容器 - 簡潔版 */
+      /* 進度條容器 */
       #progress-container {
         display: flex;
         align-items: center;
@@ -52,18 +51,17 @@
         backdrop-filter: blur(10px);
         gap: 12px;
         min-width: 250px;
-        transition: all 0.3s ease;
         border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
-      /* 播放控制區域 - 簡潔版 */
+      /* 播放控制區域 */
       #playback-controls {
         display: flex;
         gap: 12px;
         align-items: center;
       }
 
-      /* 時間顯示 - 簡潔版 */
+      /* 時間顯示 */
       .time-display {
         color: rgba(255, 255, 255, 0.9);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
@@ -73,7 +71,7 @@
         text-align: center;
       }
 
-      /* 進度條滑塊 - 簡潔版 */
+      /* 進度條滑塊 */
       #progress-slider {
         flex: 1;
         height: 4px;
@@ -118,7 +116,7 @@
         box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
       }
 
-      /* 控制按鈕 - 簡潔版 */
+      /* 控制按鈕 */
       .icon-button {
         width: 44px;
         height: 44px;
@@ -148,7 +146,6 @@
         width: 20px;
         height: 20px;
         fill: white;
-        transition: fill 0.2s ease;
       }
 
       /* 全螢幕點擊區域 */
@@ -162,14 +159,13 @@
         pointer-events: none;
         background: transparent;
         cursor: pointer;
-        opacity: 0;
       }
 
       #screen-overlay.active {
         pointer-events: auto;
       }
 
-      /* 掃描UI - 簡潔版 */
+      /* 掃描UI */
       #scanning-overlay {
         position: fixed;
         top: 0;
@@ -268,7 +264,6 @@
     </style>
   </head>
   <body>
-    <!-- 全螢幕點擊區域 -->
     <div id="screen-overlay"></div>
     
     <!-- AR模式控制 -->
@@ -295,6 +290,12 @@
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
           </svg>
         </button>
+
+        <button class="icon-button" id="fullscreen-btn" title="全螢幕">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -311,7 +312,7 @@
       
       <!-- 全螢幕模式控制 -->
       <div id="fullscreen-controls">
-        <div id="fullscreen-progress-container" style="display: flex; align-items: center; background-color: rgba(0, 0, 0, 0.6); border-radius: 20px; padding: 8px 16px; backdrop-filter: blur(10px); gap: 12px; min-width: 250px; border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div style="display: flex; align-items: center; background-color: rgba(0, 0, 0, 0.6); border-radius: 20px; padding: 8px 16px; backdrop-filter: blur(10px); gap: 12px; min-width: 250px; border: 1px solid rgba(255, 255, 255, 0.2);">
           <span class="time-display" id="fullscreen-current-time">0:00</span>
           <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" step="0.1" style="flex: 1; height: 4px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; outline: none; cursor: pointer; margin: 0 8px; -webkit-appearance: none; appearance: none;">
           <span class="time-display" id="fullscreen-total-time">0:00</span>
@@ -416,7 +417,6 @@
     </a-scene>
 
     <script>
-      // 等待 A-Frame 載入
       if (window.AFRAME) {
         initApp();
       } else {
@@ -458,6 +458,7 @@
           audioBtn: document.getElementById("audio-btn"),
           soundIcon: document.getElementById("sound-icon"),
           muteIcon: document.getElementById("mute-icon"),
+          fullscreenBtn: document.getElementById("fullscreen-btn"),
           progressSlider: document.getElementById("progress-slider"),
           currentTimeDisplay: document.getElementById("current-time"),
           totalTimeDisplay: document.getElementById("total-time"),
@@ -490,8 +491,7 @@
           progressUpdateTimer: null,
           isDragging: false,
           controlsHideTimer: null,
-          fullscreenControlsHideTimer: null,
-          userInteractionTime: Date.now()
+          fullscreenControlsHideTimer: null
         };
 
         // 有效視頻過濾
@@ -517,10 +517,8 @@
 
         function resetHideTimer() {
           clearHideTimer();
-          state.userInteractionTime = Date.now();
-          
           state.controlsHideTimer = setTimeout(() => {
-            if (state.targetCount > 0) { // 只有在有目標時才隱藏
+            if (state.targetCount > 0) {
               hideControls();
             }
           }, 5000);
@@ -546,7 +544,6 @@
 
         function resetFullscreenHideTimer() {
           clearFullscreenHideTimer();
-          
           state.fullscreenControlsHideTimer = setTimeout(() => {
             if (state.isFullscreen) {
               hideFullscreenControls();
@@ -725,7 +722,7 @@
           
           video.pause();
           playVideo(els.fullscreenVideo);
-          showFullscreenControls(); // 進入全螢幕時顯示控制按鈕
+          showFullscreenControls();
         }
 
         function exitFullscreen() {
@@ -743,7 +740,7 @@
           if (state.lastVideo) {
             state.lastVideo.currentTime = currentTime;
             playVideo(state.lastVideo);
-            showControls(); // 退出全螢幕時顯示AR控制按鈕
+            showControls();
           }
         }
 
@@ -755,7 +752,7 @@
           els.scanningOverlay.classList.add("hidden");
           
           playVideo(videoEl);
-          showControls(); // 找到目標時顯示控制按鈕
+          showControls();
           
           updateProgress();
         }
@@ -770,13 +767,13 @@
             if (state.isFullscreen) {
               exitFullscreen();
             }
-            clearHideTimer(); // 沒有目標時清除隱藏計時器，保持按鈕顯示
-            showControls(); // 確保按鈕顯示
+            clearHideTimer();
+            showControls();
           }
         }
 
         // 進度條事件處理
-        function handleProgressInput(slider, isFullscreen = false) {
+        function handleProgressInput(slider) {
           state.isDragging = true;
           const video = getCurrentActiveVideo();
           if (video) {
@@ -791,23 +788,16 @@
           onUserInteraction();
         }
 
-        // AR模式進度條事件
-        els.progressSlider.addEventListener('input', () => {
-          handleProgressInput(els.progressSlider, false);
-        });
-
+        // 事件監聽器
+        els.progressSlider.addEventListener('input', () => handleProgressInput(els.progressSlider));
         els.progressSlider.addEventListener('change', handleProgressChange);
-
-        // 全螢幕模式進度條事件
-        els.fullscreenProgressSlider.addEventListener('input', () => {
-          handleProgressInput(els.fullscreenProgressSlider, true);
-        });
-
+        els.fullscreenProgressSlider.addEventListener('input', () => handleProgressInput(els.fullscreenProgressSlider));
         els.fullscreenProgressSlider.addEventListener('change', handleProgressChange);
 
         // AR模式按鈕事件
         els.audioBtn.addEventListener('click', toggleAudio);
         els.pausePlayBtn.addEventListener('click', togglePlayPause);
+        els.fullscreenBtn.addEventListener('click', toggleFullscreen);
 
         // 全螢幕模式按鈕事件
         els.fullscreenAudioBtn.addEventListener('click', toggleAudio);
@@ -848,16 +838,6 @@
           }
         });
 
-        // 雙擊進入全螢幕
-        document.addEventListener('dblclick', (e) => {
-          if (!els.controlsContainer.contains(e.target) && 
-              !els.fullscreenControls.contains(e.target)) {
-            if (state.lastVideo && !state.isFullscreen) {
-              toggleFullscreen();
-            }
-          }
-        });
-
         // 目標元素事件監聽
         [els.target0, els.target1].forEach((target, index) => {
           if (target) {
@@ -876,13 +856,12 @@
           }
         });
 
-        // 全螢幕視頻載入事件
         els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress);
 
         // 初始化
         updateAudioButtons();
         updatePlayButtons();
-        showControls(); // 應用啟動時顯示控制按鈕
+        showControls();
       }
     </script>
   </body>
