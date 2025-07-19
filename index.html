@@ -644,7 +644,7 @@
         }
 
         function enterFullscreen() {
-          if (!els.video.src) return;
+          if (!els.video.src || !state.isTargetVisible) return;
           
           // 暫停 AR 視頻並隱藏場景
           pauseVideo(els.video);
@@ -689,25 +689,37 @@
           // 恢復 AR 場景
           document.querySelector('a-scene').style.display = 'block';
           
-          // 完全重置到初始狀態
+          // 重置播放狀態
           state.isPlaying = false;
-          state.isTargetVisible = false; // 重置目標狀態，讓系統重新檢測
           updatePlayButtons();
           stopProgressUpdate();
           
-          // 暫停並重置 AR 視頻
+          // 暫停 AR 視頻
           pauseVideo(els.video);
           els.video.currentTime = 0;
           
-          // 恢復到掃描狀態
+          // 暫時顯示掃描 UI，給 MindAR 一點時間重新初始化
           els.scanningOverlay.style.display = 'flex';
           els.scanningOverlay.classList.remove('hidden');
           els.controlsContainer.classList.add('hidden');
           els.screenOverlay.classList.remove('active');
           clearHideTimer();
           
-          // 讓 MindAR 重新檢測目標狀態
-          // 如果目標真的還在視野中，會觸發 targetFound 事件
+          // 重要：給 MindAR 一些時間重新檢測目標狀態
+          setTimeout(() => {
+            if (!state.isFullscreen) { // 確保沒有再次進入全螢幕
+              // 檢查 MindAR 的實際目標狀態
+              const targetEntity = document.querySelector('#target0');
+              if (targetEntity && targetEntity.object3D.visible) {
+                // 目標確實可見，觸發 targetFound 邏輯
+                state.isTargetVisible = true;
+                onTargetFound();
+              } else {
+                // 目標不可見，保持掃描狀態
+                state.isTargetVisible = false;
+              }
+            }
+          }, 300); // 給 300ms 讓 MindAR 重新渲染和檢測
         }
 
         function onTargetFound() {
@@ -716,6 +728,9 @@
           state.isTargetVisible = true;
           els.scanningOverlay.style.display = 'none';
           els.scanningOverlay.classList.add("hidden");
+          
+          // 確保視頻從頭開始播放
+          els.video.currentTime = 0;
           
           // 自動播放影片，不需要按播放按鈕
           playVideo(els.video);
