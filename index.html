@@ -673,9 +673,6 @@
         }
 
         function exitFullscreen() {
-          // 記錄全螢幕視頻的播放時間
-          const currentTime = els.fullscreenVideo.currentTime || 0;
-          
           // 暫停全螢幕視頻
           pauseVideo(els.fullscreenVideo);
           els.fullscreenVideo.src = '';
@@ -692,28 +689,25 @@
           // 恢復 AR 場景
           document.querySelector('a-scene').style.display = 'block';
           
-          // 重置播放狀態
+          // 完全重置到初始狀態
           state.isPlaying = false;
+          state.isTargetVisible = false; // 重置目標狀態，讓系統重新檢測
           updatePlayButtons();
           stopProgressUpdate();
           
-          // 根據目標是否可見來決定後續行為
-          if (state.isTargetVisible) {
-            // 目標可見：隱藏掃描UI，恢復AR視頻播放，顯示控制項
-            els.scanningOverlay.style.display = 'none';
-            els.scanningOverlay.classList.add('hidden');
-            
-            // 同步播放時間
-            els.video.currentTime = currentTime;
-            playVideo(els.video);
-            showControls();
-          } else {
-            // 目標不可見：顯示掃描UI，隱藏控制項
-            els.scanningOverlay.style.display = 'flex';
-            els.scanningOverlay.classList.remove('hidden');
-            els.controlsContainer.classList.add('hidden');
-            els.screenOverlay.classList.remove('active');
-          }
+          // 暫停並重置 AR 視頻
+          pauseVideo(els.video);
+          els.video.currentTime = 0;
+          
+          // 恢復到掃描狀態
+          els.scanningOverlay.style.display = 'flex';
+          els.scanningOverlay.classList.remove('hidden');
+          els.controlsContainer.classList.add('hidden');
+          els.screenOverlay.classList.remove('active');
+          clearHideTimer();
+          
+          // 讓 MindAR 重新檢測目標狀態
+          // 如果目標真的還在視野中，會觸發 targetFound 事件
         }
 
         function onTargetFound() {
