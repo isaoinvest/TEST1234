@@ -491,7 +491,8 @@
           progressUpdateTimer: null,
           isDragging: false,
           controlsHideTimer: null,
-          fullscreenControlsHideTimer: null
+          fullscreenControlsHideTimer: null,
+          hasDetectedTarget: false // 記錄是否曾經偵測到目標圖
         };
 
         // 有效視頻過濾
@@ -676,6 +677,11 @@
         }
 
         function togglePlayPause() {
+          // 只有在偵測到目標或全螢幕模式下才能播放
+          if (state.targetCount === 0 && !state.isFullscreen) {
+            return; // 無效果
+          }
+          
           const video = getCurrentActiveVideo();
           if (!video) return;
           
@@ -699,8 +705,26 @@
           els.fullscreenPausePlayBtn.classList.toggle('active', state.isPlaying);
         }
 
+        // 更新全螢幕按鈕狀態
+        function updateFullscreenButtonState() {
+          if (state.hasDetectedTarget) {
+            els.fullscreenBtn.classList.toggle('active', state.isFullscreen);
+            els.fullscreenBtn.style.opacity = '1';
+            els.fullscreenBtn.style.pointerEvents = 'auto';
+          } else {
+            els.fullscreenBtn.classList.remove('active');
+            els.fullscreenBtn.style.opacity = '0.5';
+            els.fullscreenBtn.style.pointerEvents = 'none';
+          }
+        }
+
         // 全螢幕播放
         function toggleFullscreen() {
+          // 只有在曾經偵測到目標後才能使用全螢幕功能
+          if (!state.hasDetectedTarget) {
+            return; // 無效果
+          }
+          
           const video = state.lastVideo;
           if (!video) return;
           
@@ -722,7 +746,7 @@
           
           video.pause();
           playVideo(els.fullscreenVideo);
-          showFullscreenControls();
+          showFullscreenControls(); // 進入全螢幕時顯示控制按鈕並開始計時
         }
 
         function exitFullscreen() {
@@ -733,6 +757,9 @@
           state.isFullscreen = false;
           
           clearFullscreenHideTimer();
+          
+          // 更新全螢幕按鈕狀態
+          updateFullscreenButtonState();
           
           els.fullscreenVideo.pause();
           els.fullscreenVideo.src = '';
@@ -748,8 +775,12 @@
         function onTargetFound(targetEl, videoEl) {
           state.targetCount++;
           state.lastVideo = videoEl;
+          state.hasDetectedTarget = true; // 標記已偵測到目標圖
           
           els.scanningOverlay.classList.add("hidden");
+          
+          // 更新全螢幕按鈕狀態
+          updateFullscreenButtonState();
           
           playVideo(videoEl);
           showControls();
@@ -861,6 +892,7 @@
         // 初始化
         updateAudioButtons();
         updatePlayButtons();
+        updateFullscreenButtonState(); // 初始化全螢幕按鈕狀態
         showControls();
       }
     </script>
