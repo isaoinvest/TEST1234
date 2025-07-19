@@ -6,7 +6,10 @@
     <meta name="cache-control" content="no-cache">
     <meta name="expires" content="0">
     <meta name="pragma" content="no-cache">
-    
+    <!-- AR庫必須在head中載入 -->
+    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/mindar-image-aframe.prod.js"></script>
+
     <style>
       body {
         margin: 0;
@@ -39,7 +42,7 @@
         transform: translateX(-50%) translateY(50px);
       }
 
-      /* 【優化】進度條容器 - 抽離為共用 Class */
+      /* 進度條容器 - 共用 Class */
       .progress-bar-container {
         display: flex;
         align-items: center;
@@ -52,7 +55,7 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
       }
 
-      /* 【優化】播放控制區域 - 抽離為共用 Class */
+      /* 播放控制區域 - 共用 Class */
       .playback-buttons-group {
         display: flex;
         gap: 12px;
@@ -70,7 +73,7 @@
       }
 
       /* 進度條滑塊 */
-      #progress-slider, #fullscreen-progress-slider {
+      .progress-slider {
         flex: 1;
         height: 4px;
         background: rgba(255, 255, 255, 0.3);
@@ -83,11 +86,11 @@
         appearance: none;
       }
 
-      #progress-slider:hover, #fullscreen-progress-slider:hover {
+      .progress-slider:hover {
         height: 6px;
       }
 
-      #progress-slider::-webkit-slider-thumb, #fullscreen-progress-slider::-webkit-slider-thumb {
+      .progress-slider::-webkit-slider-thumb {
         appearance: none;
         width: 12px;
         height: 12px;
@@ -98,13 +101,13 @@
         transition: all 0.2s ease;
       }
 
-      #progress-slider::-webkit-slider-thumb:hover, #fullscreen-progress-slider::-webkit-slider-thumb:hover {
+      .progress-slider::-webkit-slider-thumb:hover {
         transform: scale(1.2);
         background: #00ffff;
         box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
       }
 
-      #progress-slider::-moz-range-thumb, #fullscreen-progress-slider::-moz-range-thumb {
+      .progress-slider::-moz-range-thumb {
         width: 12px;
         height: 12px;
         border-radius: 50%;
@@ -265,13 +268,13 @@
     <div id="screen-overlay"></div>
     
     <div id="controls-container">
-      <div id="progress-container" class="progress-bar-container">
+      <div class="progress-bar-container">
         <span class="time-display" id="current-time">0:00</span>
-        <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
+        <input type="range" id="progress-slider" class="progress-slider" min="0" max="100" value="0" step="0.1">
         <span class="time-display" id="total-time">0:00</span>
       </div>
       
-      <div id="playback-controls" class="playback-buttons-group">
+      <div class="playback-buttons-group">
         <button class="icon-button" id="audio-btn" title="音效">
           <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.57v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
           <svg id="sound-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="display: none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.28 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -306,7 +309,7 @@
       <div id="fullscreen-controls">
         <div class="progress-bar-container">
           <span class="time-display" id="fullscreen-current-time">0:00</span>
-          <input type="range" id="fullscreen-progress-slider" min="0" max="100" value="0" step="0.1">
+          <input type="range" id="fullscreen-progress-slider" class="progress-slider" min="0" max="100" value="0" step="0.1">
           <span class="time-display" id="fullscreen-total-time">0:00</span>
         </div>
         
@@ -361,7 +364,8 @@
         <video
           id="video1"
           src="YOUR_VIDEO1_URL.mp4"
-          preload="none" loop
+          preload="none"
+          loop
           crossorigin="anonymous"
           playsinline
           webkit-playsinline
@@ -407,8 +411,7 @@
       </a-entity>
     </a-scene>
 
-    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/isaoinvest/ar-libs/mindar-image-aframe.prod.js"></script>
+    <!-- 應用邏輯腳本 -->
     <script>
       if (window.AFRAME) {
         initApp();
@@ -485,7 +488,6 @@
           controlsHideTimer: null,
           fullscreenControlsHideTimer: null,
           hasDetectedTarget: false,
-          // 【優化】使用 isUpdatingProgress 旗標取代計時器 ID
           isUpdatingProgress: false 
         };
 
@@ -494,16 +496,15 @@
           v?.src && !v.src.includes("YOUR_VIDEO1_URL.mp4")
         );
 
-        // 預載視頻並優化全螢幕視頻設置
+        // 預載視頻並優化設置
         validVideos.forEach(v => {
           if (v) {
             v.load();
-            v.preload = "metadata"; // 預載基本資訊
+            v.preload = "metadata";
           }
         });
         
-        // 優化全螢幕視頻設置
-        els.fullscreenVideo.preload = "none"; // 初始不預載，按需載入
+        els.fullscreenVideo.preload = "none";
 
         // AR模式控制顯示/隱藏
         function showControls() {
@@ -610,7 +611,7 @@
           return state.lastVideo;
         }
 
-        // 【優化】使用 requestAnimationFrame 進行進度更新
+        // 使用 requestAnimationFrame 進行進度更新
         function progressLoop() {
           if (!state.isUpdatingProgress) return;
           updateProgress();
@@ -664,7 +665,7 @@
           video.play().then(() => {
             state.isPlaying = true;
             updatePlayButtons();
-            startProgressUpdate(); // 【優化】呼叫新的函式
+            startProgressUpdate();
           }).catch(() => {
             video.muted = true;
             state.audioEnabled = false;
@@ -672,7 +673,7 @@
             video.play().then(() => {
               state.isPlaying = true;
               updatePlayButtons();
-              startProgressUpdate(); // 【優化】呼叫新的函式
+              startProgressUpdate();
             }).catch(console.error);
           });
         }
@@ -682,7 +683,7 @@
             video.pause();
             state.isPlaying = false;
             updatePlayButtons();
-            stopProgressUpdate(); // 【優化】呼叫新的函式
+            stopProgressUpdate();
           }
         }
 
@@ -752,7 +753,6 @@
           
           playVideo(els.fullscreenVideo);
           
-          // 【優化】這裡的 startProgressUpdate 已經包含在 playVideo 中，但為確保全螢幕下一定啟動，保留也無妨
           startProgressUpdate();
           
           showFullscreenControls();
@@ -784,7 +784,7 @@
             }
             state.isPlaying = false;
             updatePlayButtons();
-            stopProgressUpdate(); // 【優化】呼叫新的函式
+            stopProgressUpdate();
             showControls();
           }
         }
