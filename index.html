@@ -375,28 +375,36 @@
         });
 
         // 優化：批量獲取元素，減少 DOM 查詢
-        const getElements = () => {
-          const ids = [
-            'video', 'target0', 'scanning-overlay', 'controls-container',
-            'pause-play-btn', 'play-icon', 'pause-icon', 'audio-btn',
-            'sound-icon', 'mute-icon', 'fullscreen-btn', 'progress-slider',
-            'current-time', 'total-time', 'fullscreen-container', 'fullscreen-video',
-            'fullscreen-controls', 'fullscreen-pause-play-btn', 'fullscreen-play-icon',
-            'fullscreen-pause-icon', 'fullscreen-audio-btn', 'fullscreen-sound-icon',
-            'fullscreen-mute-icon', 'fullscreen-progress-slider', 'fullscreen-current-time',
-            'fullscreen-total-time', 'exit-fullscreen-btn', 'screen-overlay'
-          ];
-          
-          const els = {};
-          ids.forEach(id => {
-            const key = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-            els[key] = document.getElementById(id) || document.querySelector(`#${id}`);
-          });
-          
-          return els;
+        const els = {
+          video: document.querySelector("#video"),
+          target0: document.querySelector("#target0"),
+          scanningOverlay: document.getElementById("scanning-overlay"),
+          controlsContainer: document.getElementById("controls-container"),
+          pausePlayBtn: document.getElementById("pause-play-btn"),
+          playIcon: document.getElementById("play-icon"),
+          pauseIcon: document.getElementById("pause-icon"),
+          audioBtn: document.getElementById("audio-btn"),
+          soundIcon: document.getElementById("sound-icon"),
+          muteIcon: document.getElementById("mute-icon"),
+          fullscreenBtn: document.getElementById("fullscreen-btn"),
+          progressSlider: document.getElementById("progress-slider"),
+          currentTimeDisplay: document.getElementById("current-time"),
+          totalTimeDisplay: document.getElementById("total-time"),
+          fullscreenContainer: document.getElementById("fullscreen-container"),
+          fullscreenVideo: document.getElementById("fullscreen-video"),
+          fullscreenControls: document.getElementById("fullscreen-controls"),
+          fullscreenPausePlayBtn: document.getElementById("fullscreen-pause-play-btn"),
+          fullscreenPlayIcon: document.getElementById("fullscreen-play-icon"),
+          fullscreenPauseIcon: document.getElementById("fullscreen-pause-icon"),
+          fullscreenAudioBtn: document.getElementById("fullscreen-audio-btn"),
+          fullscreenSoundIcon: document.getElementById("fullscreen-sound-icon"),
+          fullscreenMuteIcon: document.getElementById("fullscreen-mute-icon"),
+          fullscreenProgressSlider: document.getElementById("fullscreen-progress-slider"),
+          fullscreenCurrentTimeDisplay: document.getElementById("fullscreen-current-time"),
+          fullscreenTotalTimeDisplay: document.getElementById("fullscreen-total-time"),
+          exitFullscreenBtn: document.getElementById("exit-fullscreen-btn"),
+          screenOverlay: document.getElementById("screen-overlay")
         };
-
-        const els = getElements();
 
         const state = {
           isTargetVisible: false,
@@ -736,28 +744,28 @@
         els.fullscreenControls.addEventListener('click', (e) => e.stopPropagation());
 
         // MindAR 事件
-        els.target.addEventListener("targetFound", onTargetFound);
-        els.target.addEventListener("targetLost", onTargetLost);
+        els.target0.addEventListener("targetFound", onTargetFound);
+        els.target0.addEventListener("targetLost", onTargetLost);
         
-        // 視頻事件
-        els.video.addEventListener('loadedmetadata', updateProgress);
-        els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress);
+        // 視頻事件 - 優化：使用 once 選項
+        els.video.addEventListener('loadedmetadata', updateProgress, { once: true });
+        els.fullscreenVideo.addEventListener('loadedmetadata', updateProgress, { once: true });
 
-        // 移動設備觸控支援
+        // 移動設備觸控支援 - 優化：使用防抖
         let touchTimer;
-        document.addEventListener('touchstart', () => {
+        const touchHandler = () => {
           clearTimeout(touchTimer);
-          onUserInteraction();
-        }, { passive: true });
+          touchTimer = setTimeout(onUserInteraction, 50);
+        };
         
-        document.addEventListener('touchmove', () => {
-          clearTimeout(touchTimer);
-          touchTimer = setTimeout(onUserInteraction, 100);
-        }, { passive: true });
+        document.addEventListener('touchstart', touchHandler, { passive: true });
+        document.addEventListener('touchmove', touchHandler, { passive: true });
 
-        // 初始化
-        els.video.load();
+        // 初始化 - 優化：延遲非關鍵操作
         updatePlayButtons();
+        
+        // 預載入視頻元數據
+        els.video.load();
       })();
     </script>
   </body>
