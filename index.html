@@ -538,7 +538,7 @@
         // 全螢幕模式控制顯示/隱藏
         function showFullscreenControls() {
           els.fullscreenControls.classList.add('visible');
-          resetFullscreenHideTimer();
+          resetFullscreenHideTimer(); // 確保每次顯示都會啟動自動隱藏計時器
         }
 
         function hideFullscreenControls() {
@@ -548,6 +548,7 @@
 
         function resetFullscreenHideTimer() {
           clearFullscreenHideTimer();
+          // 在全螢幕模式下，無論是否有目標圖都要自動隱藏控制按鈕
           state.fullscreenControlsHideTimer = setTimeout(() => {
             if (state.isFullscreen) {
               hideFullscreenControls();
@@ -614,8 +615,15 @@
         // 使用 requestAnimationFrame 進行進度更新
         function progressLoop() {
           if (!state.isUpdatingProgress) return;
-          updateProgress();
-          requestAnimationFrame(progressLoop);
+          
+          const video = getCurrentActiveVideo();
+          if (video && !state.isDragging && !isNaN(video.duration) && video.duration > 0) {
+            updateProgress();
+          }
+          
+          if (state.isUpdatingProgress) {
+            requestAnimationFrame(progressLoop);
+          }
         }
 
         function startProgressUpdate() {
@@ -662,20 +670,29 @@
             video.preload = "auto";
           }
           
-          video.play().then(() => {
-            state.isPlaying = true;
-            updatePlayButtons();
-            startProgressUpdate();
-          }).catch(() => {
-            video.muted = true;
-            state.audioEnabled = false;
-            updateAudioButtons();
-            video.play().then(() => {
+          const playPromise = video.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
               state.isPlaying = true;
               updatePlayButtons();
               startProgressUpdate();
-            }).catch(console.error);
-          });
+            }).catch(() => {
+              video.muted = true;
+              state.audioEnabled = false;
+              updateAudioButtons();
+              video.play().then(() => {
+                state.isPlaying = true;
+                updatePlayButtons();
+                startProgressUpdate();
+              }).catch(console.error);
+            });
+          } else {
+            // 對於一些舊瀏覽器，play()不返回Promise
+            state.isPlaying = true;
+            updatePlayButtons();
+            startProgressUpdate();
+          }
         }
 
         function pauseVideo(video) {
@@ -751,11 +768,25 @@
           
           video.pause();
           
-          playVideo(els.fullscreenVideo);
+          // 確保全螢幕視頻載入並播放
+          els.fullscreenVideo.addEventListener('loadeddata', function onLoaded() {
+            els.fullscreenVideo.removeEventListener('loadeddata', onLoaded);
+            playVideo(els.fullscreenVideo);
+            // 強制啟動進度更新，即使在沒有目標圖的情況下
+            if (!state.isUpdatingProgress) {
+              startProgressUpdate();
+            }
+          });
           
-          startProgressUpdate();
+          // 如果已經載入，直接播放
+          if (els.fullscreenVideo.readyState >= 3) {
+            playVideo(els.fullscreenVideo);
+            if (!state.isUpdatingProgress) {
+              startProgressUpdate();
+            }
+          }
           
-          showFullscreenControls();
+          showFullscreenControls(); // 顯示控制按鈕並啟動5秒自動隱藏
         }
 
         function exitFullscreen() {
