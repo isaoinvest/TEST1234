@@ -17,7 +17,7 @@
         height: 100vh;
       }
 
-      /* 智能隱藏的控制按鈕 */
+      /* 智能控制按鈕系統 */
       #controls-container {
         position: fixed;
         bottom: 20px;
@@ -28,16 +28,32 @@
         flex-direction: column;
         align-items: center;
         gap: 15px;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
-        pointer-events: none;
-      }
-
-      #controls-container.show {
         opacity: 1;
         visibility: visible;
+        transition: opacity 0.5s ease, visibility 0.5s ease, transform 0.5s ease;
         pointer-events: auto;
+      }
+
+      /* 當有目標時，按鈕會縮小並移到角落 */
+      #controls-container.minimized {
+        opacity: 0.3;
+        transform: translateX(-50%) scale(0.7);
+        bottom: 10px;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+
+      /* hover 時恢復完整顯示 */
+      #controls-container.minimized:hover {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+      }
+
+      /* 完全隱藏模式 */
+      #controls-container.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateX(-50%) translateY(100%);
       }
 
       /* 播放控制區域 */
@@ -58,6 +74,12 @@
         border: 2px solid rgba(255, 255, 255, 0.3);
         gap: 15px;
         min-width: 300px;
+        transition: all 0.3s ease;
+      }
+
+      .minimized #progress-container {
+        min-width: 200px;
+        padding: 6px 15px;
       }
 
       /* 時間顯示 */
@@ -67,6 +89,12 @@
         font-size: 12px;
         min-width: 35px;
         text-align: center;
+        transition: font-size 0.3s ease;
+      }
+
+      .minimized .time-display {
+        font-size: 10px;
+        min-width: 30px;
       }
 
       /* 進度條滑塊 */
@@ -79,6 +107,11 @@
         cursor: pointer;
         position: relative;
         margin: 0 10px;
+        transition: height 0.3s ease;
+      }
+
+      .minimized #progress-slider {
+        height: 4px;
       }
 
       #progress-slider::-webkit-slider-thumb {
@@ -90,6 +123,11 @@
         cursor: pointer;
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         transition: all 0.2s ease;
+      }
+
+      .minimized #progress-slider::-webkit-slider-thumb {
+        width: 12px;
+        height: 12px;
       }
 
       #progress-slider::-webkit-slider-thumb:hover {
@@ -107,6 +145,11 @@
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
 
+      .minimized #progress-slider::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+      }
+
       .icon-button {
         width: 50px;
         height: 50px;
@@ -117,8 +160,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
         backdrop-filter: blur(5px);
+      }
+
+      .minimized .icon-button {
+        width: 40px;
+        height: 40px;
       }
 
       .icon-button:hover {
@@ -136,64 +184,61 @@
         width: 60%;
         height: 60%;
         fill: white;
+        transition: all 0.3s ease;
       }
 
-      /* 雙擊提示 */
-      #tap-hint {
+      /* 螢幕邊緣觸發區域 */
+      #edge-trigger {
         position: fixed;
-        top: 50%;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 80px;
+        z-index: 999;
+        pointer-events: auto;
+        background: linear-gradient(to top, rgba(0, 255, 255, 0.05), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      /* 當控制按鈕被隱藏時，顯示觸發區域提示 */
+      #edge-trigger.show-hint {
+        opacity: 1;
+        animation: gentle-glow 3s ease-in-out infinite;
+      }
+
+      @keyframes gentle-glow {
+        0%, 100% { background: linear-gradient(to top, rgba(0, 255, 255, 0.05), transparent); }
+        50% { background: linear-gradient(to top, rgba(0, 255, 255, 0.15), transparent); }
+      }
+
+      /* 觸控提示 */
+      #touch-hint {
+        position: fixed;
+        bottom: 30px;
         left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 100;
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 15px 25px;
-        border-radius: 25px;
+        transform: translateX(-50%);
+        z-index: 998;
+        color: rgba(0, 255, 255, 0.8);
         font-family: Arial, sans-serif;
-        font-size: 16px;
+        font-size: 14px;
         text-align: center;
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.5s ease, visibility 0.5s ease;
-        backdrop-filter: blur(10px);
-        border: 2px solid rgba(0, 255, 255, 0.3);
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
         pointer-events: none;
+        text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
 
-      #tap-hint.show {
+      #touch-hint.show {
         opacity: 1;
         visibility: visible;
         animation: gentle-pulse 2s ease-in-out infinite;
       }
 
       @keyframes gentle-pulse {
-        0%, 100% { transform: translate(-50%, -50%) scale(1); }
-        50% { transform: translate(-50%, -50%) scale(1.05); }
-      }
-
-      /* 雙擊漣漪效果 */
-      .tap-ripple {
-        position: fixed;
-        border: 3px solid rgba(0, 255, 255, 0.6);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        z-index: 998;
-        animation: ripple-effect 0.6s ease-out forwards;
-      }
-
-      @keyframes ripple-effect {
-        0% {
-          width: 0;
-          height: 0;
-          opacity: 1;
-        }
-        100% {
-          width: 120px;
-          height: 120px;
-          opacity: 0;
-        }
+        0%, 100% { transform: translateX(-50%) scale(1); }
+        50% { transform: translateX(-50%) scale(1.05); }
       }
 
       /* 精簡的掃描UI */
@@ -282,25 +327,63 @@
         object-fit: contain;
       }
 
-      /* 點擊區域 */
-      #tap-area {
+      /* 沉浸模式切換按鈕 */
+      #immersive-toggle {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 1;
-        pointer-events: auto;
+        top: 20px;
+        right: 20px;
+        z-index: 1001;
+        width: 40px;
+        height: 40px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      #immersive-toggle.show {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      #immersive-toggle:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+        border-color: rgba(0, 255, 255, 0.8);
+        transform: scale(1.1);
+      }
+
+      #immersive-toggle svg {
+        width: 20px;
+        height: 20px;
+        fill: white;
       }
     </style>
   </head>
   <body>
-    <div id="tap-area"></div>
+    <!-- 螢幕邊緣觸發區域 -->
+    <div id="edge-trigger"></div>
     
-    <div id="tap-hint">
-      按鈕請點擊2下螢幕
+    <!-- 觸控提示 -->
+    <div id="touch-hint">
+      觸碰螢幕底部顯示控制按鈕
     </div>
+    
+    <!-- 沉浸模式切換按鈕 -->
+    <button id="immersive-toggle" title="沉浸模式切換">
+      <svg id="hide-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
+        <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+      </svg>
+      <svg id="show-icon" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" style="display: none;">
+        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+      </svg>
+    </button>
     
     <div id="controls-container">
       <!-- 進度條控制區域 -->
@@ -459,8 +542,11 @@
           fullscreenContainer: document.getElementById("fullscreen-container"),
           fullscreenVideo: document.getElementById("fullscreen-video"),
           controlsContainer: document.getElementById("controls-container"),
-          tapArea: document.getElementById("tap-area"),
-          tapHint: document.getElementById("tap-hint")
+          edgeTrigger: document.getElementById("edge-trigger"),
+          touchHint: document.getElementById("touch-hint"),
+          immersiveToggle: document.getElementById("immersive-toggle"),
+          hideIcon: document.getElementById("hide-icon"),
+          showIcon: document.getElementById("show-icon")
         };
 
         // 應用狀態
@@ -470,11 +556,11 @@
           isPlaying: false,
           lastVideo: null,
           isFullscreen: false,
-          controlsTimer: null,
-          lastTapTime: 0,
-          hasShownHint: false,
           progressUpdateTimer: null,
-          isDragging: false
+          isDragging: false,
+          immersiveMode: false,
+          hintTimer: null,
+          edgeTriggerTimer: null
         };
 
         // 有效視頻過濾
@@ -486,58 +572,87 @@
         validVideos.forEach(v => v?.load());
 
         // 控制按鈕顯示邏輯
-        function showControls() {
-          els.controlsContainer.classList.add("show");
-          hideHint();
+        function setControlsMode(mode) {
+          els.controlsContainer.classList.remove('minimized', 'hidden');
           
-          if (state.controlsTimer) clearTimeout(state.controlsTimer);
-          state.controlsTimer = setTimeout(hideControls, 5000);
+          switch(mode) {
+            case 'normal':
+              // 正常顯示
+              break;
+            case 'minimized':
+              // 縮小顯示
+              els.controlsContainer.classList.add('minimized');
+              break;
+            case 'hidden':
+              // 完全隱藏
+              els.controlsContainer.classList.add('hidden');
+              break;
+          }
         }
 
-        function hideControls() {
-          els.controlsContainer.classList.remove("show");
-          
-          if (state.controlsTimer) {
-            clearTimeout(state.controlsTimer);
-            state.controlsTimer = null;
+        function showControlsTemporarily() {
+          if (state.immersiveMode) {
+            setControlsMode('normal');
+            hideHint();
+            
+            // 3秒後自動隱藏
+            if (state.edgeTriggerTimer) clearTimeout(state.edgeTriggerTimer);
+            state.edgeTriggerTimer = setTimeout(() => {
+              if (state.immersiveMode && state.targetCount > 0) {
+                setControlsMode('hidden');
+                showEdgeTriggerHint();
+              }
+            }, 3000);
           }
         }
 
         // 提示系統
         function showHint() {
-          if (!state.hasShownHint) {
-            els.tapHint.classList.add("show");
-            setTimeout(hideHint, 4000);
-          }
+          els.touchHint.classList.add("show");
+          if (state.hintTimer) clearTimeout(state.hintTimer);
+          state.hintTimer = setTimeout(hideHint, 4000);
         }
 
         function hideHint() {
-          els.tapHint.classList.remove("show");
-          state.hasShownHint = true;
-        }
-
-        // 雙擊檢測和漣漪效果
-        function createRipple(x, y) {
-          const ripple = document.createElement('div');
-          ripple.className = 'tap-ripple';
-          ripple.style.left = x + 'px';
-          ripple.style.top = y + 'px';
-          document.body.appendChild(ripple);
-          
-          setTimeout(() => ripple.remove(), 600);
-        }
-
-        function handleTap(e) {
-          const currentTime = Date.now();
-          const tapDelay = currentTime - state.lastTapTime;
-          
-          if (tapDelay < 500 && tapDelay > 50) {
-            createRipple(e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY);
-            showControls();
-            e.preventDefault();
+          els.touchHint.classList.remove("show");
+          if (state.hintTimer) {
+            clearTimeout(state.hintTimer);
+            state.hintTimer = null;
           }
+        }
+
+        function showEdgeTriggerHint() {
+          if (state.immersiveMode && state.targetCount > 0) {
+            els.edgeTrigger.classList.add("show-hint");
+            setTimeout(() => {
+              els.edgeTrigger.classList.remove("show-hint");
+            }, 3000);
+          }
+        }
+
+        // 沉浸模式切換
+        function toggleImmersiveMode() {
+          state.immersiveMode = !state.immersiveMode;
           
-          state.lastTapTime = currentTime;
+          // 更新按鈕圖示
+          els.hideIcon.style.display = state.immersiveMode ? 'none' : 'block';
+          els.showIcon.style.display = state.immersiveMode ? 'block' : 'none';
+          
+          if (state.immersiveMode) {
+            // 進入沉浸模式
+            if (state.targetCount > 0) {
+              setControlsMode('hidden');
+              showEdgeTriggerHint();
+            }
+          } else {
+            // 退出沉浸模式
+            if (state.targetCount > 0) {
+              setControlsMode('minimized');
+            } else {
+              setControlsMode('normal');
+            }
+            els.edgeTrigger.classList.remove("show-hint");
+          }
         }
 
         // 時間格式化
@@ -718,6 +833,12 @@
           togglePlayPause();
         });
 
+        // 沉浸模式切換按鈕
+        els.immersiveToggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleImmersiveMode();
+        });
+
         // 進度條事件
         els.progressSlider.addEventListener('input', (e) => {
           const video = getCurrentActiveVideo();
@@ -734,9 +855,33 @@
           els.progressSlider.addEventListener(event, () => state.isDragging = false);
         });
 
-        // 雙擊事件監聽
-        els.tapArea.addEventListener("click", handleTap);
-        els.tapArea.addEventListener("touchend", handleTap);
+        // 螢幕邊緣觸發事件
+        els.edgeTrigger.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          showControlsTemporarily();
+        });
+
+        els.edgeTrigger.addEventListener('mouseenter', () => {
+          showControlsTemporarily();
+        });
+
+        // 控制容器hover事件
+        els.controlsContainer.addEventListener('mouseenter', () => {
+          if (state.edgeTriggerTimer) {
+            clearTimeout(state.edgeTriggerTimer);
+            state.edgeTriggerTimer = null;
+          }
+        });
+
+        els.controlsContainer.addEventListener('mouseleave', () => {
+          if (state.immersiveMode && state.targetCount > 0) {
+            if (state.edgeTriggerTimer) clearTimeout(state.edgeTriggerTimer);
+            state.edgeTriggerTimer = setTimeout(() => {
+              setControlsMode('hidden');
+              showEdgeTriggerHint();
+            }, 1000);
+          }
+        });
 
         // 全螢幕點擊退出
         els.fullscreenContainer.addEventListener("click", (e) => {
@@ -761,6 +906,17 @@
 
           playVideo(video);
           els.scanningOverlay.classList.add("hidden");
+          
+          // 顯示沉浸模式切換按鈕
+          els.immersiveToggle.classList.add("show");
+          
+          // 根據沉浸模式設置控制按鈕顯示
+          if (state.immersiveMode) {
+            setControlsMode('hidden');
+            setTimeout(showEdgeTriggerHint, 1000);
+          } else {
+            setControlsMode('minimized');
+          }
         }
 
         function onTargetLost(video) {
@@ -769,8 +925,16 @@
           if (state.targetCount > 0) state.targetCount--;
 
           if (state.targetCount === 0) {
-            // 目標丟失時，如果正在播放，暫停視頻並顯示掃描界面
+            // 目標丟失時，暫停視頻並顯示掃描界面
             pauseVideo(video);
+            
+            // 隱藏沉浸模式切換按鈕
+            els.immersiveToggle.classList.remove("show");
+            
+            // 恢復正常控制顯示
+            setControlsMode('normal');
+            els.edgeTrigger.classList.remove("show-hint");
+            
             setTimeout(() => {
               if (state.targetCount === 0) {
                 els.scanningOverlay.classList.remove("hidden");
@@ -792,7 +956,14 @@
 
         // 初始化
         updatePlayButton();
-        setTimeout(showHint, 2000);
+        updateAudioButton();
+        
+        // 初始顯示提示
+        setTimeout(() => {
+          if (state.targetCount === 0) {
+            showHint();
+          }
+        }, 3000);
       }
     </script>
   </body>
