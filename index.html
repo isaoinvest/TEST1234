@@ -15,9 +15,55 @@
         overflow: hidden;
         width: 100vw;
         height: 100vh;
+        touch-action: none;
       }
 
-      /* 簡化掃描 UI */
+      /* 互動畫布 */
+      #interaction-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 3;
+      }
+
+      /* 觸控漣漪效果 */
+      .touch-ripple {
+        position: fixed;
+        border-radius: 50%;
+        border: 2px solid rgba(0, 255, 255, 0.6);
+        pointer-events: none;
+        animation: ripple 0.8s ease-out;
+        z-index: 4;
+      }
+
+      @keyframes ripple {
+        0% {
+          width: 0;
+          height: 0;
+          opacity: 1;
+        }
+        100% {
+          width: 100px;
+          height: 100px;
+          opacity: 0;
+        }
+      }
+
+      /* 粒子效果 */
+      .particle {
+        position: fixed;
+        width: 4px;
+        height: 4px;
+        background: radial-gradient(circle, rgba(0, 255, 255, 1) 0%, rgba(0, 255, 255, 0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 4;
+      }
+
+      /* 掃描UI */
       #scanning-overlay {
         position: fixed;
         top: 0;
@@ -29,7 +75,8 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        background-color: rgba(0, 0, 0, 0.1);
+        background-color: rgba(0, 0, 0, 0.2);
+        opacity: 1;
         transition: opacity 0.3s;
       }
 
@@ -37,28 +84,81 @@
         opacity: 0;
       }
 
-      .scanner-frame {
-        width: 180px;
-        height: 180px;
-        border: 2px solid rgba(255, 255, 255, 0.5);
+      .scanner-inner {
+        width: 200px;
+        height: 200px;
+        border: 2px solid rgba(0, 255, 255, 0.7);
         border-radius: 10px;
         position: relative;
+        overflow: hidden;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
       }
 
       .scanner-line {
         position: absolute;
-        height: 2px;
+        height: 3px;
         width: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
-        animation: scan 2s linear infinite;
+        background: linear-gradient(90deg, transparent, #00ffff, #00ffff, transparent);
+        top: 0;
+        animation: scan 2.5s linear infinite;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
       }
 
-      @keyframes scan {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(176px); }
+      .corner {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-color: rgba(0, 255, 255, 0.9);
+        border-style: solid;
+        border-width: 0;
+      }
+      .corner-tl {
+        top: -2px;
+        left: -2px;
+        border-top-width: 3px;
+        border-left-width: 3px;
+      }
+      .corner-tr {
+        top: -2px;
+        right: -2px;
+        border-top-width: 3px;
+        border-right-width: 3px;
+      }
+      .corner-bl {
+        bottom: -2px;
+        left: -2px;
+        border-bottom-width: 3px;
+        border-left-width: 3px;
+      }
+      .corner-br {
+        bottom: -2px;
+        right: -2px;
+        border-bottom-width: 3px;
+        border-right-width: 3px;
       }
 
-      /* 控制按鈕 - 簡化版 */
+      .scanning-text {
+        position: absolute;
+        bottom: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        color: rgba(0, 255, 255, 0.9);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: 14px;
+        text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.9; }
+        50% { opacity: 0.5; }
+      }
+
+      /* 控制按鈕容器 */
       .controls-container {
         position: fixed;
         bottom: 20px;
@@ -69,58 +169,69 @@
         gap: 15px;
       }
 
+      /* 圖標按鈕樣式 */
       .icon-button {
         width: 48px;
         height: 48px;
         background-color: rgba(0, 0, 0, 0.6);
-        border: 2px solid rgba(255, 255, 255, 0.5);
+        border: 2px solid rgba(0, 255, 255, 0.7);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: all 0.3s;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        transition: all 0.3s ease;
+        opacity: 0.9;
+        position: relative;
+        overflow: hidden;
       }
       
       .icon-button:hover {
-        transform: scale(1.1);
         background-color: rgba(0, 0, 0, 0.8);
+        opacity: 1;
+        transform: scale(1.1);
       }
       
       .icon-button.active {
         background-color: rgba(0, 195, 255, 0.3);
-        border-color: rgba(0, 255, 255, 0.8);
       }
 
+      .icon-button::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(0, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+      }
+
+      .icon-button.clicked::before {
+        width: 100px;
+        height: 100px;
+      }
+
+      /* SVG 圖標樣式 */
       .icon-button svg {
         width: 24px;
         height: 24px;
-        fill: white;
+        fill: rgba(0, 255, 255, 0.9);
+        position: relative;
+        z-index: 1;
       }
 
-      /* 簡化的進度條 */
-      .progress-container {
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 200px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 2px;
-        z-index: 1000;
-        overflow: hidden;
+      @keyframes scan {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(197px); }
+        100% { transform: translateY(0); }
       }
 
-      .progress-bar {
-        height: 100%;
-        background: rgba(255, 255, 255, 0.8);
-        width: 0%;
-        transition: width 0.2s;
-      }
-
-      /* 全螢幕影片 */
-      #fullscreen-container {
+      /* 全螢幕影片容器 */
+      #fullscreen-video-container {
         position: fixed;
         top: 0;
         left: 0;
@@ -128,27 +239,53 @@
         height: 100vh;
         z-index: 999;
         display: none;
-        background-color: rgba(0, 0, 0, 0.95);
+        background-color: rgba(0, 0, 0, 0.9);
         cursor: pointer;
       }
-      
-      #fullscreen-container.visible {
+      #fullscreen-video-container.visible {
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      
       #fullscreen-video {
         max-width: 100%;
         max-height: 100%;
+        width: auto;
+        height: auto;
+      }
+
+      /* 狀態指示器 */
+      .status-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 8px 16px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(0, 255, 255, 0.5);
+        border-radius: 20px;
+        color: rgba(0, 255, 255, 0.9);
+        font-size: 12px;
+        font-family: Arial, sans-serif;
+        z-index: 100;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .status-indicator.show {
+        opacity: 1;
       }
     </style>
   </head>
   <body>
+    <!-- 互動畫布 -->
+    <canvas id="interaction-canvas"></canvas>
+    
+    <!-- 狀態指示器 -->
+    <div class="status-indicator" id="status">準備就緒</div>
+
     <!-- 控制按鈕 -->
     <div class="controls-container">
-      <!-- 播放/暫停 -->
-      <button class="icon-button" id="play-button">
+      <!-- 播放/暫停按鈕 -->
+      <button class="icon-button" id="play-button" aria-label="播放控制">
         <svg viewBox="0 0 24 24" id="play-icon">
           <path d="M8 5v14l11-7z"/>
         </svg>
@@ -157,8 +294,8 @@
         </svg>
       </button>
       
-      <!-- 聲音 -->
-      <button class="icon-button" id="sound-button">
+      <!-- 聲音按鈕 -->
+      <button class="icon-button" id="sound-button" aria-label="聲音控制">
         <svg viewBox="0 0 24 24" id="sound-on-icon" style="display:none;">
           <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
         </svg>
@@ -166,34 +303,32 @@
           <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
         </svg>
       </button>
-
-      <!-- 全螢幕 -->
-      <button class="icon-button" id="fullscreen-button">
+      
+      <!-- 特效按鈕 -->
+      <button class="icon-button" id="effect-button" aria-label="特效控制">
         <svg viewBox="0 0 24 24">
-          <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+          <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
         </svg>
       </button>
     </div>
 
-    <!-- 進度條 -->
-    <div class="progress-container">
-      <div class="progress-bar" id="progress-bar"></div>
-    </div>
-
-    <!-- 掃描動畫 -->
     <div id="scanning-overlay">
-      <div class="scanner-frame">
+      <div class="scanner-inner">
         <div class="scanner-line"></div>
+        <div class="corner corner-tl"></div>
+        <div class="corner corner-tr"></div>
+        <div class="corner corner-bl"></div>
+        <div class="corner corner-br"></div>
+        <div class="scanning-text">目標掃描中</div>
       </div>
     </div>
     
-    <!-- 全螢幕容器 -->
-    <div id="fullscreen-container">
+    <div id="fullscreen-video-container">
       <video id="fullscreen-video" playsinline webkit-playsinline></video>
     </div>
 
     <a-scene
-      mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/TEST1234/main/targets.mind;
+      mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/-28000/main/targets.mind;
                     warmupTolerance: 5;
                     missTolerance: 10;
                     filterMinCF: 0.000001; 
@@ -203,12 +338,12 @@
       renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
-      loading-screen="enabled: true; dotsColor: #fff; backgroundColor: #000"
+      loading-screen="enabled: true; dotsColor: #00ffff; backgroundColor: #000000"
     >
       <a-assets>
         <video
           id="video"
-          src="https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4"
+          src="https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/28000.mp4"
           preload="auto"
           loop
           crossorigin="anonymous"
@@ -228,7 +363,7 @@
       <a-entity
         id="target0"
         mindar-image-target="targetIndex: 0"
-        data-target-aspect-ratio="1.414"
+        data-target-aspect-ratio="1.778"
         fit-video-to-target
       >
         <a-video
@@ -242,6 +377,145 @@
     </a-scene>
 
     <script>
+      // 簡單的互動效果管理器
+      class InteractionManager {
+        constructor() {
+          this.canvas = document.getElementById('interaction-canvas');
+          this.ctx = this.canvas.getContext('2d');
+          this.particles = [];
+          this.trails = [];
+          this.effectsEnabled = true;
+          this.animationId = null;
+          
+          this.resize();
+          window.addEventListener('resize', () => this.resize());
+        }
+        
+        resize() {
+          this.canvas.width = window.innerWidth;
+          this.canvas.height = window.innerHeight;
+        }
+        
+        createRipple(x, y) {
+          const ripple = document.createElement('div');
+          ripple.className = 'touch-ripple';
+          ripple.style.left = (x - 50) + 'px';
+          ripple.style.top = (y - 50) + 'px';
+          document.body.appendChild(ripple);
+          
+          setTimeout(() => ripple.remove(), 800);
+        }
+        
+        createParticles(x, y, count = 8) {
+          if (!this.effectsEnabled) return;
+          
+          for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = 2 + Math.random() * 2;
+            
+            this.particles.push({
+              x: x,
+              y: y,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              life: 1.0,
+              size: 3 + Math.random() * 2
+            });
+          }
+        }
+        
+        addTrail(x, y) {
+          if (!this.effectsEnabled) return;
+          
+          this.trails.push({
+            x: x,
+            y: y,
+            life: 1.0
+          });
+          
+          if (this.trails.length > 30) {
+            this.trails.shift();
+          }
+        }
+        
+        update() {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          
+          // 更新和繪製軌跡
+          this.trails = this.trails.filter(trail => {
+            trail.life -= 0.05;
+            if (trail.life <= 0) return false;
+            
+            this.ctx.globalAlpha = trail.life * 0.3;
+            this.ctx.fillStyle = '#00ffff';
+            this.ctx.beginPath();
+            this.ctx.arc(trail.x, trail.y, 2, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            return true;
+          });
+          
+          // 更新和繪製粒子
+          this.particles = this.particles.filter(particle => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.life -= 0.02;
+            particle.vy += 0.1; // 重力效果
+            
+            if (particle.life <= 0) return false;
+            
+            this.ctx.globalAlpha = particle.life;
+            this.ctx.fillStyle = '#00ffff';
+            this.ctx.shadowBlur = 10;
+            this.ctx.shadowColor = '#00ffff';
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            return true;
+          });
+          
+          this.ctx.globalAlpha = 1;
+          this.ctx.shadowBlur = 0;
+          
+          if (this.particles.length > 0 || this.trails.length > 0) {
+            this.animationId = requestAnimationFrame(() => this.update());
+          } else {
+            this.animationId = null;
+          }
+        }
+        
+        start() {
+          if (!this.animationId) {
+            this.update();
+          }
+        }
+        
+        toggle() {
+          this.effectsEnabled = !this.effectsEnabled;
+          if (!this.effectsEnabled) {
+            this.particles = [];
+            this.trails = [];
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          }
+          return this.effectsEnabled;
+        }
+      }
+
+      // 狀態提示管理
+      function showStatus(text, duration = 2000) {
+        const status = document.getElementById('status');
+        status.textContent = text;
+        status.classList.add('show');
+        setTimeout(() => status.classList.remove('show'), duration);
+      }
+
+      // 按鈕動畫效果
+      function animateButton(button) {
+        button.classList.add('clicked');
+        setTimeout(() => button.classList.remove('clicked'), 600);
+      }
+
       // 等待 A-Frame 載入
       if (window.AFRAME) {
         initApp();
@@ -253,7 +527,7 @@
       }
 
       function initApp() {
-        // 自動調整影片比例
+        // 自動調整影片比例組件
         AFRAME.registerComponent("fit-video-to-target", {
           init: function () {
             this.el.addEventListener("targetFound", () => {
@@ -271,16 +545,18 @@
           }
         });
 
+        // 初始化互動管理器
+        const interaction = new InteractionManager();
+
         // 主要元素
         const videoEl = document.querySelector("#video");
         const targetEl = document.querySelector("#target0");
         const scanningOverlay = document.getElementById("scanning-overlay");
         const playButton = document.getElementById("play-button");
         const soundButton = document.getElementById("sound-button");
-        const fullscreenButton = document.getElementById("fullscreen-button");
-        const fullscreenContainer = document.getElementById("fullscreen-container");
+        const effectButton = document.getElementById("effect-button");
+        const fullscreenContainer = document.getElementById("fullscreen-video-container");
         const fullscreenVideo = document.getElementById("fullscreen-video");
-        const progressBar = document.getElementById("progress-bar");
         
         // 圖標元素
         const playIcon = document.getElementById("play-icon");
@@ -292,28 +568,42 @@
         const state = {
           targetFound: false,
           audioEnabled: false,
-          isPlaying: false,
+          continuePlay: false,
           fullscreen: false,
           hasPlayed: false
         };
 
         // 更新按鈕圖標
-        function updateButtons() {
-          playIcon.style.display = state.isPlaying ? "none" : "block";
-          pauseIcon.style.display = state.isPlaying ? "block" : "none";
-          playButton.classList.toggle("active", state.isPlaying);
+        function updateButtonIcons() {
+          if (state.continuePlay) {
+            playIcon.style.display = "none";
+            pauseIcon.style.display = "block";
+            playButton.classList.add("active");
+          } else {
+            playIcon.style.display = "block";
+            pauseIcon.style.display = "none";
+            playButton.classList.remove("active");
+          }
           
-          soundOnIcon.style.display = state.audioEnabled ? "block" : "none";
-          soundOffIcon.style.display = state.audioEnabled ? "none" : "block";
-          soundButton.classList.toggle("active", state.audioEnabled);
+          if (state.audioEnabled) {
+            soundOnIcon.style.display = "block";
+            soundOffIcon.style.display = "none";
+            soundButton.classList.add("active");
+          } else {
+            soundOnIcon.style.display = "none";
+            soundOffIcon.style.display = "block";
+            soundButton.classList.remove("active");
+          }
         }
 
         // 音訊控制
         function toggleAudio() {
           state.audioEnabled = !state.audioEnabled;
-          videoEl.muted = !state.audioEnabled;
-          fullscreenVideo.muted = !state.audioEnabled;
-          updateButtons();
+          [videoEl, fullscreenVideo].forEach(v => {
+            if (v && v.src) v.muted = !state.audioEnabled;
+          });
+          updateButtonIcons();
+          showStatus(state.audioEnabled ? '聲音已開啟' : '靜音模式');
         }
 
         // 影片播放控制
@@ -321,111 +611,181 @@
           if (!video || !video.src) return;
           try {
             await video.play();
-            state.isPlaying = true;
-            updateButtons();
           } catch {
             video.muted = true;
             state.audioEnabled = false;
             await video.play().catch(() => {});
-            updateButtons();
+            updateButtonIcons();
           }
         }
 
         function pauseVideo(video) {
-          if (video && video.src) {
-            video.pause();
-            state.isPlaying = false;
-            updateButtons();
-          }
-        }
-
-        // 播放/暫停切換
-        function togglePlayPause() {
-          if (!state.hasPlayed) return;
-          
-          const video = state.fullscreen ? fullscreenVideo : videoEl;
-          if (state.isPlaying) {
-            pauseVideo(video);
-          } else {
-            playVideo(video);
-          }
+          if (video && video.src) video.pause();
         }
 
         // 全螢幕切換
-        function toggleFullscreen() {
-          if (!state.hasPlayed) return;
-          
+        function enterFullscreen() {
+          if (!videoEl.src) return;
+          fullscreenVideo.src = videoEl.src;
+          fullscreenVideo.currentTime = videoEl.currentTime;
+          fullscreenVideo.muted = !state.audioEnabled;
+          fullscreenContainer.classList.add("visible");
+          state.fullscreen = true;
+          playVideo(fullscreenVideo);
+        }
+
+        function exitFullscreen() {
           if (state.fullscreen) {
-            // 退出全螢幕
+            videoEl.currentTime = fullscreenVideo.currentTime;
             fullscreenContainer.classList.remove("visible");
             state.fullscreen = false;
             pauseVideo(fullscreenVideo);
             fullscreenVideo.src = "";
-            
-            if (state.targetFound) {
+          }
+        }
+
+        // 觸控事件處理
+        let touchStartTime = 0;
+        let touchPoints = [];
+        
+        document.addEventListener('touchstart', (e) => {
+          touchStartTime = Date.now();
+          touchPoints = Array.from(e.touches).map(t => ({x: t.clientX, y: t.clientY}));
+          
+          // 為每個觸控點創建效果
+          touchPoints.forEach(point => {
+            interaction.createRipple(point.x, point.y);
+            interaction.createParticles(point.x, point.y, 5);
+          });
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', (e) => {
+          if (!interaction.effectsEnabled) return;
+          
+          const touches = Array.from(e.touches);
+          touches.forEach(touch => {
+            interaction.addTrail(touch.clientX, touch.clientY);
+          });
+          interaction.start();
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+          const touchDuration = Date.now() - touchStartTime;
+          
+          // 長按效果
+          if (touchDuration > 500 && e.changedTouches.length > 0) {
+            const touch = e.changedTouches[0];
+            interaction.createParticles(touch.clientX, touch.clientY, 12);
+            interaction.start();
+          }
+        }, { passive: true });
+
+        // 滑鼠事件（桌面端）
+        document.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.controls-container')) return;
+          interaction.createRipple(e.clientX, e.clientY);
+          interaction.createParticles(e.clientX, e.clientY, 5);
+          interaction.start();
+        });
+        
+        let mouseMoving = false;
+        document.addEventListener('mousemove', (e) => {
+          if (!interaction.effectsEnabled) return;
+          if (e.buttons === 1) {
+            interaction.addTrail(e.clientX, e.clientY);
+            interaction.start();
+            mouseMoving = true;
+          }
+        });
+        
+        document.addEventListener('mouseup', () => {
+          mouseMoving = false;
+        });
+
+        // 播放按鈕處理
+        playButton.addEventListener("click", () => {
+          animateButton(playButton);
+          
+          if (!state.hasPlayed) {
+            showStatus('請先掃描目標');
+            return;
+          }
+          
+          state.continuePlay = !state.continuePlay;
+          updateButtonIcons();
+          
+          if (state.continuePlay) {
+            showStatus('持續播放模式');
+            if (!state.targetFound) {
+              enterFullscreen();
+              scanningOverlay.classList.add("hidden");
+            } else if (videoEl.paused) {
               playVideo(videoEl);
-            } else {
-              scanningOverlay.classList.remove("hidden");
             }
           } else {
-            // 進入全螢幕
-            fullscreenVideo.src = videoEl.src;
-            fullscreenVideo.currentTime = videoEl.currentTime;
-            fullscreenVideo.muted = !state.audioEnabled;
-            fullscreenContainer.classList.add("visible");
-            state.fullscreen = true;
-            playVideo(fullscreenVideo);
-            pauseVideo(videoEl);
-          }
-        }
-
-        // 簡單的進度更新（使用 timeupdate 事件，不使用 RAF）
-        function updateProgress() {
-          const video = state.fullscreen ? fullscreenVideo : videoEl;
-          if (video && video.duration) {
-            const progress = (video.currentTime / video.duration) * 100;
-            progressBar.style.width = progress + "%";
-          }
-        }
-
-        // 按鈕事件
-        playButton.addEventListener("click", togglePlayPause);
-        soundButton.addEventListener("click", toggleAudio);
-        fullscreenButton.addEventListener("click", toggleFullscreen);
-        
-        // 全螢幕點擊退出
-        fullscreenContainer.addEventListener("click", (e) => {
-          if (e.target === fullscreenContainer || e.target === fullscreenVideo) {
-            toggleFullscreen();
+            showStatus('暫停播放');
+            exitFullscreen();
+            if (!state.targetFound) {
+              pauseVideo(videoEl);
+              scanningOverlay.classList.remove("hidden");
+            }
           }
         });
 
-        // 影片進度更新
-        videoEl.addEventListener("timeupdate", updateProgress);
-        fullscreenVideo.addEventListener("timeupdate", updateProgress);
+        // 聲音按鈕處理
+        soundButton.addEventListener("click", () => {
+          animateButton(soundButton);
+          toggleAudio();
+        });
+
+        // 特效按鈕處理
+        effectButton.addEventListener("click", () => {
+          animateButton(effectButton);
+          const enabled = interaction.toggle();
+          effectButton.classList.toggle("active", enabled);
+          showStatus(enabled ? '特效已開啟' : '特效已關閉');
+        });
+
+        // 全螢幕點擊退出
+        fullscreenContainer.addEventListener("click", () => {
+          exitFullscreen();
+          state.continuePlay = false;
+          updateButtonIcons();
+          if (!state.targetFound) {
+            scanningOverlay.classList.remove("hidden");
+          }
+        });
 
         // 目標事件處理
         targetEl.addEventListener("targetFound", () => {
           state.targetFound = true;
           state.hasPlayed = true;
           
-          if (state.fullscreen) {
-            toggleFullscreen();
-          }
+          showStatus('目標已識別');
           
-          videoEl.currentTime = 0;
+          if (state.fullscreen) exitFullscreen();
+          
           playVideo(videoEl);
           scanningOverlay.classList.add("hidden");
+          
+          // 創建發現效果
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          interaction.createParticles(centerX, centerY, 20);
+          interaction.start();
         });
 
         targetEl.addEventListener("targetLost", () => {
           state.targetFound = false;
           
-          pauseVideo(videoEl);
+          showStatus('目標丟失');
           
-          if (!state.fullscreen) {
+          if (state.continuePlay) {
+            enterFullscreen();
+          } else {
+            pauseVideo(videoEl);
             setTimeout(() => {
-              if (!state.targetFound) {
+              if (!state.targetFound && !state.continuePlay) {
                 scanningOverlay.classList.remove("hidden");
               }
             }, 200);
@@ -436,17 +796,30 @@
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
             pauseVideo(videoEl);
-            pauseVideo(fullscreenVideo);
+            if (state.fullscreen) pauseVideo(fullscreenVideo);
           } else {
-            const video = state.fullscreen ? fullscreenVideo : videoEl;
-            if (state.isPlaying) {
-              playVideo(video);
+            if (state.fullscreen) {
+              playVideo(fullscreenVideo);
+            } else if (state.targetFound) {
+              playVideo(videoEl);
             }
           }
         });
 
-        // 初始化
-        updateButtons();
+        // 初始化音訊（需要用戶互動）
+        const initAudio = () => {
+          if (!state.audioEnabled) return;
+          toggleAudio();
+          document.removeEventListener("touchstart", initAudio);
+          document.removeEventListener("click", initAudio);
+        };
+        document.addEventListener("touchstart", initAudio, { passive: true });
+        document.addEventListener("click", initAudio);
+
+        // 初始提示
+        setTimeout(() => {
+          showStatus('請掃描目標圖像', 3000);
+        }, 1000);
       }
     </script>
   </body>
