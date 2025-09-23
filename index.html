@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 
     <style>
       body {
@@ -18,8 +19,8 @@
         touch-action: none;
       }
 
-      /* 互動畫布 */
-      #interaction-canvas {
+      /* P5.js 畫布容器 */
+      #p5-container {
         position: fixed;
         top: 0;
         left: 0;
@@ -29,38 +30,26 @@
         z-index: 3;
       }
 
-      /* 觸控漣漪效果 */
-      .touch-ripple {
+      /* 手勢識別顯示 */
+      .gesture-indicator {
         position: fixed;
-        border-radius: 50%;
-        border: 2px solid rgba(0, 255, 255, 0.6);
-        pointer-events: none;
-        animation: ripple 0.8s ease-out;
-        z-index: 4;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 16px;
+        background: rgba(255, 100, 0, 0.8);
+        border: 1px solid rgba(255, 150, 0, 0.8);
+        border-radius: 20px;
+        color: white;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        z-index: 100;
+        opacity: 0;
+        transition: opacity 0.3s;
+        text-shadow: 0 0 5px rgba(255, 100, 0, 0.8);
       }
-
-      @keyframes ripple {
-        0% {
-          width: 0;
-          height: 0;
-          opacity: 1;
-        }
-        100% {
-          width: 100px;
-          height: 100px;
-          opacity: 0;
-        }
-      }
-
-      /* 粒子效果 */
-      .particle {
-        position: fixed;
-        width: 4px;
-        height: 4px;
-        background: radial-gradient(circle, rgba(0, 255, 255, 1) 0%, rgba(0, 255, 255, 0) 70%);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 4;
+      .gesture-indicator.show {
+        opacity: 1;
       }
 
       /* 掃描UI */
@@ -174,13 +163,13 @@
         width: 48px;
         height: 48px;
         background-color: rgba(0, 0, 0, 0.6);
-        border: 2px solid rgba(0, 255, 255, 0.7);
+        border: 2px solid rgba(255, 100, 0, 0.7);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        box-shadow: 0 0 10px rgba(255, 100, 0, 0.3);
         transition: all 0.3s ease;
         opacity: 0.9;
         position: relative;
@@ -194,7 +183,7 @@
       }
       
       .icon-button.active {
-        background-color: rgba(0, 195, 255, 0.3);
+        background-color: rgba(255, 100, 0, 0.3);
       }
 
       .icon-button::before {
@@ -205,7 +194,7 @@
         width: 0;
         height: 0;
         border-radius: 50%;
-        background: rgba(0, 255, 255, 0.3);
+        background: rgba(255, 100, 0, 0.3);
         transform: translate(-50%, -50%);
         transition: width 0.6s, height 0.6s;
       }
@@ -219,7 +208,7 @@
       .icon-button svg {
         width: 24px;
         height: 24px;
-        fill: rgba(0, 255, 255, 0.9);
+        fill: rgba(255, 100, 0, 0.9);
         position: relative;
         z-index: 1;
       }
@@ -261,9 +250,9 @@
         right: 20px;
         padding: 8px 16px;
         background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(0, 255, 255, 0.5);
+        border: 1px solid rgba(255, 100, 0, 0.5);
         border-radius: 20px;
-        color: rgba(0, 255, 255, 0.9);
+        color: rgba(255, 100, 0, 0.9);
         font-size: 12px;
         font-family: Arial, sans-serif;
         z-index: 100;
@@ -276,8 +265,11 @@
     </style>
   </head>
   <body>
-    <!-- 互動畫布 -->
-    <canvas id="interaction-canvas"></canvas>
+    <!-- P5.js 容器 -->
+    <div id="p5-container"></div>
+    
+    <!-- 手勢指示器 -->
+    <div class="gesture-indicator" id="gesture">觸控開始火焰效果</div>
     
     <!-- 狀態指示器 -->
     <div class="status-indicator" id="status">準備就緒</div>
@@ -304,10 +296,10 @@
         </svg>
       </button>
       
-      <!-- 特效按鈕 -->
-      <button class="icon-button" id="effect-button" aria-label="特效控制">
+      <!-- 火焰強度按鈕 -->
+      <button class="icon-button" id="flame-button" aria-label="火焰強度">
         <svg viewBox="0 0 24 24">
-          <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+          <path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/>
         </svg>
       </button>
     </div>
@@ -338,7 +330,7 @@
       renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
-      loading-screen="enabled: true; dotsColor: #00ffff; backgroundColor: #000000"
+      loading-screen="enabled: true; dotsColor: #ff6400; backgroundColor: #000000"
     >
       <a-assets>
         <video
@@ -377,128 +369,405 @@
     </a-scene>
 
     <script>
-      // 簡單的互動效果管理器
-      class InteractionManager {
-        constructor() {
-          this.canvas = document.getElementById('interaction-canvas');
-          this.ctx = this.canvas.getContext('2d');
-          this.particles = [];
-          this.trails = [];
-          this.effectsEnabled = true;
-          this.animationId = null;
-          
-          this.resize();
-          window.addEventListener('resize', () => this.resize());
-        }
+      // 全域變數
+      let flameSketch;
+      let touchHistory = [];
+      let currentGesture = 'none';
+      let flameIntensity = 1.0;
+      let gestureTimeout;
+
+      // P5.js 火焰系統
+      const p5FlameSketch = (p) => {
+        let particles = [];
+        let maxParticles = 200;
+        let flamePoints = [];
+        let noiseOffset = 0;
+        let touchActive = false;
+        let currentTouchX = 0;
+        let currentTouchY = 0;
         
-        resize() {
-          this.canvas.width = window.innerWidth;
-          this.canvas.height = window.innerHeight;
-        }
-        
-        createRipple(x, y) {
-          const ripple = document.createElement('div');
-          ripple.className = 'touch-ripple';
-          ripple.style.left = (x - 50) + 'px';
-          ripple.style.top = (y - 50) + 'px';
-          document.body.appendChild(ripple);
-          
-          setTimeout(() => ripple.remove(), 800);
-        }
-        
-        createParticles(x, y, count = 8) {
-          if (!this.effectsEnabled) return;
-          
-          for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count;
-            const speed = 2 + Math.random() * 2;
+        // 火焰粒子類別
+        class FlameParticle {
+          constructor(x, y, intensity = 1.0, gestureType = 'default') {
+            this.x = x;
+            this.y = y;
+            this.vx = p.random(-2, 2) * intensity;
+            this.vy = p.random(-8, -4) * intensity;
+            this.life = 255;
+            this.maxLife = 255;
+            this.size = p.random(5, 15) * intensity;
+            this.intensity = intensity;
+            this.gestureType = gestureType;
+            this.noiseOffset = p.random(1000);
+            this.heat = p.random(0.8, 1.2);
             
-            this.particles.push({
-              x: x,
-              y: y,
-              vx: Math.cos(angle) * speed,
-              vy: Math.sin(angle) * speed,
-              life: 1.0,
-              size: 3 + Math.random() * 2
-            });
+            // 根據手勢類型調整屬性
+            this.adjustForGesture();
+          }
+          
+          adjustForGesture() {
+            switch(this.gestureType) {
+              case 'circle':
+                this.vx *= 0.5;
+                this.vy *= 0.3;
+                this.size *= 1.5;
+                this.spiralForce = p.random(0.1, 0.3);
+                break;
+              case 'swipe':
+                this.vx *= 2;
+                this.vy *= 0.5;
+                this.size *= 0.8;
+                this.streamForce = true;
+                break;
+              case 's-curve':
+                this.vx *= 1.2;
+                this.vy *= 0.8;
+                this.size *= 1.2;
+                this.waveForce = true;
+                break;
+              case 'tap':
+                this.vx = p.random(-4, 4);
+                this.vy = p.random(-12, -6);
+                this.size *= 2;
+                this.explosiveForce = true;
+                break;
+              default:
+                break;
+            }
+          }
+          
+          update() {
+            // 基本物理
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += 0.1; // 重力
+            
+            // 風力和噪聲
+            let windForce = p.noise(this.x * 0.01, this.y * 0.01, noiseOffset) - 0.5;
+            this.vx += windForce * 0.5;
+            
+            // 手勢特定效果
+            this.applyGestureForces();
+            
+            // 生命週期
+            this.life -= p.random(2, 5);
+            this.size *= 0.998;
+            
+            // 阻力
+            this.vx *= 0.99;
+            this.vy *= 0.995;
+          }
+          
+          applyGestureForces() {
+            switch(this.gestureType) {
+              case 'circle':
+                if (this.spiralForce) {
+                  let angle = p.atan2(this.y - currentTouchY, this.x - currentTouchX);
+                  this.vx += p.cos(angle + p.PI/2) * this.spiralForce;
+                  this.vy += p.sin(angle + p.PI/2) * this.spiralForce;
+                }
+                break;
+              case 'swipe':
+                if (this.streamForce) {
+                  this.vx += p.random(-1, 1) * 0.5;
+                }
+                break;
+              case 's-curve':
+                if (this.waveForce) {
+                  this.vx += p.sin(this.y * 0.02 + noiseOffset) * 0.8;
+                }
+                break;
+              case 'tap':
+                if (this.explosiveForce && this.life > this.maxLife * 0.8) {
+                  let dist = p.dist(this.x, this.y, currentTouchX, currentTouchY);
+                  if (dist < 50) {
+                    let force = (50 - dist) * 0.2;
+                    let angle = p.atan2(this.y - currentTouchY, this.x - currentTouchX);
+                    this.vx += p.cos(angle) * force;
+                    this.vy += p.sin(angle) * force;
+                  }
+                }
+                break;
+            }
+          }
+          
+          display() {
+            let alpha = p.map(this.life, 0, this.maxLife, 0, 255);
+            let progress = 1 - (this.life / this.maxLife);
+            
+            // 火焰顏色漸變
+            let r, g, b;
+            if (progress < 0.3) {
+              // 白色核心
+              r = 255;
+              g = 255;
+              b = 200 + progress * 55;
+            } else if (progress < 0.6) {
+              // 橙色
+              r = 255;
+              g = 200 - (progress - 0.3) * 100;
+              b = 50;
+            } else {
+              // 深紅色
+              r = 255 - (progress - 0.6) * 100;
+              g = 100 - (progress - 0.6) * 100;
+              b = 20;
+            }
+            
+            // 強度調整
+            r *= this.intensity * this.heat;
+            g *= this.intensity * this.heat;
+            b *= this.intensity * this.heat * 0.5;
+            
+            // 繪製粒子
+            p.push();
+            p.translate(this.x, this.y);
+            
+            // 外圈光暈
+            p.fill(r, g, b, alpha * 0.3);
+            p.noStroke();
+            p.ellipse(0, 0, this.size * 2);
+            
+            // 內圈火焰
+            p.fill(r, g, b, alpha * 0.8);
+            p.ellipse(0, 0, this.size);
+            
+            // 核心
+            if (this.life > this.maxLife * 0.5) {
+              p.fill(255, 255, 200, alpha);
+              p.ellipse(0, 0, this.size * 0.4);
+            }
+            
+            p.pop();
+          }
+          
+          isDead() {
+            return this.life <= 0 || this.size < 1;
           }
         }
         
-        addTrail(x, y) {
-          if (!this.effectsEnabled) return;
-          
-          this.trails.push({
-            x: x,
-            y: y,
-            life: 1.0
-          });
-          
-          if (this.trails.length > 30) {
-            this.trails.shift();
-          }
-        }
+        p.setup = function() {
+          let canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+          canvas.parent('p5-container');
+          p.colorMode(p.RGB, 255);
+          p.background(0, 0);
+        };
         
-        update() {
-          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        p.draw = function() {
+          // 清除背景但保持透明
+          p.clear();
           
-          // 更新和繪製軌跡
-          this.trails = this.trails.filter(trail => {
-            trail.life -= 0.05;
-            if (trail.life <= 0) return false;
-            
-            this.ctx.globalAlpha = trail.life * 0.3;
-            this.ctx.fillStyle = '#00ffff';
-            this.ctx.beginPath();
-            this.ctx.arc(trail.x, trail.y, 2, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            return true;
-          });
+          // 更新噪聲
+          noiseOffset += 0.01;
+          
+          // 如果觸控活躍，創建新粒子
+          if (touchActive && particles.length < maxParticles) {
+            let particleCount = Math.floor(flameIntensity * 8);
+            for (let i = 0; i < particleCount; i++) {
+              let x = currentTouchX + p.random(-20, 20);
+              let y = currentTouchY + p.random(-10, 10);
+              particles.push(new FlameParticle(x, y, flameIntensity, currentGesture));
+            }
+          }
           
           // 更新和繪製粒子
-          this.particles = this.particles.filter(particle => {
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            particle.life -= 0.02;
-            particle.vy += 0.1; // 重力效果
+          for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update();
+            particles[i].display();
             
-            if (particle.life <= 0) return false;
-            
-            this.ctx.globalAlpha = particle.life;
-            this.ctx.fillStyle = '#00ffff';
-            this.ctx.shadowBlur = 10;
-            this.ctx.shadowColor = '#00ffff';
-            this.ctx.beginPath();
-            this.ctx.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            return true;
-          });
+            if (particles[i].isDead()) {
+              particles.splice(i, 1);
+            }
+          }
           
-          this.ctx.globalAlpha = 1;
-          this.ctx.shadowBlur = 0;
+          // 繪製火焰軌跡
+          if (flamePoints.length > 1) {
+            drawFlameTrail();
+          }
+        };
+        
+        function drawFlameTrail() {
+          p.stroke(255, 100, 0, 150);
+          p.strokeWeight(3);
+          p.noFill();
           
-          if (this.particles.length > 0 || this.trails.length > 0) {
-            this.animationId = requestAnimationFrame(() => this.update());
+          p.beginShape();
+          for (let point of flamePoints) {
+            p.vertex(point.x, point.y);
+          }
+          p.endShape();
+          
+          // 清理舊的軌跡點
+          if (flamePoints.length > 20) {
+            flamePoints.shift();
+          }
+        }
+        
+        p.windowResized = function() {
+          p.resizeCanvas(p.windowWidth, p.windowHeight);
+        };
+        
+        // 公開方法給外部調用
+        p.setTouchActive = function(active, x, y) {
+          touchActive = active;
+          if (active) {
+            currentTouchX = x;
+            currentTouchY = y;
+            flamePoints.push({x: x, y: y});
           } else {
-            this.animationId = null;
+            flamePoints = [];
+          }
+        };
+        
+        p.updateTouchPosition = function(x, y) {
+          currentTouchX = x;
+          currentTouchY = y;
+          if (touchActive) {
+            flamePoints.push({x: x, y: y});
+          }
+        };
+        
+        p.setFlameIntensity = function(intensity) {
+          flameIntensity = p.constrain(intensity, 0.1, 3.0);
+        };
+        
+        p.setGestureType = function(gesture) {
+          currentGesture = gesture;
+        };
+      };
+
+      // 手勢識別系統
+      class GestureRecognizer {
+        constructor() {
+          this.points = [];
+          this.startTime = 0;
+          this.lastGesture = 'none';
+          this.gestureThreshold = {
+            minPoints: 5,
+            maxTime: 2000,
+            circleThreshold: 0.8,
+            swipeThreshold: 100,
+            sCurveThreshold: 0.6
+          };
+        }
+        
+        startGesture(x, y) {
+          this.points = [{x, y, t: Date.now()}];
+          this.startTime = Date.now();
+        }
+        
+        addPoint(x, y) {
+          if (this.points.length > 0) {
+            this.points.push({x, y, t: Date.now()});
+            if (this.points.length > 50) {
+              this.points.shift();
+            }
           }
         }
         
-        start() {
-          if (!this.animationId) {
-            this.update();
+        endGesture() {
+          if (this.points.length < this.gestureThreshold.minPoints) {
+            return 'tap';
           }
+          
+          const gesture = this.analyzeGesture();
+          this.lastGesture = gesture;
+          return gesture;
         }
         
-        toggle() {
-          this.effectsEnabled = !this.effectsEnabled;
-          if (!this.effectsEnabled) {
-            this.particles = [];
-            this.trails = [];
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        analyzeGesture() {
+          if (this.points.length < 3) return 'tap';
+          
+          // 檢查圓形手勢
+          if (this.isCircleGesture()) {
+            return 'circle';
           }
-          return this.effectsEnabled;
+          
+          // 檢查滑動手勢
+          if (this.isSwipeGesture()) {
+            return 'swipe';
+          }
+          
+          // 檢查S型手勢
+          if (this.isSCurveGesture()) {
+            return 's-curve';
+          }
+          
+          return 'default';
+        }
+        
+        isCircleGesture() {
+          if (this.points.length < 10) return false;
+          
+          // 計算中心點
+          let centerX = 0, centerY = 0;
+          for (let point of this.points) {
+            centerX += point.x;
+            centerY += point.y;
+          }
+          centerX /= this.points.length;
+          centerY /= this.points.length;
+          
+          // 計算平均半徑
+          let avgRadius = 0;
+          for (let point of this.points) {
+            avgRadius += Math.sqrt((point.x - centerX) ** 2 + (point.y - centerY) ** 2);
+          }
+          avgRadius /= this.points.length;
+          
+          // 檢查點是否都在圓周附近
+          let validPoints = 0;
+          for (let point of this.points) {
+            let distance = Math.sqrt((point.x - centerX) ** 2 + (point.y - centerY) ** 2);
+            if (Math.abs(distance - avgRadius) < avgRadius * 0.3) {
+              validPoints++;
+            }
+          }
+          
+          return (validPoints / this.points.length) > this.gestureThreshold.circleThreshold;
+        }
+        
+        isSwipeGesture() {
+          if (this.points.length < 3) return false;
+          
+          let start = this.points[0];
+          let end = this.points[this.points.length - 1];
+          let distance = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+          
+          return distance > this.gestureThreshold.swipeThreshold;
+        }
+        
+        isSCurveGesture() {
+          if (this.points.length < 8) return false;
+          
+          // 計算方向變化
+          let directionChanges = 0;
+          let lastDirection = null;
+          
+          for (let i = 1; i < this.points.length - 1; i++) {
+            let prev = this.points[i - 1];
+            let curr = this.points[i];
+            let next = this.points[i + 1];
+            
+            let dir1 = Math.atan2(curr.y - prev.y, curr.x - prev.x);
+            let dir2 = Math.atan2(next.y - curr.y, next.x - curr.x);
+            
+            let angleDiff = dir2 - dir1;
+            
+            // 標準化角度差
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            
+            let currentDirection = angleDiff > 0 ? 'left' : 'right';
+            
+            if (lastDirection && lastDirection !== currentDirection) {
+              directionChanges++;
+            }
+            lastDirection = currentDirection;
+          }
+          
+          // S型手勢應該有至少2次方向變化
+          return directionChanges >= 2;
         }
       }
 
@@ -508,6 +777,17 @@
         status.textContent = text;
         status.classList.add('show');
         setTimeout(() => status.classList.remove('show'), duration);
+      }
+
+      function showGesture(text, duration = 1500) {
+        const gesture = document.getElementById('gesture');
+        gesture.textContent = text;
+        gesture.classList.add('show');
+        
+        clearTimeout(gestureTimeout);
+        gestureTimeout = setTimeout(() => {
+          gesture.classList.remove('show');
+        }, duration);
       }
 
       // 按鈕動畫效果
@@ -527,6 +807,12 @@
       }
 
       function initApp() {
+        // 初始化 P5.js
+        flameSketch = new p5(p5FlameSketch);
+        
+        // 初始化手勢識別
+        const gestureRecognizer = new GestureRecognizer();
+        
         // 自動調整影片比例組件
         AFRAME.registerComponent("fit-video-to-target", {
           init: function () {
@@ -545,16 +831,13 @@
           }
         });
 
-        // 初始化互動管理器
-        const interaction = new InteractionManager();
-
         // 主要元素
         const videoEl = document.querySelector("#video");
         const targetEl = document.querySelector("#target0");
         const scanningOverlay = document.getElementById("scanning-overlay");
         const playButton = document.getElementById("play-button");
         const soundButton = document.getElementById("sound-button");
-        const effectButton = document.getElementById("effect-button");
+        const flameButton = document.getElementById("flame-button");
         const fullscreenContainer = document.getElementById("fullscreen-video-container");
         const fullscreenVideo = document.getElementById("fullscreen-video");
         
@@ -570,7 +853,8 @@
           audioEnabled: false,
           continuePlay: false,
           fullscreen: false,
-          hasPlayed: false
+          hasPlayed: false,
+          flameIntensity: 1.0
         };
 
         // 更新按鈕圖標
@@ -645,62 +929,91 @@
         }
 
         // 觸控事件處理
+        let isDrawing = false;
         let touchStartTime = 0;
-        let touchPoints = [];
         
-        document.addEventListener('touchstart', (e) => {
+        // 觸控開始
+        function handleTouchStart(e) {
+          e.preventDefault();
+          const touch = e.touches ? e.touches[0] : e;
+          const x = touch.clientX;
+          const y = touch.clientY;
+          
+          isDrawing = true;
           touchStartTime = Date.now();
-          touchPoints = Array.from(e.touches).map(t => ({x: t.clientX, y: t.clientY}));
           
-          // 為每個觸控點創建效果
-          touchPoints.forEach(point => {
-            interaction.createRipple(point.x, point.y);
-            interaction.createParticles(point.x, point.y, 5);
-          });
-        }, { passive: true });
-        
-        document.addEventListener('touchmove', (e) => {
-          if (!interaction.effectsEnabled) return;
+          // 開始手勢識別
+          gestureRecognizer.startGesture(x, y);
           
-          const touches = Array.from(e.touches);
-          touches.forEach(touch => {
-            interaction.addTrail(touch.clientX, touch.clientY);
-          });
-          interaction.start();
-        }, { passive: true });
+          // 啟動火焰效果
+          flameSketch.setTouchActive(true, x, y);
+          flameSketch.setFlameIntensity(state.flameIntensity);
+          
+          showGesture('🔥 火焰啟動', 800);
+        }
         
-        document.addEventListener('touchend', (e) => {
+        // 觸控移動
+        function handleTouchMove(e) {
+          e.preventDefault();
+          if (!isDrawing) return;
+          
+          const touch = e.touches ? e.touches[0] : e;
+          const x = touch.clientX;
+          const y = touch.clientY;
+          
+          // 更新手勢識別
+          gestureRecognizer.addPoint(x, y);
+          
+          // 更新火焰位置
+          flameSketch.updateTouchPosition(x, y);
+        }
+        
+        // 觸控結束
+        function handleTouchEnd(e) {
+          e.preventDefault();
+          if (!isDrawing) return;
+          
+          isDrawing = false;
           const touchDuration = Date.now() - touchStartTime;
           
-          // 長按效果
-          if (touchDuration > 500 && e.changedTouches.length > 0) {
-            const touch = e.changedTouches[0];
-            interaction.createParticles(touch.clientX, touch.clientY, 12);
-            interaction.start();
-          }
-        }, { passive: true });
+          // 結束手勢識別
+          const gesture = gestureRecognizer.endGesture();
+          currentGesture = gesture;
+          flameSketch.setGestureType(gesture);
+          
+          // 停止火焰效果
+          flameSketch.setTouchActive(false, 0, 0);
+          
+          // 顯示識別到的手勢
+          const gestureMessages = {
+            'tap': '💥 爆炸火焰',
+            'circle': '🌀 螺旋火焰',
+            'swipe': '⚡ 流星火焰',
+            's-curve': '🐍 蛇形火焰',
+            'default': '🔥 基礎火焰'
+          };
+          
+          showGesture(gestureMessages[gesture] || gestureMessages['default'], 2000);
+        }
 
+        // 綁定觸控事件
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false });
+        
         // 滑鼠事件（桌面端）
         document.addEventListener('mousedown', (e) => {
           if (e.target.closest('.controls-container')) return;
-          interaction.createRipple(e.clientX, e.clientY);
-          interaction.createParticles(e.clientX, e.clientY, 5);
-          interaction.start();
+          handleTouchStart(e);
         });
         
-        let mouseMoving = false;
         document.addEventListener('mousemove', (e) => {
-          if (!interaction.effectsEnabled) return;
-          if (e.buttons === 1) {
-            interaction.addTrail(e.clientX, e.clientY);
-            interaction.start();
-            mouseMoving = true;
+          if (isDrawing) {
+            handleTouchMove(e);
           }
         });
         
-        document.addEventListener('mouseup', () => {
-          mouseMoving = false;
-        });
+        document.addEventListener('mouseup', handleTouchEnd);
 
         // 播放按鈕處理
         playButton.addEventListener("click", () => {
@@ -738,12 +1051,28 @@
           toggleAudio();
         });
 
-        // 特效按鈕處理
-        effectButton.addEventListener("click", () => {
-          animateButton(effectButton);
-          const enabled = interaction.toggle();
-          effectButton.classList.toggle("active", enabled);
-          showStatus(enabled ? '特效已開啟' : '特效已關閉');
+        // 火焰強度按鈕處理
+        let intensityLevel = 1;
+        flameButton.addEventListener("click", () => {
+          animateButton(flameButton);
+          
+          intensityLevel = (intensityLevel % 3) + 1;
+          state.flameIntensity = intensityLevel;
+          flameSketch.setFlameIntensity(state.flameIntensity);
+          
+          const intensityMessages = {
+            1: '🔥 低火焰強度',
+            2: '🔥🔥 中火焰強度', 
+            3: '🔥🔥🔥 高火焰強度'
+          };
+          
+          showStatus(intensityMessages[intensityLevel]);
+          
+          if (intensityLevel === 3) {
+            flameButton.classList.add("active");
+          } else {
+            flameButton.classList.remove("active");
+          }
         });
 
         // 全螢幕點擊退出
@@ -768,11 +1097,19 @@
           playVideo(videoEl);
           scanningOverlay.classList.add("hidden");
           
-          // 創建發現效果
-          const centerX = window.innerWidth / 2;
-          const centerY = window.innerHeight / 2;
-          interaction.createParticles(centerX, centerY, 20);
-          interaction.start();
+          // 創建慶祝火焰效果
+          setTimeout(() => {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            flameSketch.setTouchActive(true, centerX, centerY);
+            flameSketch.setGestureType('tap');
+            flameSketch.setFlameIntensity(3.0);
+            
+            setTimeout(() => {
+              flameSketch.setTouchActive(false, 0, 0);
+              flameSketch.setFlameIntensity(state.flameIntensity);
+            }, 1000);
+          }, 500);
         });
 
         targetEl.addEventListener("targetLost", () => {
@@ -797,6 +1134,7 @@
           if (document.hidden) {
             pauseVideo(videoEl);
             if (state.fullscreen) pauseVideo(fullscreenVideo);
+            flameSketch.setTouchActive(false, 0, 0);
           } else {
             if (state.fullscreen) {
               playVideo(fullscreenVideo);
@@ -819,7 +1157,38 @@
         // 初始提示
         setTimeout(() => {
           showStatus('請掃描目標圖像', 3000);
+          setTimeout(() => {
+            showGesture('觸控螢幕體驗火焰效果', 3000);
+          }, 1000);
         }, 1000);
+
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', (e) => {
+          switch(e.key) {
+            case ' ':
+              e.preventDefault();
+              playButton.click();
+              break;
+            case 'm':
+              e.preventDefault();
+              soundButton.click();
+              break;
+            case 'f':
+              e.preventDefault();
+              flameButton.click();
+              break;
+          }
+        });
+
+        console.log('🔥 AR火焰互動系統已啟動');
+        console.log('💡 提示：');
+        console.log('- 點擊：爆炸火焰');
+        console.log('- 畫圓：螺旋火焰');
+        console.log('- 滑動：流星火焰');
+        console.log('- S型：蛇形火焰');
+        console.log('- 空白鍵：播放/暫停');
+        console.log('- M鍵：靜音切換');
+        console.log('- F鍵：火焰強度');
       }
     </script>
   </body>
