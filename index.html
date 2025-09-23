@@ -1,713 +1,80 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <link rel="preconnect" href="https://aframe.io" />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
-
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>3D藍色流水效果</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        width: 100vw;
-        height: 100vh;
-        touch-action: none;
-      }
-
-      /* P5.js 畫布容器 */
-      #p5-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 3;
-      }
-      
-      /* 確保 P5.js canvas 也不會阻擋點擊 */
-      #p5-container canvas {
-        pointer-events: none !important;
-      }
-
-      /* 手勢識別顯示 */
-      .gesture-indicator {
-        position: fixed;
-        top: 60px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 8px 16px;
-        background: rgba(0, 150, 255, 0.8);
-        border: 1px solid rgba(0, 200, 255, 0.8);
-        border-radius: 20px;
-        color: white;
-        font-size: 14px;
-        font-family: Arial, sans-serif;
-        z-index: 100;
-        opacity: 0;
-        transition: opacity 0.3s;
-        text-shadow: 0 0 5px rgba(0, 150, 255, 0.8);
-      }
-      .gesture-indicator.show {
-        opacity: 1;
-      }
-
-      /* 掃描UI */
-      #scanning-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        background-color: rgba(0, 0, 0, 0.2);
-        opacity: 1;
-        transition: opacity 0.3s;
-      }
-
-      #scanning-overlay.hidden {
-        opacity: 0;
-      }
-
-      .scanner-inner {
-        width: 200px;
-        height: 200px;
-        border: 2px solid rgba(0, 255, 255, 0.7);
-        border-radius: 10px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-      }
-
-      .scanner-line {
-        position: absolute;
-        height: 3px;
-        width: 100%;
-        background: linear-gradient(90deg, transparent, #00ffff, #00ffff, transparent);
-        top: 0;
-        animation: scan 2.5s linear infinite;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-      }
-
-      .corner {
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border-color: rgba(0, 255, 255, 0.9);
-        border-style: solid;
-        border-width: 0;
-      }
-      .corner-tl { top: -2px; left: -2px; border-top-width: 3px; border-left-width: 3px; }
-      .corner-tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; }
-      .corner-bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; }
-      .corner-br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; }
-
-      .scanning-text {
-        position: absolute;
-        bottom: -35px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 100%;
-        text-align: center;
-        font-family: Arial, sans-serif;
-        color: rgba(0, 255, 255, 0.9);
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        font-size: 14px;
-        text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-        animation: pulse 2s ease-in-out infinite;
-      }
-
-      @keyframes pulse {
-        0%, 100% { opacity: 0.9; }
-        50% { opacity: 0.5; }
-      }
-
-      /* 控制按鈕容器 */
-      .controls-container {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1000;
-        display: flex;
-        gap: 15px;
-      }
-
-      /* 圖標按鈕樣式 */
-      .icon-button {
-        width: 48px;
-        height: 48px;
-        background-color: rgba(0, 0, 0, 0.6);
-        border: 2px solid rgba(0, 180, 255, 0.7);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(0, 180, 255, 0.3);
-        transition: all 0.3s ease;
-        opacity: 0.9;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .icon-button:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-        opacity: 1;
-        transform: scale(1.1);
-      }
-      
-      .icon-button.active {
-        background-color: rgba(0, 180, 255, 0.3);
-      }
-
-      .icon-button::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(0, 180, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-      }
-
-      .icon-button.clicked::before {
-        width: 100px;
-        height: 100px;
-      }
-
-      /* SVG 圖標樣式 */
-      .icon-button svg {
-        width: 24px;
-        height: 24px;
-        fill: rgba(0, 180, 255, 0.9);
-        position: relative;
-        z-index: 1;
-      }
-
-      @keyframes scan {
-        0% { transform: translateY(0); }
-        50% { transform: translateY(197px); }
-        100% { transform: translateY(0); }
-      }
-
-      /* 全螢幕影片容器 */
-      #fullscreen-video-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 999;
-        display: none;
-        background-color: rgba(0, 0, 0, 0.9);
-        cursor: pointer;
-      }
-      #fullscreen-video-container.visible {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      #fullscreen-video {
-        max-width: 100%;
-        max-height: 100%;
-        width: auto;
-        height: auto;
-      }
-
-      /* 狀態指示器 */
-      .status-indicator {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 8px 16px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(0, 180, 255, 0.5);
-        border-radius: 20px;
-        color: rgba(0, 180, 255, 0.9);
-        font-size: 12px;
-        font-family: Arial, sans-serif;
-        z-index: 100;
-        opacity: 0;
-        transition: opacity 0.3s;
-      }
-      .status-indicator.show {
-        opacity: 1;
-      }
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; }
+        .ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; color: white; text-align: center; }
+        .status { font-size: 24px; margin-top: 20px; }
     </style>
-  </head>
-  <body>
-    <div id="p5-container"></div>
-    
-    <div class="gesture-indicator" id="gesture">觸控啟動水流效果</div>
-    
-    <div class="status-indicator" id="status">準備就緒</div>
-
-    <div class="controls-container">
-      <button class="icon-button" id="play-button" aria-label="播放控制">
-        <svg viewBox="0 0 24 24" id="play-icon"><path d="M8 5v14l11-7z"/></svg>
-        <svg viewBox="0 0 24 24" id="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-      </button>
-      
-      <button class="icon-button" id="sound-button" aria-label="聲音控制">
-        <svg viewBox="0 0 24 24" id="sound-on-icon" style="display:none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-        <svg viewBox="0 0 24 24" id="sound-off-icon"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-      </button>
-      
-      <button class="icon-button" id="flow-button" aria-label="水流強度">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 2.5C7.03 2.5 3 6.34 3 11.06 3 14.53 5.4 18.5 12 21.5c6.6-3 9-6.97 9-10.44C21 6.34 16.97 2.5 12 2.5zM12 19.48c-3.32-2.14-5-5.11-5-8.42 0-3.03 2.47-5.56 5.5-5.56s5.5 2.53 5.5 5.56c0 3.31-1.68 6.28-5 8.42z"/>
-            <path d="M12 6.5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5 3.5-1.57 3.5-3.5-1.57-3.5-3.5-3.5zm0 5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-        </svg>
-      </button>
+</head>
+<body>
+    <div class="ui-overlay">
+        <div class="status">觸控開始藍色流水效果</div>
+        <div class="status">準備就緒</div>
+        <!-- 可以保留或修改其他UI元素，但為了簡化，我先移除不必要的圖像和按鈕 -->
     </div>
-
-    <div id="scanning-overlay">
-      <div class="scanner-inner">
-        <div class="scanner-line"></div>
-        <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
-        <div class="corner corner-bl"></div><div class="corner corner-br"></div>
-        <div class="scanning-text">目標掃描中</div>
-      </div>
-    </div>
-    
-    <div id="fullscreen-video-container">
-      <video id="fullscreen-video" playsinline webkit-playsinline></video>
-    </div>
-
-    <a-scene
-      mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/TEST1234/main/targets.mind;
-                    warmupTolerance: 5;
-                    missTolerance: 10;
-                    filterMinCF: 0.000001; 
-                    filterBeta: 250;
-                    uiScanning: #scanning-overlay;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-      loading-screen="enabled: true; dotsColor: #00b4ff; backgroundColor: #000000"
-    >
-      <a-assets>
-        <video
-          id="video"
-          src="https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4"
-          preload="auto"
-          loop
-          crossorigin="anonymous"
-          playsinline
-          webkit-playsinline
-          muted
-        ></video>
-      </a-assets>
-
-      <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
-
-      <a-entity id="target0" mindar-image-target="targetIndex: 0" data-target-aspect-ratio="1.778" fit-video-to-target>
-        <a-video id="video0-entity" src="#video" position="0 0 0" rotation="0 0 0" loop="true"></a-video>
-      </a-entity>
-    </a-scene>
 
     <script>
-      // 全域變數
-      let waterSketch;
-      let touchHistory = [];
-      let currentGesture = 'none';
-      let waterFlow = 1.0;
-      let gestureTimeout;
+        let angle = 0;
+        let waveHeight = 50;
+        let gridSize = 20;
+        let cols, rows;
 
-      // P5.js 水流系統
-      const p5WaterSketch = (p) => {
-        let particles = [];
-        let maxParticles = 300;
-        let flowPoints = [];
-        let noiseOffset = 0;
-        let touchActive = false;
-        let currentTouchX = 0;
-        let currentTouchY = 0;
-        
-        // 水流粒子類別
-        class WaterParticle {
-          constructor(x, y, intensity = 1.0, gestureType = 'default') {
-            this.x = x;
-            this.y = y;
-            this.vx = p.random(-1.5, 1.5) * intensity;
-            this.vy = p.random(-2, 1) * intensity;
-            this.life = 255;
-            this.maxLife = 255;
-            this.size = p.random(8, 20) * intensity;
-            this.intensity = intensity;
-            this.gestureType = gestureType;
-            this.noiseOffset = p.random(1000);
-            
-            this.adjustForGesture();
-          }
-          
-          adjustForGesture() {
-            switch(this.gestureType) {
-              case 'circle': // 漩渦
-                this.vx *= 0.8;
-                this.vy *= 0.5;
-                this.size *= 1.2;
-                this.vortexForce = p.random(0.2, 0.4);
-                break;
-              case 'swipe': // 水浪
-                this.vx *= 1.5;
-                this.vy *= 0.8;
-                this.size *= 0.9;
-                break;
-              case 's-curve': // 溪流
-                this.vy *= 1.2;
-                this.waveForce = true;
-                break;
-              case 'tap': // 漣漪
-                let angle = p.random(p.TWO_PI);
-                this.vx = p.cos(angle) * p.random(2, 5) * this.intensity;
-                this.vy = p.sin(angle) * p.random(2, 5) * this.intensity;
-                this.size *= 1.5;
-                this.rippleForce = true;
-                break;
-              default:
-                break;
-            }
-          }
-          
-          update() {
-            // 基本物理：重力
-            this.vy += 0.15 * this.intensity;
-            
-            // 水流和噪聲
-            let flowForce = p.noise(this.x * 0.005, this.y * 0.005, noiseOffset) - 0.5;
-            this.vx += flowForce * 0.8;
-            
-            // 手勢特定效果
-            this.applyGestureForces();
-            
-            // 更新位置
-            this.x += this.vx;
-            this.y += this.vy;
-            
-            // 生命週期
-            this.life -= p.random(1.5, 4);
-            this.size *= 0.99;
-            
-            // 阻力/黏滯性
-            this.vx *= 0.98;
-            this.vy *= 0.985;
-          }
-          
-          applyGestureForces() {
-            switch(this.gestureType) {
-              case 'circle':
-                if (this.vortexForce) {
-                  let angle = p.atan2(this.y - currentTouchY, this.x - currentTouchX);
-                  this.vx += p.cos(angle + p.PI/2) * this.vortexForce;
-                  this.vy += p.sin(angle + p.PI/2) * this.vortexForce;
+        function setup() {
+            createCanvas(windowWidth, windowHeight, WEBGL);
+            cols = floor(width / gridSize);
+            rows = floor(height / gridSize);
+            noStroke();
+        }
+
+        function draw() {
+            background(0, 20, 50); // 深藍色背景，模擬水下環境
+            rotateX(PI / 3); // 傾斜視角以顯示3D效果
+            translate(-width / 2, -height / 2, -100); // 調整位置
+
+            // 燈光設定，增加水面反射感
+            ambientLight(50);
+            directionalLight(200, 200, 255, 0, 0, -1); // 藍白光從上方照射
+
+            for (let y = 0; y < rows; y++) {
+                beginShape(TRIANGLE_STRIP);
+                for (let x = 0; x < cols; x++) {
+                    let xPos = x * gridSize;
+                    let yPos = y * gridSize;
+                    let z1 = map(noise(x * 0.1, y * 0.1, frameCount * 0.01), 0, 1, -waveHeight, waveHeight);
+                    let blueShade1 = map(z1, -waveHeight, waveHeight, 100, 255); // 根據高度調整藍色深度
+
+                    fill(0, 100, blueShade1, 200); // 半透明藍色，模擬水流
+                    vertex(xPos, yPos, z1);
+
+                    let z2 = map(noise(x * 0.1, (y + 1) * 0.1, frameCount * 0.01), 0, 1, -waveHeight, waveHeight);
+                    let blueShade2 = map(z2, -waveHeight, waveHeight, 100, 255);
+
+                    fill(0, 100, blueShade2, 200);
+                    vertex(xPos, yPos + gridSize, z2);
                 }
-                break;
-              case 'tap':
-                if (this.rippleForce) {
-                  this.vx *= 0.97; // 漣漪向外擴散時減速
-                  this.vy *= 0.97;
-                }
-                break;
-               case 's-curve':
-                if (this.waveForce) {
-                  this.vx += p.sin(this.y * 0.03 + noiseOffset) * 0.5;
-                }
-                break;
+                endShape();
             }
-          }
-          
-          display() {
-            let alpha = p.map(this.life, 0, this.maxLife, 0, 255);
-            let progress = 1 - (this.life / this.maxLife);
-            
-            // 水的顏色，使用HSB模式更直觀
-            p.colorMode(p.HSB, 360, 100, 100, 100);
-            let hue = p.map(progress, 0, 1, 180, 220); // 從青色到藍色
-            let saturation = p.map(p.dist(this.vx, this.vy, 0, 0), 0, 10, 30, 80); // 速度越快越不飽和
-            let brightness = 100;
 
-            p.push();
-            p.translate(this.x, this.y);
-            p.noStroke();
-
-            // 模糊的外光暈
-            p.fill(hue, saturation, brightness, alpha * 0.08 * this.intensity);
-            p.ellipse(0, 0, this.size * 3);
-
-            // 主體水珠
-            p.fill(hue, saturation - 10, brightness, alpha * 0.5);
-            p.ellipse(0, 0, this.size);
-            
-            // 內部高光
-            if (this.life > this.maxLife * 0.3) {
-                p.fill(200, 20, 100, alpha * 0.7);
-                p.ellipse(this.size * -0.1, this.size * -0.1, this.size * 0.5);
-            }
-            
-            p.pop();
-            p.colorMode(p.RGB, 255); // 重置顏色模式
-          }
-          
-          isDead() {
-            return this.life <= 0 || this.size < 1;
-          }
-        }
-        
-        p.setup = function() {
-          let canvas = p.createCanvas(p.windowWidth, p.windowHeight);
-          canvas.parent('p5-container');
-        };
-        
-        p.draw = function() {
-          p.clear();
-          noiseOffset += 0.005;
-          
-          if (touchActive && particles.length < maxParticles) {
-            let particleCount = Math.floor(waterFlow * 8);
-            for (let i = 0; i < particleCount; i++) {
-              let x = currentTouchX + p.random(-15, 15);
-              let y = currentTouchY + p.random(-15, 15);
-              particles.push(new WaterParticle(x, y, waterFlow, currentGesture));
-            }
-          }
-          
-          for (let i = particles.length - 1; i >= 0; i--) {
-            particles[i].update();
-            particles[i].display();
-            
-            if (particles[i].isDead()) {
-              particles.splice(i, 1);
-            }
-          }
-        };
-        
-        p.windowResized = function() {
-          p.resizeCanvas(p.windowWidth, p.windowHeight);
-        };
-        
-        // 公開方法
-        p.setTouchActive = function(active, x, y) {
-          touchActive = active;
-          if (active) {
-            currentTouchX = x;
-            currentTouchY = y;
-          }
-        };
-        
-        p.updateTouchPosition = function(x, y) {
-          currentTouchX = x;
-          currentTouchY = y;
-        };
-        
-        p.setWaterFlow = function(intensity) {
-          waterFlow = p.constrain(intensity, 0.1, 3.0);
-        };
-        
-        p.setGestureType = function(gesture) {
-          currentGesture = gesture;
-        };
-      };
-
-      // 手勢識別系統 (與原版相同，無需修改)
-      class GestureRecognizer { /* ... 內容與您提供的程式碼相同 ... */ }
-      
-      // 狀態提示管理
-      function showStatus(text, duration = 2000) { /* ... */ }
-      function showGesture(text, duration = 1500) { /* ... */ }
-      function animateButton(button) { /* ... */ }
-
-      // 初始化App
-      if (window.AFRAME) { initApp(); } else { window.addEventListener('DOMContentLoaded', () => { if (window.AFRAME) initApp(); else window.addEventListener('load', initApp); }); }
-
-      function initApp() {
-        // 初始化 P5.js
-        waterSketch = new p5(p5WaterSketch);
-        
-        const gestureRecognizer = new GestureRecognizer();
-        
-        AFRAME.registerComponent("fit-video-to-target", { /* ... */ });
-
-        const videoEl = document.querySelector("#video");
-        const targetEl = document.querySelector("#target0");
-        const scanningOverlay = document.getElementById("scanning-overlay");
-        const playButton = document.getElementById("play-button");
-        const soundButton = document.getElementById("sound-button");
-        const flowButton = document.getElementById("flow-button"); // 已改名
-        const fullscreenContainer = document.getElementById("fullscreen-video-container");
-        const fullscreenVideo = document.getElementById("fullscreen-video");
-        
-        const playIcon = document.getElementById("play-icon");
-        const pauseIcon = document.getElementById("pause-icon");
-        const soundOnIcon = document.getElementById("sound-on-icon");
-        const soundOffIcon = document.getElementById("sound-off-icon");
-
-        const state = { targetFound: false, audioEnabled: false, continuePlay: false, fullscreen: false, hasPlayed: false, waterFlow: 1.0 };
-
-        function updateButtonIcons() { /* ... */ }
-        function toggleAudio() { /* ... */ }
-        async function playVideo(video) { /* ... */ }
-        function pauseVideo(video) { /* ... */ }
-        function enterFullscreen() { /* ... */ }
-        function exitFullscreen() { /* ... */ }
-
-        let isDrawing = false;
-        let touchStartTime = 0;
-        
-        function handleTouchStart(e) {
-          e.preventDefault();
-          const touch = e.touches ? e.touches[0] : e;
-          const x = touch.clientX; const y = touch.clientY;
-          isDrawing = true; touchStartTime = Date.now();
-          gestureRecognizer.startGesture(x, y);
-          waterSketch.setTouchActive(true, x, y);
-          waterSketch.setWaterFlow(state.waterFlow);
-          showGesture('💧 水流啟動', 800);
-        }
-        
-        function handleTouchMove(e) {
-          e.preventDefault(); if (!isDrawing) return;
-          const touch = e.touches ? e.touches[0] : e;
-          const x = touch.clientX; const y = touch.clientY;
-          gestureRecognizer.addPoint(x, y);
-          waterSketch.updateTouchPosition(x, y);
-        }
-        
-        function handleTouchEnd(e) {
-          e.preventDefault(); if (!isDrawing) return;
-          isDrawing = false;
-          const gesture = gestureRecognizer.endGesture();
-          currentGesture = gesture;
-          waterSketch.setGestureType(gesture);
-          waterSketch.setTouchActive(false, 0, 0);
-          
-          const gestureMessages = {
-            'tap': '🌊 擴散漣漪',
-            'circle': '🌀 漩渦水流',
-            'swipe': '💦 衝擊水浪',
-            's-curve': '🐍 蜿蜒溪流',
-            'default': '💧 基礎水流'
-          };
-          showGesture(gestureMessages[gesture] || gestureMessages['default'], 2000);
+            // 增加流動感：緩慢旋轉或移動
+            angle += 0.005;
         }
 
-        const touchHandler = { /* ... */ };
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            cols = floor(width / gridSize);
+            rows = floor(height / gridSize);
+        }
 
-        document.body.addEventListener('touchstart', touchHandler.handleStart, { passive: false });
-        document.body.addEventListener('touchmove', touchHandler.handleMove, { passive: false });
-        document.body.addEventListener('touchend', touchHandler.handleEnd, { passive: false });
-        document.body.addEventListener('mousedown', (e) => { /* ... */ });
-        document.body.addEventListener('mousemove', (e) => { /* ... */ });
-        document.body.addEventListener('mouseup', (e) => { /* ... */ });
-
-        playButton.addEventListener("click", () => { /* ... */ });
-        soundButton.addEventListener("click", () => { /* ... */ });
-
-        let flowLevel = 1;
-        flowButton.addEventListener("click", () => {
-          animateButton(flowButton);
-          flowLevel = (flowLevel % 3) + 1;
-          state.waterFlow = flowLevel;
-          waterSketch.setWaterFlow(state.waterFlow);
-          
-          const flowMessages = {
-            1: '💧 小水流',
-            2: '💧💧 中水流', 
-            3: '💧💧💧 大水流'
-          };
-          showStatus(flowMessages[flowLevel]);
-          
-          if (flowLevel === 3) {
-            flowButton.classList.add("active");
-          } else {
-            flowButton.classList.remove("active");
-          }
-        });
-
-        fullscreenContainer.addEventListener("click", () => { /* ... */ });
-
-        targetEl.addEventListener("targetFound", () => {
-          state.targetFound = true; state.hasPlayed = true;
-          showStatus('目標已識別');
-          if (state.fullscreen) exitFullscreen();
-          playVideo(videoEl);
-          scanningOverlay.classList.add("hidden");
-          
-          setTimeout(() => {
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-            waterSketch.setTouchActive(true, centerX, centerY);
-            waterSketch.setGestureType('tap');
-            waterSketch.setWaterFlow(3.0);
-            
-            setTimeout(() => {
-              waterSketch.setTouchActive(false, 0, 0);
-              waterSketch.setWaterFlow(state.waterFlow);
-            }, 1000);
-          }, 500);
-        });
-
-        targetEl.addEventListener("targetLost", () => { /* ... */ });
-        document.addEventListener("visibilitychange", () => { /* ... */ });
-        const initAudio = () => { /* ... */ };
-        document.addEventListener("touchstart", initAudio, { passive: true });
-        document.addEventListener("click", initAudio);
-
-        setTimeout(() => {
-          showStatus('請掃描目標圖像', 3000);
-          setTimeout(() => {
-            showGesture('觸控螢幕體驗水流效果', 3000);
-          }, 1000);
-        }, 1000);
-
-        document.addEventListener('keydown', (e) => {
-          switch(e.key) {
-            case ' ': e.preventDefault(); playButton.click(); break;
-            case 'm': e.preventDefault(); soundButton.click(); break;
-            case 'f': e.preventDefault(); flowButton.click(); break;
-          }
-        });
-
-        console.log('💧 AR水流互動系統已啟動');
-        console.log('💡 提示：');
-        console.log('- 點擊：擴散漣漪');
-        console.log('- 畫圓：漩渦水流');
-        console.log('- 滑動：衝擊水浪');
-        console.log('- S型：蜿蜒溪流');
-        console.log('- 空白鍵：播放/暫停');
-        console.log('- M鍵：靜音切換');
-        console.log('- F鍵：水流強度 (原火焰)');
-      }
-    </script>
-    <script>
-      class GestureRecognizer {
-          constructor() {
-            this.points = []; this.startTime = 0; this.lastGesture = 'none';
-            this.gestureThreshold = { minPoints: 5, maxTime: 2000, circleThreshold: 0.8, swipeThreshold: 100, sCurveThreshold: 0.6 };
-          }
-          startGesture(x, y) { this.points = [{x, y, t: Date.now()}]; this.startTime = Date.now(); }
-          addPoint(x, y) { if (this.points.length > 0) { this.points.push({x, y, t: Date.now()}); if (this.points.length > 50) { this.points.shift(); } } }
-          endGesture() { if (this.points.length < this.gestureThreshold.minPoints) { return 'tap'; } const gesture = this.analyzeGesture(); this.lastGesture = gesture; return gesture; }
-          analyzeGesture() { if (this.points.length < 3) return 'tap'; if (this.isCircleGesture()) { return 'circle'; } if (this.isSwipeGesture()) { return 'swipe'; } if (this.isSCurveGesture()) { return 's-curve'; } return 'default'; }
-          isCircleGesture() { if (this.points.length < 10) return false; let centerX = 0, centerY = 0; for (let point of this.points) { centerX += point.x; centerY += point.y; } centerX /= this.points.length; centerY /= this.points.length; let avgRadius = 0; for (let point of this.points) { avgRadius += Math.sqrt((point.x - centerX) ** 2 + (point.y - centerY) ** 2); } avgRadius /= this.points.length; let validPoints = 0; for (let point of this.points) { let distance = Math.sqrt((point.x - centerX) ** 2 + (point.y - centerY) ** 2); if (Math.abs(distance - avgRadius) < avgRadius * 0.3) { validPoints++; } } return (validPoints / this.points.length) > this.gestureThreshold.circleThreshold; }
-          isSwipeGesture() { if (this.points.length < 3) return false; let start = this.points[0]; let end = this.points[this.points.length - 1]; let distance = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2); return distance > this.gestureThreshold.swipeThreshold; }
-          isSCurveGesture() { if (this.points.length < 8) return false; let directionChanges = 0; let lastDirection = null; for (let i = 1; i < this.points.length - 1; i++) { let prev = this.points[i - 1]; let curr = this.points[i]; let next = this.points[i + 1]; let dir1 = Math.atan2(curr.y - prev.y, curr.x - prev.x); let dir2 = Math.atan2(next.y - curr.y, next.x - curr.x); let angleDiff = dir2 - dir1; while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI; while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI; let currentDirection = angleDiff > 0 ? 'left' : 'right'; if (lastDirection && lastDirection !== currentDirection) { directionChanges++; } lastDirection = currentDirection; } return directionChanges >= 2; }
+        function touchStarted() {
+            // 可以添加觸控互動，例如改變波浪高度
+            waveHeight = 100;
+            return false;
         }
     </script>
-  </body>
+</body>
 </html>
