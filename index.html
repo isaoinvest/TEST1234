@@ -29,6 +29,11 @@
         pointer-events: none;
         z-index: 3;
       }
+      
+      /* 確保 P5.js canvas 也不會阻擋點擊 */
+      #p5-container canvas {
+        pointer-events: none !important;
+      }
 
       /* 手勢識別顯示 */
       .gesture-indicator {
@@ -996,24 +1001,57 @@
           showGesture(gestureMessages[gesture] || gestureMessages['default'], 2000);
         }
 
+        // 綁定觸控事件到 document body，避免遮蔽按鈕
+        const touchHandler = {
+          handleStart: (e) => {
+            // 檢查是否點擊了控制按鈕
+            if (e.target.closest('.controls-container') || 
+                e.target.closest('.icon-button') ||
+                e.target.closest('#fullscreen-video-container')) {
+              return; // 不處理火焰效果，讓按鈕正常工作
+            }
+            handleTouchStart(e);
+          },
+          
+          handleMove: (e) => {
+            if (isDrawing) {
+              handleTouchMove(e);
+            }
+          },
+          
+          handleEnd: (e) => {
+            if (isDrawing) {
+              handleTouchEnd(e);
+            }
+          }
+        };
+
         // 綁定觸控事件
-        document.addEventListener('touchstart', handleTouchStart, { passive: false });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd, { passive: false });
+        document.body.addEventListener('touchstart', touchHandler.handleStart, { passive: false });
+        document.body.addEventListener('touchmove', touchHandler.handleMove, { passive: false });
+        document.body.addEventListener('touchend', touchHandler.handleEnd, { passive: false });
         
         // 滑鼠事件（桌面端）
-        document.addEventListener('mousedown', (e) => {
-          if (e.target.closest('.controls-container')) return;
+        document.body.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.controls-container') || 
+              e.target.closest('.icon-button') ||
+              e.target.closest('#fullscreen-video-container')) {
+            return; // 不處理火焰效果
+          }
           handleTouchStart(e);
         });
         
-        document.addEventListener('mousemove', (e) => {
+        document.body.addEventListener('mousemove', (e) => {
           if (isDrawing) {
             handleTouchMove(e);
           }
         });
         
-        document.addEventListener('mouseup', handleTouchEnd);
+        document.body.addEventListener('mouseup', (e) => {
+          if (isDrawing) {
+            handleTouchEnd(e);
+          }
+        });
 
         // 播放按鈕處理
         playButton.addEventListener("click", () => {
