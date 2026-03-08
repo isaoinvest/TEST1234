@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/shoptarget_luminance.png",
+  "metadata": null,
+  "name": "shoptarget",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 43,
+    "width": 893,
+    "height": 1191,
+    "isRotated": true,
+    "originalWidth": 893,
+    "originalHeight": 1276
+  },
+  "resources": {
+    "originalImage": "shoptarget_original.png",
+    "croppedImage": "shoptarget_cropped.png",
+    "thumbnailImage": "shoptarget_thumbnail.png",
+    "luminanceImage": "shoptarget_luminance.png"
+  },
+  "created": 1772974386526,
+  "updated": 1772974386526
+}
