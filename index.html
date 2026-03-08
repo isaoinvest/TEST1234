@@ -6,45 +6,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>8th Wall AR 流水體驗</title>
 
-  <!--
-  ╔══════════════════════════════════════════════════════╗
-  ║  📁 必要本地檔案結構（使用前請先完成 Setup）          ║
-  ╠══════════════════════════════════════════════════════╣
-  ║  project/                                            ║
-  ║    index.html            ← 此檔案                    ║
-  ║    external/                                         ║
-  ║      xr/                                             ║
-  ║        xr.js             ← 8thwall/engine 下載       ║
-  ║        xr-slam.js        ← 同上                      ║
-  ║        resources/                                    ║
-  ║          media-worker.js                             ║
-  ║          semantics-worker.js                         ║
-  ║      xrextras/                                       ║
-  ║        xrextras.js       ← 8thwall monorepo 建置     ║
-  ║        resources/                                    ║
-  ║    image-targets/                                    ║
-  ║      my-target.json      ← CLI 生成                  ║
-  ║      my-target_luminance.jpg ← CLI 生成              ║
-  ╠══════════════════════════════════════════════════════╣
-  ║  快速 Setup 指令：                                    ║
-  ║  1) brew install git-lfs && git lfs install          ║
-  ║  2) git clone https://github.com/8thwall/engine      ║
-  ║     mkdir -p external/xr                             ║
-  ║     unzip engine/xr-standalone.zip -d external/xr   ║
-  ║  3) git clone https://github.com/8thwall/8thwall     ║
-  ║     cd 8thwall/packages/xrextras                     ║
-  ║     cp ../../LICENSE . && npm i && npm run build     ║
-  ║     cp -r dist/external/xrextras ../../external/     ║
-  ║  4) npx @8thwall/image-target-cli@latest             ║
-  ╚══════════════════════════════════════════════════════╝
-  -->
-
   <!-- ★ CONFIG：在這裡修改你的設定 ★ -->
   <script>
     const AR_CONFIG = {
       videoSrc: 'https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4',
-      targetJsonPath: 'https://raw.githubusercontent.com/isaoinvest/TEST1234/main/shoptarget.json',
-      videoAspectRatio: 16 / 9,   // 影片長寬比 (16:9 = 1.778)
+
+      // ✅ 改成相對路徑（JSON 和 index.html 在同一個 repository）
+      targetJsonPath: './image-targets/shoptarget.json',
+
+      videoAspectRatio: 16 / 9,
     };
   </script>
 
@@ -52,9 +22,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 
-  <!-- 8th Wall OSS Engine (local) - data-preload-chunks="slam" 預載 SLAM 模組 -->
+  <!-- 8th Wall OSS Engine (local) -->
   <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
-  <!-- XR Extras (local) - Loading UI、錯誤處理 -->
+  <!-- XR Extras (local) -->
   <script src="./external/xrextras/xrextras.js"></script>
 
   <style>
@@ -67,16 +37,12 @@
       background: #000;
       touch-action: none;
     }
-
-    /* 8th Wall render canvas */
     #renderCanvas {
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
       z-index: 0;
     }
-
-    /* P5.js 水效果層 */
     #p5-container {
       position: fixed;
       top: 0; left: 0;
@@ -85,8 +51,6 @@
       z-index: 3;
     }
     #p5-container canvas { pointer-events: none !important; }
-
-    /* 手勢提示 */
     .gesture-indicator {
       position: fixed;
       top: 60px;
@@ -106,8 +70,6 @@
       white-space: nowrap;
     }
     .gesture-indicator.show { opacity: 1; }
-
-    /* 掃描 UI */
     #scanning-overlay {
       position: fixed;
       top: 0; left: 0;
@@ -122,7 +84,6 @@
       transition: opacity 0.5s;
     }
     #scanning-overlay.hidden { opacity: 0; }
-
     .scanner-inner {
       width: 220px;
       height: 220px;
@@ -133,7 +94,6 @@
       box-shadow: 0 0 20px rgba(0, 255, 255, 0.3),
                   inset 0 0 20px rgba(0, 255, 255, 0.05);
     }
-
     .scanner-line {
       position: absolute;
       height: 2px;
@@ -141,10 +101,8 @@
       background: linear-gradient(90deg, transparent, #00ffff 30%, #00ffff 70%, transparent);
       top: 0;
       animation: scan 2.2s ease-in-out infinite;
-      box-shadow: 0 0 12px rgba(0, 255, 255, 0.6),
-                  0 0 4px #00ffff;
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.6), 0 0 4px #00ffff;
     }
-
     .corner {
       position: absolute;
       width: 24px; height: 24px;
@@ -156,7 +114,6 @@
     .corner-tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
     .corner-bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 4px; }
     .corner-br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
-
     .scanning-text {
       position: absolute;
       bottom: -38px;
@@ -172,7 +129,6 @@
       text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
       animation: pulse 2s ease-in-out infinite;
     }
-
     @keyframes scan {
       0%   { transform: translateY(0); opacity: 0.8; }
       50%  { transform: translateY(217px); opacity: 1; }
@@ -182,8 +138,6 @@
       0%, 100% { opacity: 0.9; }
       50%       { opacity: 0.4; }
     }
-
-    /* 控制按鈕 */
     .controls-container {
       position: fixed;
       bottom: 28px;
@@ -193,7 +147,6 @@
       display: flex;
       gap: 16px;
     }
-
     .icon-button {
       width: 52px; height: 52px;
       background-color: rgba(0, 8, 20, 0.75);
@@ -233,10 +186,7 @@
       transition: width 0.5s, height 0.5s, opacity 0.5s;
       opacity: 0;
     }
-    .icon-button.clicked::before {
-      width: 120px; height: 120px;
-      opacity: 0;
-    }
+    .icon-button.clicked::before { width: 120px; height: 120px; opacity: 0; }
     .icon-button svg {
       width: 22px; height: 22px;
       fill: rgba(0, 210, 255, 0.9);
@@ -244,8 +194,6 @@
       z-index: 1;
       filter: drop-shadow(0 0 3px rgba(0, 180, 255, 0.5));
     }
-
-    /* 全螢幕影片容器（Target 丟失後繼續播放） */
     #fullscreen-video-container {
       position: fixed;
       top: 0; left: 0;
@@ -260,13 +208,7 @@
       align-items: center;
       justify-content: center;
     }
-    #fullscreen-video {
-      max-width: 100%;
-      max-height: 100%;
-      width: auto; height: auto;
-    }
-
-    /* 狀態提示 */
+    #fullscreen-video { max-width: 100%; max-height: 100%; width: auto; height: auto; }
     .status-indicator {
       position: fixed;
       top: 18px; right: 18px;
@@ -284,8 +226,6 @@
       backdrop-filter: blur(8px);
     }
     .status-indicator.show { opacity: 1; }
-
-    /* Found flash */
     #found-flash {
       position: fixed;
       top: 0; left: 0;
@@ -297,26 +237,39 @@
       transition: opacity 0.8s;
     }
     #found-flash.flash { opacity: 1; }
+
+    /* ── 偵錯面板（手機上可見） ── */
+    #debug-panel {
+      position: fixed;
+      bottom: 100px;
+      left: 10px;
+      right: 10px;
+      max-height: 160px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.85);
+      border: 1px solid rgba(255,100,100,0.5);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #ff9999;
+      z-index: 2000;
+      display: none;
+    }
+    #debug-panel.show { display: block; }
+    #debug-panel .ok  { color: #99ff99; }
+    #debug-panel .err { color: #ff6666; }
+    #debug-panel .inf { color: #99ccff; }
   </style>
 </head>
 <body>
 
-  <!-- 8th Wall Three.js render target -->
   <canvas id="renderCanvas"></canvas>
-
-  <!-- P5.js 水效果覆蓋層 -->
   <div id="p5-container"></div>
-
-  <!-- Target Found 光效 -->
   <div id="found-flash"></div>
-
-  <!-- 手勢提示 -->
   <div class="gesture-indicator" id="gesture">觸控螢幕體驗流水效果</div>
-
-  <!-- 狀態提示 -->
   <div class="status-indicator" id="status">初始化中...</div>
 
-  <!-- 掃描 UI -->
   <div id="scanning-overlay">
     <div class="scanner-inner">
       <div class="scanner-line"></div>
@@ -328,12 +281,10 @@
     </div>
   </div>
 
-  <!-- 全螢幕影片（目標丟失後繼續播放模式） -->
   <div id="fullscreen-video-container">
     <video id="fullscreen-video" playsinline webkit-playsinline></video>
   </div>
 
-  <!-- 控制按鈕 -->
   <div class="controls-container">
     <button class="icon-button" id="play-button" aria-label="播放控制">
       <svg viewBox="0 0 24 24" id="play-icon"><path d="M8 5v14l11-7z"/></svg>
@@ -346,11 +297,82 @@
     <button class="icon-button" id="water-button" aria-label="水流強度">
       <svg viewBox="0 0 24 24"><path d="M12 2.69l5.31 5.31c1.33 1.33 1.33 3.49 0 4.82-1.33 1.33-3.49 1.33-4.82 0L12 7.51l-1.49 1.49c-1.33 1.33-3.49 1.33-4.82 0-1.33-1.33-1.33-3.49 0-4.82L12 2.69zm0 18.62c-3.31 0-6-2.69-6-6 0-3.31 2.69-6 6-6s6 2.69 6 6c0 3.31-2.69 6-6 6z"/></svg>
     </button>
+    <!-- 偵錯按鈕（長按 3 秒顯示 debug 面板） -->
+    <button class="icon-button" id="debug-button" aria-label="偵錯" style="border-color:rgba(255,150,0,0.4);">
+      <svg viewBox="0 0 24 24" style="fill:rgba(255,180,0,0.8);"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+    </button>
   </div>
+
+  <!-- 偵錯面板 -->
+  <div id="debug-panel"></div>
 
   <script>
   // ═══════════════════════════════════════════════════
-  //  P5.JS 流水系統（完整保留原始功能）
+  //  偵錯系統（幫助診斷手機上的問題）
+  // ═══════════════════════════════════════════════════
+  const Debug = {
+    panel: null,
+    init() {
+      this.panel = document.getElementById('debug-panel');
+      // 長按偵錯按鈕 2 秒顯示面板
+      let pressTimer;
+      const btn = document.getElementById('debug-button');
+      btn.addEventListener('touchstart', () => {
+        pressTimer = setTimeout(() => this.panel.classList.toggle('show'), 2000);
+      });
+      btn.addEventListener('touchend', () => clearTimeout(pressTimer));
+      btn.addEventListener('click', () => this.panel.classList.toggle('show'));
+
+      // 攔截所有 console.error
+      const origError = console.error.bind(console);
+      console.error = (...args) => { this.log(args.join(' '), 'err'); origError(...args); };
+      const origWarn = console.warn.bind(console);
+      console.warn = (...args) => { this.log(args.join(' '), 'inf'); origWarn(...args); };
+
+      window.addEventListener('error', (e) => this.log(`JS錯誤: ${e.message} (${e.filename}:${e.lineno})`, 'err'));
+    },
+    log(msg, type = 'inf') {
+      if (!this.panel) return;
+      const line = document.createElement('div');
+      line.className = type;
+      line.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+      this.panel.appendChild(line);
+      this.panel.scrollTop = this.panel.scrollHeight;
+      console.log(`[Debug] ${msg}`);
+    }
+  };
+  Debug.init();
+
+  // ═══════════════════════════════════════════════════
+  //  啟動前檢查：確認所有必要檔案是否存在
+  // ═══════════════════════════════════════════════════
+  async function preflightCheck() {
+    const checks = [
+      { url: './external/xr/xr.js',          label: 'xr.js 引擎' },
+      { url: './external/xr/xr-slam.js',      label: 'xr-slam.js SLAM模組' },
+      { url: './external/xrextras/xrextras.js', label: 'xrextras.js' },
+      { url: AR_CONFIG.targetJsonPath,         label: 'target JSON' },
+    ];
+    let allOk = true;
+    for (const c of checks) {
+      try {
+        const r = await fetch(c.url, { method: 'HEAD' });
+        if (r.ok) {
+          Debug.log(`✅ ${c.label} 載入成功`, 'ok');
+        } else {
+          Debug.log(`❌ ${c.label} 找不到 (HTTP ${r.status}) → ${c.url}`, 'err');
+          allOk = false;
+        }
+      } catch(e) {
+        Debug.log(`❌ ${c.label} 網路錯誤 → ${c.url}`, 'err');
+        allOk = false;
+      }
+    }
+    return allOk;
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  P5.JS 流水系統
   // ═══════════════════════════════════════════════════
   let waterSketch;
   let currentGesture = 'none';
@@ -379,26 +401,18 @@
         this.drag = 0.98;
         this.isWhirlpool = false;
         this.isWavy = false;
-        this.isRipple = false;
         this._adjustForGesture();
       }
       _adjustForGesture() {
         switch(this.gestureType) {
-          case 'circle':
-            this.vel.mult(0.5);
-            this.isWhirlpool = true;
-            break;
-          case 'swipe':
-            this.vel.mult(2);
-            break;
-          case 's-curve':
-            this.isWavy = true;
-            break;
-          case 'tap':
-            this.isRipple = true;
+          case 'circle': this.vel.mult(0.5); this.isWhirlpool = true; break;
+          case 'swipe':  this.vel.mult(2); break;
+          case 's-curve': this.isWavy = true; break;
+          case 'tap': {
             const angle = p.random(p.TWO_PI);
             this.vel = p.createVector(p.cos(angle), p.sin(angle)).mult(p.random(1, 4) * this.intensity);
             break;
+          }
         }
       }
       applyForce(f) { this.acc.add(f); }
@@ -410,11 +424,6 @@
         this.acc.mult(0);
         const turb = p.noise(this.pos.x * 0.01, this.pos.y * 0.01, noiseOffset) - 0.5;
         this.vel.x += turb * 0.3;
-        this._applyGestureForces();
-        this.life -= p.random(1.5, 4);
-        this.size *= 0.99;
-      }
-      _applyGestureForces() {
         if (this.isWhirlpool) {
           const a = p.atan2(this.pos.y - currentTouchY, this.pos.x - currentTouchX);
           const f = p.createVector(p.cos(a + p.PI/2), p.sin(a + p.PI/2)).mult(0.2 * this.intensity);
@@ -423,31 +432,22 @@
           pull.normalize().mult(0.05);
           this.applyForce(pull);
         }
-        if (this.isWavy) {
-          this.vel.x += p.sin(this.pos.y * 0.05 + noiseOffset) * 0.5;
-        }
+        if (this.isWavy) this.vel.x += p.sin(this.pos.y * 0.05 + noiseOffset) * 0.5;
+        this.life -= p.random(1.5, 4);
+        this.size *= 0.99;
       }
       display() {
         const alpha = p.map(this.life, 0, this.maxLife, 0, 255);
         const progress = 1 - (this.life / this.maxLife);
         let r, g, b;
-        if (progress < 0.3) {
-          r = 200 + progress * 55; g = 220 + progress * 35; b = 255;
-        } else if (progress < 0.7) {
-          r = 100 - (progress - 0.3) * 100; g = 180 - (progress - 0.3) * 80; b = 255;
-        } else {
-          r = 0; g = 100 - (progress - 0.7) * 100; b = 200 - (progress - 0.7) * 50;
-        }
+        if (progress < 0.3)      { r = 200 + progress*55; g = 220 + progress*35; b = 255; }
+        else if (progress < 0.7) { r = 100-(progress-.3)*100; g = 180-(progress-.3)*80; b = 255; }
+        else                     { r = 0; g = 100-(progress-.7)*100; b = 200-(progress-.7)*50; }
         p.push();
         p.translate(this.pos.x, this.pos.y);
-        p.fill(r, g, b, alpha * 0.2); p.noStroke();
-        p.ellipse(0, 0, this.size * 1.5);
-        p.fill(r, g, b, alpha * 0.7);
-        p.ellipse(0, 0, this.size);
-        if (this.life > this.maxLife * 0.5) {
-          p.fill(220, 240, 255, alpha);
-          p.ellipse(0, 0, this.size * 0.3);
-        }
+        p.fill(r, g, b, alpha * 0.2); p.noStroke(); p.ellipse(0, 0, this.size * 1.5);
+        p.fill(r, g, b, alpha * 0.7); p.ellipse(0, 0, this.size);
+        if (this.life > this.maxLife * 0.5) { p.fill(220, 240, 255, alpha); p.ellipse(0, 0, this.size * 0.3); }
         p.pop();
       }
       isDead() { return this.life <= 0 || this.size < 1; }
@@ -459,7 +459,6 @@
       p.colorMode(p.RGB, 255);
       p.blendMode(p.ADD);
     };
-
     p.draw = function() {
       p.clear();
       noiseOffset += 0.01;
@@ -474,30 +473,23 @@
         }
       }
       for (let i = particles.length - 1; i >= 0; i--) {
-        particles[i].update();
-        particles[i].display();
+        particles[i].update(); particles[i].display();
         if (particles[i].isDead()) particles.splice(i, 1);
       }
     };
-
     p.windowResized = function() { p.resizeCanvas(p.windowWidth, p.windowHeight); };
-
-    // 公開 API
-    p.setTouchActive   = (a, x, y) => { touchActive = a; if (a) { currentTouchX = x; currentTouchY = y; } };
-    p.updateTouchPosition = (x, y) => { currentTouchX = x; currentTouchY = y; };
-    p.setWaterIntensity = (v) => { waterIntensity = p.constrain(v, 0.1, 3.0); };
-    p.setGestureType   = (g) => { currentGesture = g; };
+    p.setTouchActive      = (a, x, y) => { touchActive = a; if (a) { currentTouchX = x; currentTouchY = y; } };
+    p.updateTouchPosition = (x, y)    => { currentTouchX = x; currentTouchY = y; };
+    p.setWaterIntensity   = (v)        => { waterIntensity = p.constrain(v, 0.1, 3.0); };
+    p.setGestureType      = (g)        => { currentGesture = g; };
   };
 
   // ═══════════════════════════════════════════════════
-  //  手勢識別系統（完整保留）
+  //  手勢識別系統
   // ═══════════════════════════════════════════════════
   class GestureRecognizer {
-    constructor() {
-      this.points = [];
-      this.startTime = 0;
-    }
-    startGesture(x, y) { this.points = [{x, y}]; this.startTime = Date.now(); }
+    constructor() { this.points = []; }
+    startGesture(x, y) { this.points = [{x, y}]; }
     addPoint(x, y) {
       if (!this.points.length) return;
       this.points.push({x, y});
@@ -508,9 +500,8 @@
       return this._analyze();
     }
     _analyze() {
-      if (this.points.length < 3) return 'tap';
       if (this._isCircle()) return 'circle';
-      if (this._isSwipe()) return 'swipe';
+      if (this._isSwipe())  return 'swipe';
       if (this._isSCurve()) return 's-curve';
       return 'default';
     }
@@ -520,25 +511,24 @@
       this.points.forEach(p => { cx += p.x; cy += p.y; });
       cx /= this.points.length; cy /= this.points.length;
       let avgR = 0;
-      this.points.forEach(p => { avgR += Math.hypot(p.x - cx, p.y - cy); });
+      this.points.forEach(p => { avgR += Math.hypot(p.x-cx, p.y-cy); });
       avgR /= this.points.length;
       if (avgR < 20) return false;
-      const valid = this.points.filter(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - avgR) < avgR * 0.4).length;
+      const valid = this.points.filter(p => Math.abs(Math.hypot(p.x-cx, p.y-cy) - avgR) < avgR * 0.4).length;
       return valid / this.points.length > 0.8;
     }
     _isSwipe() {
-      const s = this.points[0], e = this.points[this.points.length - 1];
-      return Math.hypot(e.x - s.x, e.y - s.y) > 100;
+      const s = this.points[0], e = this.points[this.points.length-1];
+      return Math.hypot(e.x-s.x, e.y-s.y) > 100;
     }
     _isSCurve() {
       if (this.points.length < 8) return false;
       let changes = 0, lastDir = null;
-      for (let i = 1; i < this.points.length - 1; i++) {
-        const d1 = Math.atan2(this.points[i].y - this.points[i-1].y, this.points[i].x - this.points[i-1].x);
-        const d2 = Math.atan2(this.points[i+1].y - this.points[i].y, this.points[i+1].x - this.points[i].x);
-        let diff = d2 - d1;
-        while (diff > Math.PI) diff -= 2 * Math.PI;
-        while (diff < -Math.PI) diff += 2 * Math.PI;
+      for (let i = 1; i < this.points.length-1; i++) {
+        let diff = Math.atan2(this.points[i+1].y-this.points[i].y, this.points[i+1].x-this.points[i].x)
+                 - Math.atan2(this.points[i].y-this.points[i-1].y, this.points[i].x-this.points[i-1].x);
+        while (diff >  Math.PI) diff -= 2*Math.PI;
+        while (diff < -Math.PI) diff += 2*Math.PI;
         const dir = diff > 0 ? 'L' : 'R';
         if (lastDir && lastDir !== dir) changes++;
         lastDir = dir;
@@ -548,37 +538,31 @@
   }
 
   // ═══════════════════════════════════════════════════
-  //  UI 輔助函式
+  //  UI 輔助
   // ═══════════════════════════════════════════════════
   function showStatus(text, duration = 2500) {
     const el = document.getElementById('status');
-    el.textContent = text;
-    el.classList.add('show');
+    el.textContent = text; el.classList.add('show');
     clearTimeout(el._t);
     el._t = setTimeout(() => el.classList.remove('show'), duration);
   }
-
   function showGesture(text, duration = 1800) {
     const el = document.getElementById('gesture');
-    el.textContent = text;
-    el.classList.add('show');
+    el.textContent = text; el.classList.add('show');
     clearTimeout(gestureTimeout);
     gestureTimeout = setTimeout(() => el.classList.remove('show'), duration);
   }
-
   function animateButton(btn) {
     btn.classList.add('clicked');
     setTimeout(() => btn.classList.remove('clicked'), 600);
   }
-
   function triggerFoundFlash() {
-    const flash = document.getElementById('found-flash');
-    flash.classList.add('flash');
-    setTimeout(() => flash.classList.remove('flash'), 800);
+    const f = document.getElementById('found-flash');
+    f.classList.add('flash');
+    setTimeout(() => f.classList.remove('flash'), 800);
   }
-
   function triggerWaterBurst() {
-    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    const cx = window.innerWidth/2, cy = window.innerHeight/2;
     waterSketch.setTouchActive(true, cx, cy);
     waterSketch.setGestureType('tap');
     waterSketch.setWaterIntensity(3.0);
@@ -588,49 +572,33 @@
     }, 1200);
   }
 
-  // ═══════════════════════════════════════════════════
-  //  應用程式狀態
-  // ═══════════════════════════════════════════════════
   const appState = {
-    targetFound: false,
-    audioEnabled: false,
-    continuePlay: false,
-    fullscreen: false,
-    hasPlayed: false,
-    waterIntensity: 1.0,
+    targetFound: false, audioEnabled: false,
+    continuePlay: false, fullscreen: false,
+    hasPlayed: false, waterIntensity: 1.0,
   };
 
   // ═══════════════════════════════════════════════════
   //  8th Wall AR Pipeline Module
   // ═══════════════════════════════════════════════════
   function createARPipelineModule() {
-    let scene, camera, renderer;
     let videoEl, videoTexture, videoMesh;
-    const scanningOverlay = document.getElementById('scanning-overlay');
-    const fullscreenContainer = document.getElementById('fullscreen-video-container');
-    const fullscreenVideo = document.getElementById('fullscreen-video');
+    const scanningOverlay      = document.getElementById('scanning-overlay');
+    const fullscreenContainer  = document.getElementById('fullscreen-video-container');
+    const fullscreenVideo      = document.getElementById('fullscreen-video');
 
-    // --- 影片控制 ---
     function createVideoElement() {
       const v = document.createElement('video');
       v.src = AR_CONFIG.videoSrc;
-      v.loop = true;
-      v.muted = true;
-      v.playsInline = true;
+      v.loop = true; v.muted = true; v.playsInline = true;
       v.crossOrigin = 'anonymous';
       v.setAttribute('webkit-playsinline', 'true');
       return v;
     }
-
     async function playVideo(v) {
       if (!v || !v.src) return;
       try { await v.play(); }
-      catch {
-        v.muted = true;
-        appState.audioEnabled = false;
-        updateButtonIcons();
-        await v.play().catch(() => {});
-      }
+      catch { v.muted = true; appState.audioEnabled = false; updateButtonIcons(); await v.play().catch(()=>{}); }
     }
     function pauseVideo(v) { if (v) v.pause(); }
 
@@ -651,16 +619,14 @@
       pauseVideo(fullscreenVideo);
       fullscreenVideo.src = '';
     }
-
     function updateButtonIcons() {
-      document.getElementById('play-icon').style.display = appState.continuePlay ? 'none' : 'block';
-      document.getElementById('pause-icon').style.display = appState.continuePlay ? 'block' : 'none';
+      document.getElementById('play-icon').style.display   = appState.continuePlay ? 'none' : 'block';
+      document.getElementById('pause-icon').style.display  = appState.continuePlay ? 'block' : 'none';
       document.getElementById('play-button').classList.toggle('active', appState.continuePlay);
-      document.getElementById('sound-on-icon').style.display = appState.audioEnabled ? 'block' : 'none';
+      document.getElementById('sound-on-icon').style.display  = appState.audioEnabled ? 'block' : 'none';
       document.getElementById('sound-off-icon').style.display = appState.audioEnabled ? 'none' : 'block';
       document.getElementById('sound-button').classList.toggle('active', appState.audioEnabled);
     }
-
     function toggleAudio() {
       appState.audioEnabled = !appState.audioEnabled;
       if (videoEl) videoEl.muted = !appState.audioEnabled;
@@ -669,7 +635,6 @@
       showStatus(appState.audioEnabled ? '🔊 聲音已開啟' : '🔇 靜音模式');
     }
 
-    // --- 按鈕事件 ---
     function setupButtons() {
       document.getElementById('play-button').addEventListener('click', () => {
         animateButton(document.getElementById('play-button'));
@@ -681,36 +646,28 @@
           if (!appState.targetFound) { enterFullscreen(); scanningOverlay.classList.add('hidden'); }
           else if (videoEl && videoEl.paused) playVideo(videoEl);
         } else {
-          showStatus('⏸ 暫停');
-          exitFullscreen();
+          showStatus('⏸ 暫停'); exitFullscreen();
           if (!appState.targetFound && videoEl) pauseVideo(videoEl);
           if (!appState.targetFound) scanningOverlay.classList.remove('hidden');
         }
       });
-
       document.getElementById('sound-button').addEventListener('click', () => {
-        animateButton(document.getElementById('sound-button'));
-        toggleAudio();
+        animateButton(document.getElementById('sound-button')); toggleAudio();
       });
-
       let intensityLevel = 1;
       document.getElementById('water-button').addEventListener('click', () => {
         animateButton(document.getElementById('water-button'));
         intensityLevel = (intensityLevel % 3) + 1;
         appState.waterIntensity = intensityLevel * 0.9;
         waterSketch.setWaterIntensity(appState.waterIntensity);
-        const msgs = { 1: '💧 弱水流', 2: '💧💧 中水流', 3: '💧💧💧 強水流' };
+        const msgs = { 1:'💧 弱水流', 2:'💧💧 中水流', 3:'💧💧💧 強水流' };
         showStatus(msgs[intensityLevel]);
         document.getElementById('water-button').classList.toggle('active', intensityLevel === 3);
       });
-
       fullscreenContainer.addEventListener('click', () => {
-        exitFullscreen();
-        appState.continuePlay = false;
-        updateButtonIcons();
+        exitFullscreen(); appState.continuePlay = false; updateButtonIcons();
         if (!appState.targetFound) scanningOverlay.classList.remove('hidden');
       });
-
       document.addEventListener('keydown', (e) => {
         if (e.key === ' ') { e.preventDefault(); document.getElementById('play-button').click(); }
         if (e.key === 'm') { e.preventDefault(); document.getElementById('sound-button').click(); }
@@ -718,104 +675,69 @@
       });
     }
 
-    // --- 影像辨識事件 ---
     function onImageFound({ detail }) {
       const { position, rotation, scale } = detail;
-
-      // 更新 Three.js mesh 位置/旋轉/縮放
       videoMesh.position.set(position.x, position.y, position.z);
       videoMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-      // scale 是物理寬度，幾何體寬=1 所以直接 scale
       videoMesh.scale.set(scale, scale, scale);
       videoMesh.visible = true;
-
-      appState.targetFound = true;
-      appState.hasPlayed = true;
+      appState.targetFound = true; appState.hasPlayed = true;
       scanningOverlay.classList.add('hidden');
       triggerFoundFlash();
       showStatus('✅ 目標已識別');
-
+      Debug.log('✅ imagefound — scale: ' + scale.toFixed(3), 'ok');
       if (appState.fullscreen) exitFullscreen();
-
       playVideo(videoEl);
       triggerWaterBurst();
     }
-
     function onImageUpdated({ detail }) {
       const { position, rotation, scale } = detail;
       videoMesh.position.set(position.x, position.y, position.z);
       videoMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
       videoMesh.scale.set(scale, scale, scale);
     }
-
     function onImageLost() {
-      videoMesh.visible = false;
-      appState.targetFound = false;
+      videoMesh.visible = false; appState.targetFound = false;
       showStatus('⚠️ 目標丟失');
-
-      if (appState.continuePlay) {
-        enterFullscreen();
-      } else {
+      Debug.log('⚠️ imagelost', 'inf');
+      if (appState.continuePlay) { enterFullscreen(); }
+      else {
         pauseVideo(videoEl);
         setTimeout(() => {
-          if (!appState.targetFound && !appState.continuePlay) {
-            scanningOverlay.classList.remove('hidden');
-          }
+          if (!appState.targetFound && !appState.continuePlay) scanningOverlay.classList.remove('hidden');
         }, 300);
       }
     }
 
-    // --- Pipeline Module 物件 ---
     return {
       name: 'ar-video-app',
-
       onStart: () => {
-        // 取得 8th Wall 管理的 Three.js 場景
         const xrScene = XR8.Threejs.xrScene();
-        scene = xrScene.scene;
-        camera = xrScene.camera;
-        renderer = xrScene.renderer;
-
-        // 建立影片元素與 VideoTexture
+        const { scene } = xrScene;
         videoEl = createVideoElement();
         videoTexture = new THREE.VideoTexture(videoEl);
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
-        videoTexture.format = THREE.RGBAFormat; // RGBFormat 在 r137+ 已棄用
-
-        // 建立影片顯示平面（寬 1，高 = 1/aspectRatio）
+        videoTexture.format = THREE.RGBAFormat;
         const aspect = AR_CONFIG.videoAspectRatio;
         const geometry = new THREE.PlaneGeometry(1, 1 / aspect);
-        const material = new THREE.MeshBasicMaterial({
-          map: videoTexture,
-          side: THREE.DoubleSide,
-          toneMapped: false,
-        });
+        const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide, toneMapped: false });
         videoMesh = new THREE.Mesh(geometry, material);
         videoMesh.visible = false;
         scene.add(videoMesh);
-
-        // 環境光（MeshBasicMaterial 不受光影影響，但保留供 future use）
         scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-
-        // 初始化按鈕
         setupButtons();
-
-        // 初始畫面提示
+        Debug.log('✅ AR Scene 初始化完成', 'ok');
         setTimeout(() => {
           showStatus('請掃描目標圖像', 3500);
           setTimeout(() => showGesture('觸控螢幕體驗流水效果', 3000), 1200);
         }, 800);
       },
-
-      // 8th Wall 圖像追蹤事件監聽
       listeners: [
         { event: 'reality.imagefound',   process: onImageFound   },
         { event: 'reality.imageupdated', process: onImageUpdated },
         { event: 'reality.imagelost',    process: onImageLost    },
       ],
-
-      // 頁面可見性管理
       onAttach: () => {
         document.addEventListener('visibilitychange', () => {
           if (document.hidden) {
@@ -837,15 +759,9 @@
   function setupGestureSystem() {
     const recognizer = new GestureRecognizer();
     let isDrawing = false;
-
-    const gestureMessages = {
-      tap: '💧 水滴漣漪', circle: '🌀 漩渦水流',
-      swipe: '🌊 強力水流', 's-curve': '🐍 蛇行水流', default: '💧 基礎水流'
-    };
-
+    const msgs = { tap:'💧 水滴漣漪', circle:'🌀 漩渦水流', swipe:'🌊 強力水流', 's-curve':'🐍 蛇行水流', default:'💧 基礎水流' };
     function onStart(e) {
-      const src = e.target;
-      if (src.closest('.controls-container, #fullscreen-video-container')) return;
+      if (e.target.closest('.controls-container, #fullscreen-video-container')) return;
       const t = e.touches ? e.touches[0] : e;
       isDrawing = true;
       recognizer.startGesture(t.clientX, t.clientY);
@@ -866,9 +782,8 @@
       currentGesture = g;
       waterSketch.setGestureType(g);
       waterSketch.setTouchActive(false, 0, 0);
-      showGesture(gestureMessages[g] || gestureMessages.default, 2000);
+      showGesture(msgs[g] || msgs.default, 2000);
     }
-
     document.body.addEventListener('touchstart', onStart, { passive: false });
     document.body.addEventListener('touchmove',  onMove,  { passive: false });
     document.body.addEventListener('touchend',   onEnd,   { passive: false });
@@ -878,66 +793,62 @@
   }
 
   // ═══════════════════════════════════════════════════
-  //  主入口：等待 8th Wall 引擎就緒
+  //  主入口
   // ═══════════════════════════════════════════════════
   window.addEventListener('xrloaded', async () => {
+    Debug.log('✅ xrloaded 觸發，引擎載入成功', 'ok');
     showStatus('載入目標資料...', 3000);
 
-    // 載入由 image-target-cli 生成的 JSON
     let targetData;
     try {
-      targetData = await fetch(AR_CONFIG.targetJsonPath).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      });
+      Debug.log('正在 fetch: ' + AR_CONFIG.targetJsonPath, 'inf');
+      const r = await fetch(AR_CONFIG.targetJsonPath);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      targetData = await r.json();
+      Debug.log('✅ target JSON 載入成功: ' + targetData.name, 'ok');
     } catch (err) {
-      console.error('[8thWall AR] 無法載入 image target JSON:', err);
-      showStatus('❌ 目標資料載入失敗，請確認 image-targets/ 目錄', 8000);
+      Debug.log('❌ target JSON 載入失敗: ' + err.message, 'err');
+      showStatus('❌ 目標資料載入失敗', 8000);
       return;
     }
 
-    // 設定 XR 控制器：停用世界追蹤（只用圖像追蹤）
     XR8.XrController.configure({
       disableWorldTracking: true,
       imageTargetData: [targetData],
     });
 
-    // 組裝 Camera Pipeline
     const modules = [
-      XR8.GlTextureRenderer.pipelineModule(),   // 相機畫面渲染
-      XR8.Threejs.pipelineModule(),              // Three.js 整合
-      XR8.XrController.pipelineModule(),         // AR 控制器（SLAM + Image Tracking）
+      XR8.GlTextureRenderer.pipelineModule(),
+      XR8.Threejs.pipelineModule(),
+      XR8.XrController.pipelineModule(),
     ];
-
-    // XRExtras 選擇性加入（若未載入則跳過）
     if (typeof XRExtras !== 'undefined') {
-      if (XRExtras.AlmostThere)    modules.push(XRExtras.AlmostThere.pipelineModule());
-      if (XRExtras.Loading)        modules.push(XRExtras.Loading.pipelineModule());
-      if (XRExtras.RuntimeError)   modules.push(XRExtras.RuntimeError.pipelineModule());
+      if (XRExtras.AlmostThere)  modules.push(XRExtras.AlmostThere.pipelineModule());
+      if (XRExtras.Loading)      modules.push(XRExtras.Loading.pipelineModule());
+      if (XRExtras.RuntimeError) modules.push(XRExtras.RuntimeError.pipelineModule());
     }
-
-    // 加入自訂 AR 模組
     modules.push(createARPipelineModule());
-
     XR8.addCameraPipelineModules(modules);
-
-    // 啟動 AR
     XR8.run({ canvas: document.getElementById('renderCanvas') });
+    Debug.log('✅ XR8.run() 已執行，等待相機許可', 'ok');
 
-    // 初始化 P5.js 水效果
     waterSketch = new p5(p5WaterSketch);
-
-    // 初始化手勢系統
     setupGestureSystem();
-
-    console.log('🌊 8th Wall AR 流水系統啟動完成');
-    console.log('💡 手勢指南：點擊=漣漪 | 畫圓=漩渦 | 滑動=強流 | S型=蛇行');
   });
 
-  // 若引擎檔案未找到，提示友善錯誤
   window.addEventListener('xrerror', (e) => {
-    console.error('[8thWall AR] 引擎錯誤:', e.detail);
-    showStatus('❌ AR引擎初始化失敗，請確認 external/ 目錄', 10000);
+    Debug.log('❌ xrerror: ' + JSON.stringify(e.detail), 'err');
+    showStatus('❌ AR 引擎錯誤，請查看偵錯面板', 10000);
+  });
+
+  // 頁面載入後先做檔案存在性檢查
+  window.addEventListener('load', async () => {
+    Debug.log('頁面載入完成，開始 preflight 檢查...', 'inf');
+    const ok = await preflightCheck();
+    if (!ok) {
+      Debug.panel.classList.add('show'); // 有問題就自動顯示偵錯面板
+      showStatus('❌ 有檔案缺失，請查看偵錯面板', 8000);
+    }
   });
   </script>
 </body>
