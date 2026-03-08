@@ -1,956 +1,944 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <link rel="preconnect" href="https://aframe.io" />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>8th Wall AR 流水體驗</title>
 
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        width: 100vw;
-        height: 100vh;
-        touch-action: none;
-      }
+  <!--
+  ╔══════════════════════════════════════════════════════╗
+  ║  📁 必要本地檔案結構（使用前請先完成 Setup）          ║
+  ╠══════════════════════════════════════════════════════╣
+  ║  project/                                            ║
+  ║    index.html            ← 此檔案                    ║
+  ║    external/                                         ║
+  ║      xr/                                             ║
+  ║        xr.js             ← 8thwall/engine 下載       ║
+  ║        xr-slam.js        ← 同上                      ║
+  ║        resources/                                    ║
+  ║          media-worker.js                             ║
+  ║          semantics-worker.js                         ║
+  ║      xrextras/                                       ║
+  ║        xrextras.js       ← 8thwall monorepo 建置     ║
+  ║        resources/                                    ║
+  ║    image-targets/                                    ║
+  ║      my-target.json      ← CLI 生成                  ║
+  ║      my-target_luminance.jpg ← CLI 生成              ║
+  ╠══════════════════════════════════════════════════════╣
+  ║  快速 Setup 指令：                                    ║
+  ║  1) brew install git-lfs && git lfs install          ║
+  ║  2) git clone https://github.com/8thwall/engine      ║
+  ║     mkdir -p external/xr                             ║
+  ║     unzip engine/xr-standalone.zip -d external/xr   ║
+  ║  3) git clone https://github.com/8thwall/8thwall     ║
+  ║     cd 8thwall/packages/xrextras                     ║
+  ║     cp ../../LICENSE . && npm i && npm run build     ║
+  ║     cp -r dist/external/xrextras ../../external/     ║
+  ║  4) npx @8thwall/image-target-cli@latest             ║
+  ╚══════════════════════════════════════════════════════╝
+  -->
 
-      /* P5.js 畫布容器 */
-      #p5-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 3;
-      }
-      
-      /* 確保 P5.js canvas 也不會阻擋點擊 */
-      #p5-container canvas {
-        pointer-events: none !important;
-      }
+  <!-- ★ CONFIG：在這裡修改你的設定 ★ -->
+  <script>
+    const AR_CONFIG = {
+      videoSrc: 'https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4',
+      targetJsonPath: 'https://raw.githubusercontent.com/isaoinvest/TEST1234/main/shoptarget.json',
+      videoAspectRatio: 16 / 9,   // 影片長寬比 (16:9 = 1.778)
+    };
+  </script>
 
-      /* 手勢識別顯示 */
-      .gesture-indicator {
-        position: fixed;
-        top: 60px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 8px 16px;
-        background: rgba(0, 150, 255, 0.8);
-        border: 1px solid rgba(0, 200, 255, 0.8);
-        border-radius: 20px;
-        color: white;
-        font-size: 14px;
-        font-family: Arial, sans-serif;
-        z-index: 100;
-        opacity: 0;
-        transition: opacity 0.3s;
-        text-shadow: 0 0 5px rgba(0, 150, 255, 0.8);
-      }
-      .gesture-indicator.show {
-        opacity: 1;
-      }
+  <!-- CDN Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 
-      /* 掃描UI */
-      #scanning-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        background-color: rgba(0, 0, 0, 0.2);
-        opacity: 1;
-        transition: opacity 0.3s;
-      }
+  <!-- 8th Wall OSS Engine (local) - data-preload-chunks="slam" 預載 SLAM 模組 -->
+  <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
+  <!-- XR Extras (local) - Loading UI、錯誤處理 -->
+  <script src="./external/xrextras/xrextras.js"></script>
 
-      #scanning-overlay.hidden {
-        opacity: 0;
-      }
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      touch-action: none;
+    }
 
-      .scanner-inner {
-        width: 200px;
-        height: 200px;
-        border: 2px solid rgba(0, 255, 255, 0.7);
-        border-radius: 10px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-      }
+    /* 8th Wall render canvas */
+    #renderCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
 
-      .scanner-line {
-        position: absolute;
-        height: 3px;
-        width: 100%;
-        background: linear-gradient(90deg, transparent, #00ffff, #00ffff, transparent);
-        top: 0;
-        animation: scan 2.5s linear infinite;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-      }
+    /* P5.js 水效果層 */
+    #p5-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    }
+    #p5-container canvas { pointer-events: none !important; }
 
-      .corner {
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border-color: rgba(0, 255, 255, 0.9);
-        border-style: solid;
-        border-width: 0;
-      }
-      .corner-tl {
-        top: -2px;
-        left: -2px;
-        border-top-width: 3px;
-        border-left-width: 3px;
-      }
-      .corner-tr {
-        top: -2px;
-        right: -2px;
-        border-top-width: 3px;
-        border-right-width: 3px;
-      }
-      .corner-bl {
-        bottom: -2px;
-        left: -2px;
-        border-bottom-width: 3px;
-        border-left-width: 3px;
-      }
-      .corner-br {
-        bottom: -2px;
-        right: -2px;
-        border-bottom-width: 3px;
-        border-right-width: 3px;
-      }
+    /* 手勢提示 */
+    .gesture-indicator {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      background: rgba(0, 150, 255, 0.8);
+      border: 1px solid rgba(0, 200, 255, 0.8);
+      border-radius: 20px;
+      color: white;
+      font-size: 14px;
+      font-family: 'SF Pro Display', Arial, sans-serif;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      text-shadow: 0 0 5px rgba(0, 150, 255, 0.8);
+      white-space: nowrap;
+    }
+    .gesture-indicator.show { opacity: 1; }
 
-      .scanning-text {
-        position: absolute;
-        bottom: -35px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 100%;
-        text-align: center;
-        font-family: Arial, sans-serif;
-        color: rgba(0, 255, 255, 0.9);
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        font-size: 14px;
-        text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-        animation: pulse 2s ease-in-out infinite;
-      }
+    /* 掃描 UI */
+    #scanning-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      background-color: rgba(0, 0, 0, 0.25);
+      opacity: 1;
+      transition: opacity 0.5s;
+    }
+    #scanning-overlay.hidden { opacity: 0; }
 
-      @keyframes pulse {
-        0%, 100% { opacity: 0.9; }
-        50% { opacity: 0.5; }
-      }
+    .scanner-inner {
+      width: 220px;
+      height: 220px;
+      border: 2px solid rgba(0, 255, 255, 0.7);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3),
+                  inset 0 0 20px rgba(0, 255, 255, 0.05);
+    }
 
-      /* 控制按鈕容器 */
-      .controls-container {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1000;
-        display: flex;
-        gap: 15px;
-      }
+    .scanner-line {
+      position: absolute;
+      height: 2px;
+      width: 100%;
+      background: linear-gradient(90deg, transparent, #00ffff 30%, #00ffff 70%, transparent);
+      top: 0;
+      animation: scan 2.2s ease-in-out infinite;
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.6),
+                  0 0 4px #00ffff;
+    }
 
-      /* 圖標按鈕樣式 */
-      .icon-button {
-        width: 48px;
-        height: 48px;
-        background-color: rgba(0, 0, 0, 0.6);
-        border: 2px solid rgba(0, 180, 255, 0.7);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(0, 180, 255, 0.3);
-        transition: all 0.3s ease;
-        opacity: 0.9;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .icon-button:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-        opacity: 1;
-        transform: scale(1.1);
-      }
-      
-      .icon-button.active {
-        background-color: rgba(0, 180, 255, 0.3);
-      }
+    .corner {
+      position: absolute;
+      width: 24px; height: 24px;
+      border-color: rgba(0, 255, 255, 0.95);
+      border-style: solid;
+      border-width: 0;
+    }
+    .corner-tl { top: -2px; left: -2px; border-top-width: 3px; border-left-width: 3px; border-radius: 4px 0 0 0; }
+    .corner-tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
+    .corner-bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 4px; }
+    .corner-br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
 
-      .icon-button::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(0, 180, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-      }
+    .scanning-text {
+      position: absolute;
+      bottom: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160%;
+      text-align: center;
+      font-family: 'SF Mono', monospace;
+      color: rgba(0, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-size: 12px;
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+      animation: pulse 2s ease-in-out infinite;
+    }
 
-      .icon-button.clicked::before {
-        width: 100px;
-        height: 100px;
-      }
+    @keyframes scan {
+      0%   { transform: translateY(0); opacity: 0.8; }
+      50%  { transform: translateY(217px); opacity: 1; }
+      100% { transform: translateY(0); opacity: 0.8; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.9; }
+      50%       { opacity: 0.4; }
+    }
 
-      /* SVG 圖標樣式 */
-      .icon-button svg {
-        width: 24px;
-        height: 24px;
-        fill: rgba(0, 200, 255, 0.9);
-        position: relative;
-        z-index: 1;
-      }
+    /* 控制按鈕 */
+    .controls-container {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      gap: 16px;
+    }
 
-      @keyframes scan {
-        0% { transform: translateY(0); }
-        50% { transform: translateY(197px); }
-        100% { transform: translateY(0); }
-      }
+    .icon-button {
+      width: 52px; height: 52px;
+      background-color: rgba(0, 8, 20, 0.75);
+      border: 1.5px solid rgba(0, 180, 255, 0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(0, 180, 255, 0.25),
+                  inset 0 0 10px rgba(0, 180, 255, 0.05);
+      transition: all 0.25s ease;
+      opacity: 0.92;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+    }
+    .icon-button:hover {
+      background-color: rgba(0, 20, 50, 0.9);
+      opacity: 1;
+      transform: scale(1.08);
+      border-color: rgba(0, 220, 255, 0.8);
+      box-shadow: 0 0 20px rgba(0, 180, 255, 0.4);
+    }
+    .icon-button.active {
+      background-color: rgba(0, 120, 200, 0.35);
+      border-color: rgba(0, 220, 255, 0.9);
+    }
+    .icon-button::before {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      border-radius: 50%;
+      background: rgba(0, 180, 255, 0.2);
+      transform: translate(-50%, -50%);
+      transition: width 0.5s, height 0.5s, opacity 0.5s;
+      opacity: 0;
+    }
+    .icon-button.clicked::before {
+      width: 120px; height: 120px;
+      opacity: 0;
+    }
+    .icon-button svg {
+      width: 22px; height: 22px;
+      fill: rgba(0, 210, 255, 0.9);
+      position: relative;
+      z-index: 1;
+      filter: drop-shadow(0 0 3px rgba(0, 180, 255, 0.5));
+    }
 
-      /* 全螢幕影片容器 */
-      #fullscreen-video-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 999;
-        display: none;
-        background-color: rgba(0, 0, 0, 0.9);
-        cursor: pointer;
-      }
-      #fullscreen-video-container.visible {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      #fullscreen-video {
-        max-width: 100%;
-        max-height: 100%;
-        width: auto;
-        height: auto;
-      }
+    /* 全螢幕影片容器（Target 丟失後繼續播放） */
+    #fullscreen-video-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 999;
+      display: none;
+      background-color: rgba(0, 0, 0, 0.95);
+      cursor: pointer;
+    }
+    #fullscreen-video-container.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #fullscreen-video {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto; height: auto;
+    }
 
-      /* 狀態指示器 */
-      .status-indicator {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 8px 16px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(0, 180, 255, 0.5);
-        border-radius: 20px;
-        color: rgba(0, 200, 255, 0.9);
-        font-size: 12px;
-        font-family: Arial, sans-serif;
-        z-index: 100;
-        opacity: 0;
-        transition: opacity 0.3s;
-      }
-      .status-indicator.show {
-        opacity: 1;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="p5-container"></div>
-    
-    <div class="gesture-indicator" id="gesture">觸控開始流水效果</div>
-    
-    <div class="status-indicator" id="status">準備就緒</div>
+    /* 狀態提示 */
+    .status-indicator {
+      position: fixed;
+      top: 18px; right: 18px;
+      padding: 7px 14px;
+      background: rgba(0, 5, 15, 0.8);
+      border: 1px solid rgba(0, 180, 255, 0.45);
+      border-radius: 20px;
+      color: rgba(0, 210, 255, 0.9);
+      font-size: 11px;
+      font-family: 'SF Mono', monospace;
+      letter-spacing: 1px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      backdrop-filter: blur(8px);
+    }
+    .status-indicator.show { opacity: 1; }
 
-    <div class="controls-container">
-      <button class="icon-button" id="play-button" aria-label="播放控制">
-        <svg viewBox="0 0 24 24" id="play-icon">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-        <svg viewBox="0 0 24 24" id="pause-icon" style="display:none;">
-          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-        </svg>
-      </button>
-      
-      <button class="icon-button" id="sound-button" aria-label="聲音控制">
-        <svg viewBox="0 0 24 24" id="sound-on-icon" style="display:none;">
-          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-        </svg>
-        <svg viewBox="0 0 24 24" id="sound-off-icon">
-          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-        </svg>
-      </button>
-      
-      <button class="icon-button" id="water-button" aria-label="水流強度">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 2.69l5.31 5.31c1.33 1.33 1.33 3.49 0 4.82-1.33 1.33-3.49 1.33-4.82 0L12 7.51l-1.49 1.49c-1.33 1.33-3.49 1.33-4.82 0-1.33-1.33-1.33-3.49 0-4.82L12 2.69zm0 18.62c-3.31 0-6-2.69-6-6 0-3.31 2.69-6 6-6s6 2.69 6 6c0 3.31-2.69 6-6 6z"/>
-        </svg>
-      </button>
+    /* Found flash */
+    #found-flash {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(circle, rgba(0, 200, 255, 0.15), transparent 70%);
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.8s;
+    }
+    #found-flash.flash { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- 8th Wall Three.js render target -->
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- P5.js 水效果覆蓋層 -->
+  <div id="p5-container"></div>
+
+  <!-- Target Found 光效 -->
+  <div id="found-flash"></div>
+
+  <!-- 手勢提示 -->
+  <div class="gesture-indicator" id="gesture">觸控螢幕體驗流水效果</div>
+
+  <!-- 狀態提示 -->
+  <div class="status-indicator" id="status">初始化中...</div>
+
+  <!-- 掃描 UI -->
+  <div id="scanning-overlay">
+    <div class="scanner-inner">
+      <div class="scanner-line"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="scanning-text">目標掃描中</div>
     </div>
+  </div>
 
-    <div id="scanning-overlay">
-      <div class="scanner-inner">
-        <div class="scanner-line"></div>
-        <div class="corner corner-tl"></div>
-        <div class="corner corner-tr"></div>
-        <div class="corner corner-bl"></div>
-        <div class="corner corner-br"></div>
-        <div class="scanning-text">目標掃描中</div>
-      </div>
-    </div>
-    
-    <div id="fullscreen-video-container">
-      <video id="fullscreen-video" playsinline webkit-playsinline></video>
-    </div>
+  <!-- 全螢幕影片（目標丟失後繼續播放模式） -->
+  <div id="fullscreen-video-container">
+    <video id="fullscreen-video" playsinline webkit-playsinline></video>
+  </div>
 
-    <a-scene
-      mindar-image="imageTargetSrc: https://raw.githubusercontent.com/isaoinvest/TEST1234/main/targets.mind;
-                    warmupTolerance: 5;
-                    missTolerance: 10;
-                    filterMinCF: 0.000001; 
-                    filterBeta: 250;
-                    uiScanning: #scanning-overlay;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-      loading-screen="enabled: true; dotsColor: #00c8ff; backgroundColor: #000000"
-    >
-      <a-assets>
-        <video
-          id="video"
-          src="https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4"
-          preload="auto"
-          loop
-          crossorigin="anonymous"
-          playsinline
-          webkit-playsinline
-          muted
-        ></video>
-      </a-assets>
+  <!-- 控制按鈕 -->
+  <div class="controls-container">
+    <button class="icon-button" id="play-button" aria-label="播放控制">
+      <svg viewBox="0 0 24 24" id="play-icon"><path d="M8 5v14l11-7z"/></svg>
+      <svg viewBox="0 0 24 24" id="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button class="icon-button" id="sound-button" aria-label="聲音控制">
+      <svg viewBox="0 0 24 24" id="sound-on-icon" style="display:none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      <svg viewBox="0 0 24 24" id="sound-off-icon"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+    </button>
+    <button class="icon-button" id="water-button" aria-label="水流強度">
+      <svg viewBox="0 0 24 24"><path d="M12 2.69l5.31 5.31c1.33 1.33 1.33 3.49 0 4.82-1.33 1.33-3.49 1.33-4.82 0L12 7.51l-1.49 1.49c-1.33 1.33-3.49 1.33-4.82 0-1.33-1.33-1.33-3.49 0-4.82L12 2.69zm0 18.62c-3.31 0-6-2.69-6-6 0-3.31 2.69-6 6-6s6 2.69 6 6c0 3.31-2.69 6-6 6z"/></svg>
+    </button>
+  </div>
 
-      <a-camera
-        position="0 0 0"
-        look-controls="enabled: false"
-        cursor="fuse: false; rayOrigin: mouse;"
-        raycaster="far: 10000; objects: .clickable"
-      ></a-camera>
+  <script>
+  // ═══════════════════════════════════════════════════
+  //  P5.JS 流水系統（完整保留原始功能）
+  // ═══════════════════════════════════════════════════
+  let waterSketch;
+  let currentGesture = 'none';
+  let gestureTimeout;
 
-      <a-entity
-        id="target0"
-        mindar-image-target="targetIndex: 0"
-        data-target-aspect-ratio="1.778"
-        fit-video-to-target
-      >
-        <a-video
-          id="video0-entity"
-          src="#video"
-          position="0 0 0"
-          rotation="0 0 0"
-          loop="true"
-        ></a-video>
-      </a-entity>
-    </a-scene>
+  const p5WaterSketch = (p) => {
+    let particles = [];
+    const maxParticles = 350;
+    let noiseOffset = 0;
+    let touchActive = false;
+    let currentTouchX = 0;
+    let currentTouchY = 0;
+    let waterIntensity = 1.0;
 
-    <script>
-      // 全域變數
-      let waterSketch;
-      let touchHistory = [];
-      let currentGesture = 'none';
-      let waterIntensity = 1.0;
-      let gestureTimeout;
-
-      // P5.js 流水系統
-      const p5WaterSketch = (p) => {
-        let particles = [];
-        let maxParticles = 300;
-        let waterPoints = [];
-        let noiseOffset = 0;
-        let touchActive = false;
-        let currentTouchX = 0;
-        let currentTouchY = 0;
-        
-        // 流水粒子類別
-        class WaterParticle {
-          constructor(x, y, intensity = 1.0, gestureType = 'default') {
-            this.pos = p.createVector(x, y);
-            this.vel = p.createVector(p.random(-1, 1), p.random(-2, 0));
-            this.acc = p.createVector(0, 0);
-            this.life = 255;
-            this.maxLife = 255;
-            this.size = p.random(10, 25) * intensity;
-            this.intensity = intensity;
-            this.gestureType = gestureType;
-            this.gravity = p.createVector(0, 0.05 * intensity);
-            this.drag = 0.98;
-            
-            this.adjustForGesture();
-          }
-          
-          adjustForGesture() {
-            switch(this.gestureType) {
-              case 'circle': // 漩渦
-                this.vel.mult(0.5);
-                this.isWhirlpool = true;
-                break;
-              case 'swipe': // 水流
-                this.vel.mult(2);
-                break;
-              case 's-curve': // 波浪
-                this.isWavy = true;
-                break;
-              case 'tap': // 漣漪/水滴
-                this.isRipple = true;
-                let angle = p.random(p.TWO_PI);
-                this.vel = p.createVector(p.cos(angle), p.sin(angle)).mult(p.random(1, 4) * this.intensity);
-                break;
-              default:
-                break;
-            }
-          }
-          
-          applyForce(force) {
-            this.acc.add(force);
-          }
-          
-          update() {
-            // 基本物理
-            this.applyForce(this.gravity);
-            this.vel.add(this.acc);
-            this.vel.mult(this.drag);
-            this.pos.add(this.vel);
-            this.acc.mult(0); // 清除加速度
-            
-            // 湍流 (Perlin Noise)
-            let turbulence = p.noise(this.pos.x * 0.01, this.pos.y * 0.01, noiseOffset) - 0.5;
-            this.vel.x += turbulence * 0.3;
-            
-            this.applyGestureForces();
-            
-            // 生命週期
-            this.life -= p.random(1.5, 4);
-            this.size *= 0.99;
-          }
-          
-          applyGestureForces() {
-            switch(this.gestureType) {
-              case 'circle':
-                if (this.isWhirlpool) {
-                  let angle = p.atan2(this.pos.y - currentTouchY, this.pos.x - currentTouchX);
-                  let force = p.createVector(p.cos(angle + p.PI/2), p.sin(angle + p.PI/2));
-                  force.mult(0.2 * this.intensity);
-                  this.applyForce(force);
-                  // 吸引向中心
-                  let pull = p.createVector(currentTouchX - this.pos.x, currentTouchY - this.pos.y);
-                  pull.normalize();
-                  pull.mult(0.05);
-                  this.applyForce(pull);
-                }
-                break;
-              case 's-curve':
-                if (this.isWavy) {
-                  this.vel.x += p.sin(this.pos.y * 0.05 + noiseOffset) * 0.5;
-                }
-                break;
-            }
-          }
-          
-          display() {
-            let alpha = p.map(this.life, 0, this.maxLife, 0, 255);
-            let progress = 1 - (this.life / this.maxLife);
-            
-            // 水的顏色漸變
-            let r, g, b;
-            if (progress < 0.3) {
-              // 亮白色核心
-              r = 200 + progress * 55;
-              g = 220 + progress * 35;
-              b = 255;
-            } else if (progress < 0.7) {
-              // 青色
-              r = 100 - (progress - 0.3) * 100;
-              g = 180 - (progress - 0.3) * 80;
-              b = 255;
-            } else {
-              // 深藍色
-              r = 0;
-              g = 100 - (progress - 0.7) * 100;
-              b = 200 - (progress - 0.7) * 50;
-            }
-            
-            // 繪製粒子
-            p.push();
-            p.translate(this.pos.x, this.pos.y);
-            
-            // 外圈光暈
-            p.fill(r, g, b, alpha * 0.2);
-            p.noStroke();
-            p.ellipse(0, 0, this.size * 1.5);
-            
-            // 主體
-            p.fill(r, g, b, alpha * 0.7);
-            p.ellipse(0, 0, this.size);
-            
-            // 核心亮點
-            if (this.life > this.maxLife * 0.5) {
-              p.fill(220, 240, 255, alpha);
-              p.ellipse(0, 0, this.size * 0.3);
-            }
-            
-            p.pop();
-          }
-          
-          isDead() {
-            return this.life <= 0 || this.size < 1;
-          }
-        }
-        
-        p.setup = function() {
-          let canvas = p.createCanvas(p.windowWidth, p.windowHeight);
-          canvas.parent('p5-container');
-          p.colorMode(p.RGB, 255);
-          p.background(0, 0);
-          p.blendMode(p.ADD); // 使用 additive blending 創造發光效果
-        };
-        
-        p.draw = function() {
-          p.clear();
-          noiseOffset += 0.01;
-          
-          if (touchActive && particles.length < maxParticles) {
-            let particleCount = Math.floor(waterIntensity * 8);
-            for (let i = 0; i < particleCount; i++) {
-              let x = currentTouchX + p.random(-15, 15);
-              let y = currentTouchY + p.random(-15, 15);
-              particles.push(new WaterParticle(x, y, waterIntensity, currentGesture));
-            }
-          }
-          
-          for (let i = particles.length - 1; i >= 0; i--) {
-            particles[i].update();
-            particles[i].display();
-            
-            if (particles[i].isDead()) {
-              particles.splice(i, 1);
-            }
-          }
-        };
-        
-        p.windowResized = function() {
-          p.resizeCanvas(p.windowWidth, p.windowHeight);
-        };
-        
-        // 公開方法給外部調用
-        p.setTouchActive = function(active, x, y) {
-          touchActive = active;
-          if (active) {
-            currentTouchX = x;
-            currentTouchY = y;
-          }
-        };
-        
-        p.updateTouchPosition = function(x, y) {
-          currentTouchX = x;
-          currentTouchY = y;
-        };
-        
-        p.setWaterIntensity = function(intensity) {
-          waterIntensity = p.constrain(intensity, 0.1, 3.0);
-        };
-        
-        p.setGestureType = function(gesture) {
-          currentGesture = gesture;
-        };
-      };
-
-      // 手勢識別系統
-      class GestureRecognizer {
-        constructor() {
-          this.points = [];
-          this.startTime = 0;
-          this.lastGesture = 'none';
-          this.gestureThreshold = {
-            minPoints: 5,
-            maxTime: 2000,
-            circleThreshold: 0.8,
-            swipeThreshold: 100,
-            sCurveThreshold: 0.6
-          };
-        }
-        
-        startGesture(x, y) {
-          this.points = [{x, y, t: Date.now()}];
-          this.startTime = Date.now();
-        }
-        
-        addPoint(x, y) {
-          if (this.points.length > 0) {
-            this.points.push({x, y, t: Date.now()});
-            if (this.points.length > 50) {
-              this.points.shift();
-            }
-          }
-        }
-        
-        endGesture() {
-          if (this.points.length < this.gestureThreshold.minPoints) {
-            return 'tap';
-          }
-          
-          const gesture = this.analyzeGesture();
-          this.lastGesture = gesture;
-          return gesture;
-        }
-        
-        analyzeGesture() {
-          if (this.points.length < 3) return 'tap';
-          
-          if (this.isCircleGesture()) return 'circle';
-          if (this.isSwipeGesture()) return 'swipe';
-          if (this.isSCurveGesture()) return 's-curve';
-          
-          return 'default';
-        }
-        
-        isCircleGesture() {
-          if (this.points.length < 10) return false;
-          let centerX = 0, centerY = 0;
-          this.points.forEach(p => { centerX += p.x; centerY += p.y; });
-          centerX /= this.points.length;
-          centerY /= this.points.length;
-          let avgRadius = 0;
-          this.points.forEach(p => { avgRadius += Math.sqrt((p.x - centerX) ** 2 + (p.y - centerY) ** 2); });
-          avgRadius /= this.points.length;
-          if (avgRadius < 20) return false;
-          let validPoints = 0;
-          this.points.forEach(p => {
-            let distance = Math.sqrt((p.x - centerX) ** 2 + (p.y - centerY) ** 2);
-            if (Math.abs(distance - avgRadius) < avgRadius * 0.4) {
-              validPoints++;
-            }
-          });
-          return (validPoints / this.points.length) > this.gestureThreshold.circleThreshold;
-        }
-        
-        isSwipeGesture() {
-          if (this.points.length < 3) return false;
-          let start = this.points[0];
-          let end = this.points[this.points.length - 1];
-          let distance = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
-          return distance > this.gestureThreshold.swipeThreshold;
-        }
-        
-        isSCurveGesture() {
-          if (this.points.length < 8) return false;
-          let directionChanges = 0;
-          let lastDirection = null;
-          for (let i = 1; i < this.points.length - 1; i++) {
-            let prev = this.points[i - 1];
-            let curr = this.points[i];
-            let next = this.points[i + 1];
-            let dir1 = Math.atan2(curr.y - prev.y, curr.x - prev.x);
-            let dir2 = Math.atan2(next.y - curr.y, next.x - curr.x);
-            let angleDiff = dir2 - dir1;
-            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-            let currentDirection = angleDiff > 0 ? 'left' : 'right';
-            if (lastDirection && lastDirection !== currentDirection) {
-              directionChanges++;
-            }
-            lastDirection = currentDirection;
-          }
-          return directionChanges >= 2;
+    class WaterParticle {
+      constructor(x, y, intensity = 1.0, gestureType = 'default') {
+        this.pos = p.createVector(x, y);
+        this.vel = p.createVector(p.random(-1, 1), p.random(-2, 0));
+        this.acc = p.createVector(0, 0);
+        this.life = 255;
+        this.maxLife = 255;
+        this.size = p.random(10, 25) * intensity;
+        this.intensity = intensity;
+        this.gestureType = gestureType;
+        this.gravity = p.createVector(0, 0.05 * intensity);
+        this.drag = 0.98;
+        this.isWhirlpool = false;
+        this.isWavy = false;
+        this.isRipple = false;
+        this._adjustForGesture();
+      }
+      _adjustForGesture() {
+        switch(this.gestureType) {
+          case 'circle':
+            this.vel.mult(0.5);
+            this.isWhirlpool = true;
+            break;
+          case 'swipe':
+            this.vel.mult(2);
+            break;
+          case 's-curve':
+            this.isWavy = true;
+            break;
+          case 'tap':
+            this.isRipple = true;
+            const angle = p.random(p.TWO_PI);
+            this.vel = p.createVector(p.cos(angle), p.sin(angle)).mult(p.random(1, 4) * this.intensity);
+            break;
         }
       }
-
-      // 狀態提示管理
-      function showStatus(text, duration = 2000) {
-        const status = document.getElementById('status');
-        status.textContent = text;
-        status.classList.add('show');
-        setTimeout(() => status.classList.remove('show'), duration);
+      applyForce(f) { this.acc.add(f); }
+      update() {
+        this.applyForce(this.gravity);
+        this.vel.add(this.acc);
+        this.vel.mult(this.drag);
+        this.pos.add(this.vel);
+        this.acc.mult(0);
+        const turb = p.noise(this.pos.x * 0.01, this.pos.y * 0.01, noiseOffset) - 0.5;
+        this.vel.x += turb * 0.3;
+        this._applyGestureForces();
+        this.life -= p.random(1.5, 4);
+        this.size *= 0.99;
       }
-
-      function showGesture(text, duration = 1500) {
-        const gesture = document.getElementById('gesture');
-        gesture.textContent = text;
-        gesture.classList.add('show');
-        clearTimeout(gestureTimeout);
-        gestureTimeout = setTimeout(() => gesture.classList.remove('show'), duration);
+      _applyGestureForces() {
+        if (this.isWhirlpool) {
+          const a = p.atan2(this.pos.y - currentTouchY, this.pos.x - currentTouchX);
+          const f = p.createVector(p.cos(a + p.PI/2), p.sin(a + p.PI/2)).mult(0.2 * this.intensity);
+          this.applyForce(f);
+          const pull = p.createVector(currentTouchX - this.pos.x, currentTouchY - this.pos.y);
+          pull.normalize().mult(0.05);
+          this.applyForce(pull);
+        }
+        if (this.isWavy) {
+          this.vel.x += p.sin(this.pos.y * 0.05 + noiseOffset) * 0.5;
+        }
       }
-
-      // 按鈕動畫效果
-      function animateButton(button) {
-        button.classList.add('clicked');
-        setTimeout(() => button.classList.remove('clicked'), 600);
+      display() {
+        const alpha = p.map(this.life, 0, this.maxLife, 0, 255);
+        const progress = 1 - (this.life / this.maxLife);
+        let r, g, b;
+        if (progress < 0.3) {
+          r = 200 + progress * 55; g = 220 + progress * 35; b = 255;
+        } else if (progress < 0.7) {
+          r = 100 - (progress - 0.3) * 100; g = 180 - (progress - 0.3) * 80; b = 255;
+        } else {
+          r = 0; g = 100 - (progress - 0.7) * 100; b = 200 - (progress - 0.7) * 50;
+        }
+        p.push();
+        p.translate(this.pos.x, this.pos.y);
+        p.fill(r, g, b, alpha * 0.2); p.noStroke();
+        p.ellipse(0, 0, this.size * 1.5);
+        p.fill(r, g, b, alpha * 0.7);
+        p.ellipse(0, 0, this.size);
+        if (this.life > this.maxLife * 0.5) {
+          p.fill(220, 240, 255, alpha);
+          p.ellipse(0, 0, this.size * 0.3);
+        }
+        p.pop();
       }
+      isDead() { return this.life <= 0 || this.size < 1; }
+    }
 
-      // 等待 A-Frame 載入
-      window.addEventListener('load', initApp);
+    p.setup = function() {
+      const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+      canvas.parent('p5-container');
+      p.colorMode(p.RGB, 255);
+      p.blendMode(p.ADD);
+    };
 
-      function initApp() {
-        // 初始化 P5.js
-        waterSketch = new p5(p5WaterSketch);
-        
-        const gestureRecognizer = new GestureRecognizer();
-        
-        AFRAME.registerComponent("fit-video-to-target", {
-          init: function () {
-            this.el.addEventListener("targetFound", () => {
-              const videoEntity = this.el.querySelector("a-video");
-              if (!videoEntity) return;
-              const ratio = parseFloat(this.el.dataset.targetAspectRatio) || 1.0;
-              if (ratio > 0) videoEntity.setAttribute("geometry", { width: 1, height: 1 / ratio });
-            });
-          }
-        });
-
-        const videoEl = document.querySelector("#video");
-        const targetEl = document.querySelector("#target0");
-        const scanningOverlay = document.getElementById("scanning-overlay");
-        const playButton = document.getElementById("play-button");
-        const soundButton = document.getElementById("sound-button");
-        const waterButton = document.getElementById("water-button");
-        const fullscreenContainer = document.getElementById("fullscreen-video-container");
-        const fullscreenVideo = document.getElementById("fullscreen-video");
-        
-        const playIcon = document.getElementById("play-icon");
-        const pauseIcon = document.getElementById("pause-icon");
-        const soundOnIcon = document.getElementById("sound-on-icon");
-        const soundOffIcon = document.getElementById("sound-off-icon");
-
-        const state = {
-          targetFound: false,
-          audioEnabled: false,
-          continuePlay: false,
-          fullscreen: false,
-          hasPlayed: false,
-          waterIntensity: 1.0
-        };
-
-        function updateButtonIcons() {
-          playIcon.style.display = state.continuePlay ? "none" : "block";
-          pauseIcon.style.display = state.continuePlay ? "block" : "none";
-          playButton.classList.toggle("active", state.continuePlay);
-          
-          soundOnIcon.style.display = state.audioEnabled ? "block" : "none";
-          soundOffIcon.style.display = state.audioEnabled ? "none" : "block";
-          soundButton.classList.toggle("active", state.audioEnabled);
+    p.draw = function() {
+      p.clear();
+      noiseOffset += 0.01;
+      if (touchActive && particles.length < maxParticles) {
+        const count = Math.floor(waterIntensity * 8);
+        for (let i = 0; i < count; i++) {
+          particles.push(new WaterParticle(
+            currentTouchX + p.random(-15, 15),
+            currentTouchY + p.random(-15, 15),
+            waterIntensity, currentGesture
+          ));
         }
+      }
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        particles[i].display();
+        if (particles[i].isDead()) particles.splice(i, 1);
+      }
+    };
 
-        function toggleAudio() {
-          state.audioEnabled = !state.audioEnabled;
-          [videoEl, fullscreenVideo].forEach(v => { if (v && v.src) v.muted = !state.audioEnabled; });
-          updateButtonIcons();
-          showStatus(state.audioEnabled ? '聲音已開啟' : '靜音模式');
-        }
+    p.windowResized = function() { p.resizeCanvas(p.windowWidth, p.windowHeight); };
 
-        async function playVideo(video) {
-          if (!video || !video.src) return;
-          try {
-            await video.play();
-          } catch {
-            video.muted = true; state.audioEnabled = false;
-            await video.play().catch(() => {});
-            updateButtonIcons();
-          }
-        }
+    // 公開 API
+    p.setTouchActive   = (a, x, y) => { touchActive = a; if (a) { currentTouchX = x; currentTouchY = y; } };
+    p.updateTouchPosition = (x, y) => { currentTouchX = x; currentTouchY = y; };
+    p.setWaterIntensity = (v) => { waterIntensity = p.constrain(v, 0.1, 3.0); };
+    p.setGestureType   = (g) => { currentGesture = g; };
+  };
 
-        function pauseVideo(video) {
-          if (video && video.src) video.pause();
-        }
+  // ═══════════════════════════════════════════════════
+  //  手勢識別系統（完整保留）
+  // ═══════════════════════════════════════════════════
+  class GestureRecognizer {
+    constructor() {
+      this.points = [];
+      this.startTime = 0;
+    }
+    startGesture(x, y) { this.points = [{x, y}]; this.startTime = Date.now(); }
+    addPoint(x, y) {
+      if (!this.points.length) return;
+      this.points.push({x, y});
+      if (this.points.length > 50) this.points.shift();
+    }
+    endGesture() {
+      if (this.points.length < 5) return 'tap';
+      return this._analyze();
+    }
+    _analyze() {
+      if (this.points.length < 3) return 'tap';
+      if (this._isCircle()) return 'circle';
+      if (this._isSwipe()) return 'swipe';
+      if (this._isSCurve()) return 's-curve';
+      return 'default';
+    }
+    _isCircle() {
+      if (this.points.length < 10) return false;
+      let cx = 0, cy = 0;
+      this.points.forEach(p => { cx += p.x; cy += p.y; });
+      cx /= this.points.length; cy /= this.points.length;
+      let avgR = 0;
+      this.points.forEach(p => { avgR += Math.hypot(p.x - cx, p.y - cy); });
+      avgR /= this.points.length;
+      if (avgR < 20) return false;
+      const valid = this.points.filter(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - avgR) < avgR * 0.4).length;
+      return valid / this.points.length > 0.8;
+    }
+    _isSwipe() {
+      const s = this.points[0], e = this.points[this.points.length - 1];
+      return Math.hypot(e.x - s.x, e.y - s.y) > 100;
+    }
+    _isSCurve() {
+      if (this.points.length < 8) return false;
+      let changes = 0, lastDir = null;
+      for (let i = 1; i < this.points.length - 1; i++) {
+        const d1 = Math.atan2(this.points[i].y - this.points[i-1].y, this.points[i].x - this.points[i-1].x);
+        const d2 = Math.atan2(this.points[i+1].y - this.points[i].y, this.points[i+1].x - this.points[i].x);
+        let diff = d2 - d1;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        const dir = diff > 0 ? 'L' : 'R';
+        if (lastDir && lastDir !== dir) changes++;
+        lastDir = dir;
+      }
+      return changes >= 2;
+    }
+  }
 
-        function enterFullscreen() {
-          if (!videoEl.src) return;
-          fullscreenVideo.src = videoEl.src;
-          fullscreenVideo.currentTime = videoEl.currentTime;
-          fullscreenVideo.muted = !state.audioEnabled;
-          fullscreenContainer.classList.add("visible");
-          state.fullscreen = true;
-          playVideo(fullscreenVideo);
-        }
+  // ═══════════════════════════════════════════════════
+  //  UI 輔助函式
+  // ═══════════════════════════════════════════════════
+  function showStatus(text, duration = 2500) {
+    const el = document.getElementById('status');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), duration);
+  }
 
-        function exitFullscreen() {
-          if (state.fullscreen) {
-            videoEl.currentTime = fullscreenVideo.currentTime;
-            fullscreenContainer.classList.remove("visible");
-            state.fullscreen = false;
-            pauseVideo(fullscreenVideo);
-            fullscreenVideo.src = "";
-          }
-        }
+  function showGesture(text, duration = 1800) {
+    const el = document.getElementById('gesture');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(gestureTimeout);
+    gestureTimeout = setTimeout(() => el.classList.remove('show'), duration);
+  }
 
-        let isDrawing = false;
-        let touchStartTime = 0;
-        
-        const handleTouchStart = (e) => {
-          e.preventDefault();
-          const touch = e.touches ? e.touches[0] : e;
-          const x = touch.clientX; const y = touch.clientY;
-          isDrawing = true; touchStartTime = Date.now();
-          gestureRecognizer.startGesture(x, y);
-          waterSketch.setTouchActive(true, x, y);
-          waterSketch.setWaterIntensity(state.waterIntensity);
-          showGesture('💧 流水啟動', 800);
-        };
-        
-        const handleTouchMove = (e) => {
-          e.preventDefault(); if (!isDrawing) return;
-          const touch = e.touches ? e.touches[0] : e;
-          const x = touch.clientX; const y = touch.clientY;
-          gestureRecognizer.addPoint(x, y);
-          waterSketch.updateTouchPosition(x, y);
-        };
-        
-        const handleTouchEnd = (e) => {
-          e.preventDefault(); if (!isDrawing) return;
-          isDrawing = false;
-          const gesture = gestureRecognizer.endGesture();
-          currentGesture = gesture;
-          waterSketch.setGestureType(gesture);
-          waterSketch.setTouchActive(false, 0, 0);
-          const gestureMessages = {
-            'tap': '💧 水滴漣漪', 'circle': '🌀 漩渦水流',
-            'swipe': '🌊 強力水流', 's-curve': '🐍 蛇行水流',
-            'default': '💧 基礎水流'
-          };
-          showGesture(gestureMessages[gesture] || gestureMessages['default'], 2000);
-        };
+  function animateButton(btn) {
+    btn.classList.add('clicked');
+    setTimeout(() => btn.classList.remove('clicked'), 600);
+  }
 
-        const touchHandler = {
-          handleStart: (e) => {
-            if (e.target.closest('.controls-container, #fullscreen-video-container')) return;
-            handleTouchStart(e);
-          },
-          handleMove: (e) => { if (isDrawing) handleTouchMove(e); },
-          handleEnd: (e) => { if (isDrawing) handleTouchEnd(e); }
-        };
+  function triggerFoundFlash() {
+    const flash = document.getElementById('found-flash');
+    flash.classList.add('flash');
+    setTimeout(() => flash.classList.remove('flash'), 800);
+  }
 
-        document.body.addEventListener('touchstart', touchHandler.handleStart, { passive: false });
-        document.body.addEventListener('touchmove', touchHandler.handleMove, { passive: false });
-        document.body.addEventListener('touchend', touchHandler.handleEnd, { passive: false });
-        document.body.addEventListener('mousedown', touchHandler.handleStart);
-        document.body.addEventListener('mousemove', touchHandler.handleMove);
-        document.body.addEventListener('mouseup', touchHandler.handleEnd);
+  function triggerWaterBurst() {
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    waterSketch.setTouchActive(true, cx, cy);
+    waterSketch.setGestureType('tap');
+    waterSketch.setWaterIntensity(3.0);
+    setTimeout(() => {
+      waterSketch.setTouchActive(false, 0, 0);
+      waterSketch.setWaterIntensity(appState.waterIntensity);
+    }, 1200);
+  }
 
-        playButton.addEventListener("click", () => {
-          animateButton(playButton);
-          if (!state.hasPlayed) { showStatus('請先掃描目標'); return; }
-          state.continuePlay = !state.continuePlay;
-          updateButtonIcons();
-          if (state.continuePlay) {
-            showStatus('持續播放模式');
-            if (!state.targetFound) { enterFullscreen(); scanningOverlay.classList.add("hidden"); } 
-            else if (videoEl.paused) { playVideo(videoEl); }
-          } else {
-            showStatus('暫停播放'); exitFullscreen();
-            if (!state.targetFound) { pauseVideo(videoEl); scanningOverlay.classList.remove("hidden"); }
-          }
-        });
+  // ═══════════════════════════════════════════════════
+  //  應用程式狀態
+  // ═══════════════════════════════════════════════════
+  const appState = {
+    targetFound: false,
+    audioEnabled: false,
+    continuePlay: false,
+    fullscreen: false,
+    hasPlayed: false,
+    waterIntensity: 1.0,
+  };
 
-        soundButton.addEventListener("click", () => { animateButton(soundButton); toggleAudio(); });
+  // ═══════════════════════════════════════════════════
+  //  8th Wall AR Pipeline Module
+  // ═══════════════════════════════════════════════════
+  function createARPipelineModule() {
+    let scene, camera, renderer;
+    let videoEl, videoTexture, videoMesh;
+    const scanningOverlay = document.getElementById('scanning-overlay');
+    const fullscreenContainer = document.getElementById('fullscreen-video-container');
+    const fullscreenVideo = document.getElementById('fullscreen-video');
 
-        let intensityLevel = 1;
-        waterButton.addEventListener("click", () => {
-          animateButton(waterButton);
-          intensityLevel = (intensityLevel % 3) + 1;
-          state.waterIntensity = intensityLevel * 0.9;
-          waterSketch.setWaterIntensity(state.waterIntensity);
-          const intensityMessages = { 1: '💧 弱水流', 2: '💧💧 中水流', 3: '💧💧💧 強水流' };
-          showStatus(intensityMessages[intensityLevel]);
-          waterButton.classList.toggle("active", intensityLevel === 3);
-        });
+    // --- 影片控制 ---
+    function createVideoElement() {
+      const v = document.createElement('video');
+      v.src = AR_CONFIG.videoSrc;
+      v.loop = true;
+      v.muted = true;
+      v.playsInline = true;
+      v.crossOrigin = 'anonymous';
+      v.setAttribute('webkit-playsinline', 'true');
+      return v;
+    }
 
-        fullscreenContainer.addEventListener("click", () => {
+    async function playVideo(v) {
+      if (!v || !v.src) return;
+      try { await v.play(); }
+      catch {
+        v.muted = true;
+        appState.audioEnabled = false;
+        updateButtonIcons();
+        await v.play().catch(() => {});
+      }
+    }
+    function pauseVideo(v) { if (v) v.pause(); }
+
+    function enterFullscreen() {
+      if (!videoEl) return;
+      fullscreenVideo.src = videoEl.src;
+      fullscreenVideo.currentTime = videoEl.currentTime;
+      fullscreenVideo.muted = !appState.audioEnabled;
+      fullscreenContainer.classList.add('visible');
+      appState.fullscreen = true;
+      playVideo(fullscreenVideo);
+    }
+    function exitFullscreen() {
+      if (!appState.fullscreen) return;
+      if (videoEl) videoEl.currentTime = fullscreenVideo.currentTime;
+      fullscreenContainer.classList.remove('visible');
+      appState.fullscreen = false;
+      pauseVideo(fullscreenVideo);
+      fullscreenVideo.src = '';
+    }
+
+    function updateButtonIcons() {
+      document.getElementById('play-icon').style.display = appState.continuePlay ? 'none' : 'block';
+      document.getElementById('pause-icon').style.display = appState.continuePlay ? 'block' : 'none';
+      document.getElementById('play-button').classList.toggle('active', appState.continuePlay);
+      document.getElementById('sound-on-icon').style.display = appState.audioEnabled ? 'block' : 'none';
+      document.getElementById('sound-off-icon').style.display = appState.audioEnabled ? 'none' : 'block';
+      document.getElementById('sound-button').classList.toggle('active', appState.audioEnabled);
+    }
+
+    function toggleAudio() {
+      appState.audioEnabled = !appState.audioEnabled;
+      if (videoEl) videoEl.muted = !appState.audioEnabled;
+      fullscreenVideo.muted = !appState.audioEnabled;
+      updateButtonIcons();
+      showStatus(appState.audioEnabled ? '🔊 聲音已開啟' : '🔇 靜音模式');
+    }
+
+    // --- 按鈕事件 ---
+    function setupButtons() {
+      document.getElementById('play-button').addEventListener('click', () => {
+        animateButton(document.getElementById('play-button'));
+        if (!appState.hasPlayed) { showStatus('請先掃描目標'); return; }
+        appState.continuePlay = !appState.continuePlay;
+        updateButtonIcons();
+        if (appState.continuePlay) {
+          showStatus('▶ 持續播放模式');
+          if (!appState.targetFound) { enterFullscreen(); scanningOverlay.classList.add('hidden'); }
+          else if (videoEl && videoEl.paused) playVideo(videoEl);
+        } else {
+          showStatus('⏸ 暫停');
           exitFullscreen();
-          state.continuePlay = false; updateButtonIcons();
-          if (!state.targetFound) scanningOverlay.classList.remove("hidden");
-        });
+          if (!appState.targetFound && videoEl) pauseVideo(videoEl);
+          if (!appState.targetFound) scanningOverlay.classList.remove('hidden');
+        }
+      });
 
-        targetEl.addEventListener("targetFound", () => {
-          state.targetFound = true; state.hasPlayed = true;
-          showStatus('目標已識別');
-          if (state.fullscreen) exitFullscreen();
-          playVideo(videoEl);
-          scanningOverlay.classList.add("hidden");
-          setTimeout(() => {
-            const centerX = window.innerWidth / 2, centerY = window.innerHeight / 2;
-            waterSketch.setTouchActive(true, centerX, centerY);
-            waterSketch.setGestureType('tap');
-            waterSketch.setWaterIntensity(3.0);
-            setTimeout(() => {
-              waterSketch.setTouchActive(false, 0, 0);
-              waterSketch.setWaterIntensity(state.waterIntensity);
-            }, 1000);
-          }, 500);
-        });
+      document.getElementById('sound-button').addEventListener('click', () => {
+        animateButton(document.getElementById('sound-button'));
+        toggleAudio();
+      });
 
-        targetEl.addEventListener("targetLost", () => {
-          state.targetFound = false;
-          showStatus('目標丟失');
-          if (state.continuePlay) { enterFullscreen(); } 
-          else {
-            pauseVideo(videoEl);
-            setTimeout(() => {
-              if (!state.targetFound && !state.continuePlay) scanningOverlay.classList.remove("hidden");
-            }, 200);
-          }
-        });
+      let intensityLevel = 1;
+      document.getElementById('water-button').addEventListener('click', () => {
+        animateButton(document.getElementById('water-button'));
+        intensityLevel = (intensityLevel % 3) + 1;
+        appState.waterIntensity = intensityLevel * 0.9;
+        waterSketch.setWaterIntensity(appState.waterIntensity);
+        const msgs = { 1: '💧 弱水流', 2: '💧💧 中水流', 3: '💧💧💧 強水流' };
+        showStatus(msgs[intensityLevel]);
+        document.getElementById('water-button').classList.toggle('active', intensityLevel === 3);
+      });
 
-        document.addEventListener("visibilitychange", () => {
-          if (document.hidden) {
-            pauseVideo(videoEl); if (state.fullscreen) pauseVideo(fullscreenVideo);
-            waterSketch.setTouchActive(false, 0, 0);
-          } else {
-            if (state.fullscreen) playVideo(fullscreenVideo);
-            else if (state.targetFound) playVideo(videoEl);
-          }
-        });
+      fullscreenContainer.addEventListener('click', () => {
+        exitFullscreen();
+        appState.continuePlay = false;
+        updateButtonIcons();
+        if (!appState.targetFound) scanningOverlay.classList.remove('hidden');
+      });
 
-        const initAudio = () => {
-          if (!state.audioEnabled) return;
-          toggleAudio();
-          document.removeEventListener("click", initAudio);
-        };
-        document.addEventListener("click", initAudio, { once: true });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === ' ') { e.preventDefault(); document.getElementById('play-button').click(); }
+        if (e.key === 'm') { e.preventDefault(); document.getElementById('sound-button').click(); }
+        if (e.key === 'f') { e.preventDefault(); document.getElementById('water-button').click(); }
+      });
+    }
 
+    // --- 影像辨識事件 ---
+    function onImageFound({ detail }) {
+      const { position, rotation, scale } = detail;
+
+      // 更新 Three.js mesh 位置/旋轉/縮放
+      videoMesh.position.set(position.x, position.y, position.z);
+      videoMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+      // scale 是物理寬度，幾何體寬=1 所以直接 scale
+      videoMesh.scale.set(scale, scale, scale);
+      videoMesh.visible = true;
+
+      appState.targetFound = true;
+      appState.hasPlayed = true;
+      scanningOverlay.classList.add('hidden');
+      triggerFoundFlash();
+      showStatus('✅ 目標已識別');
+
+      if (appState.fullscreen) exitFullscreen();
+
+      playVideo(videoEl);
+      triggerWaterBurst();
+    }
+
+    function onImageUpdated({ detail }) {
+      const { position, rotation, scale } = detail;
+      videoMesh.position.set(position.x, position.y, position.z);
+      videoMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+      videoMesh.scale.set(scale, scale, scale);
+    }
+
+    function onImageLost() {
+      videoMesh.visible = false;
+      appState.targetFound = false;
+      showStatus('⚠️ 目標丟失');
+
+      if (appState.continuePlay) {
+        enterFullscreen();
+      } else {
+        pauseVideo(videoEl);
         setTimeout(() => {
-          showStatus('請掃描目標圖像', 3000);
-          setTimeout(() => showGesture('觸控螢幕體驗流水效果', 3000), 1000);
-        }, 1000);
+          if (!appState.targetFound && !appState.continuePlay) {
+            scanningOverlay.classList.remove('hidden');
+          }
+        }, 300);
+      }
+    }
 
-        document.addEventListener('keydown', (e) => {
-          switch(e.key) {
-            case ' ': e.preventDefault(); playButton.click(); break;
-            case 'm': e.preventDefault(); soundButton.click(); break;
-            case 'f': e.preventDefault(); waterButton.click(); break;
+    // --- Pipeline Module 物件 ---
+    return {
+      name: 'ar-video-app',
+
+      onStart: () => {
+        // 取得 8th Wall 管理的 Three.js 場景
+        const xrScene = XR8.Threejs.xrScene();
+        scene = xrScene.scene;
+        camera = xrScene.camera;
+        renderer = xrScene.renderer;
+
+        // 建立影片元素與 VideoTexture
+        videoEl = createVideoElement();
+        videoTexture = new THREE.VideoTexture(videoEl);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat; // RGBFormat 在 r137+ 已棄用
+
+        // 建立影片顯示平面（寬 1，高 = 1/aspectRatio）
+        const aspect = AR_CONFIG.videoAspectRatio;
+        const geometry = new THREE.PlaneGeometry(1, 1 / aspect);
+        const material = new THREE.MeshBasicMaterial({
+          map: videoTexture,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        });
+        videoMesh = new THREE.Mesh(geometry, material);
+        videoMesh.visible = false;
+        scene.add(videoMesh);
+
+        // 環境光（MeshBasicMaterial 不受光影影響，但保留供 future use）
+        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+        // 初始化按鈕
+        setupButtons();
+
+        // 初始畫面提示
+        setTimeout(() => {
+          showStatus('請掃描目標圖像', 3500);
+          setTimeout(() => showGesture('觸控螢幕體驗流水效果', 3000), 1200);
+        }, 800);
+      },
+
+      // 8th Wall 圖像追蹤事件監聽
+      listeners: [
+        { event: 'reality.imagefound',   process: onImageFound   },
+        { event: 'reality.imageupdated', process: onImageUpdated },
+        { event: 'reality.imagelost',    process: onImageLost    },
+      ],
+
+      // 頁面可見性管理
+      onAttach: () => {
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            if (videoEl) pauseVideo(videoEl);
+            if (appState.fullscreen) pauseVideo(fullscreenVideo);
+            waterSketch && waterSketch.setTouchActive(false, 0, 0);
+          } else {
+            if (appState.fullscreen) playVideo(fullscreenVideo);
+            else if (appState.targetFound && videoEl) playVideo(videoEl);
           }
         });
+      },
+    };
+  }
 
-        console.log('💧 AR流水互動系統已啟動');
-        console.log('💡 提示：');
-        console.log('- 點擊：水滴漣漪');
-        console.log('- 畫圓：漩渦水流');
-        console.log('- 滑動：強力水流');
-        console.log('- S型：蛇行水流');
-        console.log('- 空白鍵：播放/暫停');
-        console.log('- M鍵：靜音切換');
-        console.log('- F鍵：水流強度');
-      }
-    </script>
-  </body>
+  // ═══════════════════════════════════════════════════
+  //  觸控手勢系統
+  // ═══════════════════════════════════════════════════
+  function setupGestureSystem() {
+    const recognizer = new GestureRecognizer();
+    let isDrawing = false;
+
+    const gestureMessages = {
+      tap: '💧 水滴漣漪', circle: '🌀 漩渦水流',
+      swipe: '🌊 強力水流', 's-curve': '🐍 蛇行水流', default: '💧 基礎水流'
+    };
+
+    function onStart(e) {
+      const src = e.target;
+      if (src.closest('.controls-container, #fullscreen-video-container')) return;
+      const t = e.touches ? e.touches[0] : e;
+      isDrawing = true;
+      recognizer.startGesture(t.clientX, t.clientY);
+      waterSketch.setTouchActive(true, t.clientX, t.clientY);
+      waterSketch.setWaterIntensity(appState.waterIntensity);
+      showGesture('💧 流水啟動', 600);
+    }
+    function onMove(e) {
+      if (!isDrawing) return;
+      const t = e.touches ? e.touches[0] : e;
+      recognizer.addPoint(t.clientX, t.clientY);
+      waterSketch.updateTouchPosition(t.clientX, t.clientY);
+    }
+    function onEnd(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+      const g = recognizer.endGesture();
+      currentGesture = g;
+      waterSketch.setGestureType(g);
+      waterSketch.setTouchActive(false, 0, 0);
+      showGesture(gestureMessages[g] || gestureMessages.default, 2000);
+    }
+
+    document.body.addEventListener('touchstart', onStart, { passive: false });
+    document.body.addEventListener('touchmove',  onMove,  { passive: false });
+    document.body.addEventListener('touchend',   onEnd,   { passive: false });
+    document.body.addEventListener('mousedown',  onStart);
+    document.body.addEventListener('mousemove',  onMove);
+    document.body.addEventListener('mouseup',    onEnd);
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  主入口：等待 8th Wall 引擎就緒
+  // ═══════════════════════════════════════════════════
+  window.addEventListener('xrloaded', async () => {
+    showStatus('載入目標資料...', 3000);
+
+    // 載入由 image-target-cli 生成的 JSON
+    let targetData;
+    try {
+      targetData = await fetch(AR_CONFIG.targetJsonPath).then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      });
+    } catch (err) {
+      console.error('[8thWall AR] 無法載入 image target JSON:', err);
+      showStatus('❌ 目標資料載入失敗，請確認 image-targets/ 目錄', 8000);
+      return;
+    }
+
+    // 設定 XR 控制器：停用世界追蹤（只用圖像追蹤）
+    XR8.XrController.configure({
+      disableWorldTracking: true,
+      imageTargetData: [targetData],
+    });
+
+    // 組裝 Camera Pipeline
+    const modules = [
+      XR8.GlTextureRenderer.pipelineModule(),   // 相機畫面渲染
+      XR8.Threejs.pipelineModule(),              // Three.js 整合
+      XR8.XrController.pipelineModule(),         // AR 控制器（SLAM + Image Tracking）
+    ];
+
+    // XRExtras 選擇性加入（若未載入則跳過）
+    if (typeof XRExtras !== 'undefined') {
+      if (XRExtras.AlmostThere)    modules.push(XRExtras.AlmostThere.pipelineModule());
+      if (XRExtras.Loading)        modules.push(XRExtras.Loading.pipelineModule());
+      if (XRExtras.RuntimeError)   modules.push(XRExtras.RuntimeError.pipelineModule());
+    }
+
+    // 加入自訂 AR 模組
+    modules.push(createARPipelineModule());
+
+    XR8.addCameraPipelineModules(modules);
+
+    // 啟動 AR
+    XR8.run({ canvas: document.getElementById('renderCanvas') });
+
+    // 初始化 P5.js 水效果
+    waterSketch = new p5(p5WaterSketch);
+
+    // 初始化手勢系統
+    setupGestureSystem();
+
+    console.log('🌊 8th Wall AR 流水系統啟動完成');
+    console.log('💡 手勢指南：點擊=漣漪 | 畫圓=漩渦 | 滑動=強流 | S型=蛇行');
+  });
+
+  // 若引擎檔案未找到，提示友善錯誤
+  window.addEventListener('xrerror', (e) => {
+    console.error('[8thWall AR] 引擎錯誤:', e.detail);
+    showStatus('❌ AR引擎初始化失敗，請確認 external/ 目錄', 10000);
+  });
+  </script>
+</body>
 </html>
