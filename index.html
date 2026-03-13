@@ -689,7 +689,9 @@
       document.getElementById('btn-holo').addEventListener('click',()=>{
         if(!holoGroup)return;
         appState.holoOn=!appState.holoOn;
-        holoGroup.visible=appState.holoOn&&appState.tf;
+        holoGroup.visible = appState.holoOn && appState.tf;
+        // ✅ 面板獨立控制
+        if(holoPanel) holoPanel.mesh.visible = appState.holoOn && appState.tf;
         document.getElementById('btn-holo').classList.toggle('active',appState.holoOn);
         showStatus(appState.holoOn?'🔷 全息面板 ON':'🔲 全息面板 OFF');
       });
@@ -732,6 +734,13 @@
       applyPose(holoGroup, detail);
       vMesh.visible    = true;
       holoGroup.visible = appState.holoOn;
+
+      // ✅ 全息面板獨立顯示（位置由 onUpdate billboard 每幀更新）
+      if (holoPanel) {
+        holoPanel.mesh.visible = appState.holoOn;
+        Debug.log('✅ holoPanel 已顯示', 'ok');
+      }
+
       appState.tf=true; appState.hp=true;
       sO.classList.add('hidden');
       triggerFlash();
@@ -743,6 +752,7 @@
       if(!appState.aiDone){
         appState.aiDone=true;
         aiL.classList.add('show');
+        if(holoPanel) holoPanel.setText('⬛ AI 導覽生成中，請稍候…');
         const text=await fetchAIExplanation();
         if(holoPanel) holoPanel.setText(text);
         aiL.classList.remove('show');
@@ -756,12 +766,12 @@
     }
 
     function onLost() {
-      Debug.log('⚠️ imagelost（SLAM 持續定位）','inf');
-      // ✅ SLAM：不隱藏物件，繼續依世界座標顯示
-      appState.tf=false;
-      showStatus('⚠️ 目標離開視野（SLAM 持續定位）');
-      if(appState.cp)eFS();
-      else{paV(vEl);setTimeout(()=>{if(!appState.tf&&!appState.cp)sO.classList.remove('hidden');},800);}
+      Debug.log('⚠️ imagelost — SLAM 世界錨定持續中','inf');
+      appState.tf = false;
+      showStatus('📍 SLAM 持續定位中，可移開鏡頭');
+      // ✅ SLAM 修正：不隱藏 vMesh / holoGroup，不重新顯示掃描遮罩
+      // 物件已錨定在真實世界座標，鏡頭移開後仍浮在原位
+      // 影片繼續播放，讓使用者移回鏡頭時立即看到效果
     }
 
     return {
@@ -800,9 +810,10 @@
         }
         if (AR_CONFIG.enableHoloPanel) {
           holoPanel = new HoloPanel();
-          // 放在目標正右側，稍微偏上
-          holoPanel.mesh.position.set(1.1, 0.18, 0.04);
-          holoGroup.add(holoPanel.mesh);
+          holoPanel.mesh.visible = false;
+          // ✅ 修正：直接加入 scene，不加入 holoGroup
+          // 面板有自己的世界座標，不受 holoGroup scale 縮放影響
+          scene.add(holoPanel.mesh);
         }
 
         scene.add(new THREE.AmbientLight(0xffffff, 1));
@@ -813,13 +824,28 @@
 
       onUpdate: () => {
         fc++;
-        // 光環旋轉
-        if(ring1){ ring1.rotation.z+=.007; }
-        if(ring2){ ring2.rotation.z-=.005; ring2.rotation.y+=.004; }
-        // 粒子動畫
+        if(ring1) ring1.rotation.z += .007;
+        if(ring2){ ring2.rotation.z -= .005; ring2.rotation.y += .004; }
         if(particles) tickParticles(particles);
-        // SLAM badge 在 2 秒後出現
-        if(fc===120) document.getElementById('slam-badge').classList.add('show');
+        if(fc === 120) document.getElementById('slam-badge').classList.add('show');
+
+        // ✅ 全息面板：Billboard（永遠朝向鏡頭）+ 世界座標固定偏移
+        if (holoPanel && holoPanel.mesh.visible) {
+          const { camera } = XR8.Threejs.xrScene();
+          // 取圖像目標的世界座標位置
+          const targetPos = new THREE.Vector3();
+          holoGroup.getWorldPosition(targetPos);
+          // 面板在目標右側偏移（相機朝向的右方）
+          const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+          camRight.y = 0; // 保持水平偏移
+          camRight.normalize().multiplyScalar(0.22);
+          holoPanel.mesh.position.copy(targetPos).add(camRight);
+          holoPanel.mesh.position.y += 0.05; // 稍微上移
+          // Billboard：面板始終朝向鏡頭
+          holoPanel.mesh.quaternion.copy(camera.quaternion);
+          // 固定顯示大小（不受目標縮放影響）
+          holoPanel.mesh.scale.setScalar(0.30);
+        }
       },
 
       listeners: [
