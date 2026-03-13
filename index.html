@@ -11,22 +11,23 @@
       videoSrc:         'https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4',
       targetJsonPath:   './image-targets/shoptarget.json',
       videoAspectRatio: 16 / 9,
-      claudeApiKey:  '',
-      productName:   '海賊船金屬海報',
-      productInfo:   '一畫千言品牌，昇華金屬板印刷工藝，高解析度海賊船主題藝術海報，色彩永久定著於鋁板',
-      enableHoloRings:     true,
+      claudeApiKey:     '', // 填入你的 API Key
+      productName:      '海賊船金屬海報',
+      productInfo:      '一畫千言品牌，昇華金屬板印刷工藝，高解析度海賊船主題藝術海報，色彩永久定著於鋁板',
+      enableHoloRings:  true,
       enableHoloParticles: true,
     };
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
+  
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
     #renderCanvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0;display:block}
     [class*="watermark"],[id*="watermark"],[class*="xr8"],[id*="xr8"],[class*="poweredby"],[id*="powered"]{display:none!important}
 
-    /* Scanning overlay */
+    /* 原本的 UI CSS 完整保留 */
     #scan-ov{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;pointer-events:none;background:rgba(0,0,0,0.2);opacity:1;transition:opacity 0.6s}
     #scan-ov.hidden{opacity:0}
     .sbox{width:230px;height:230px;position:relative;border:2px solid rgba(0,220,255,0.4);border-radius:14px;box-shadow:0 0 30px rgba(0,220,255,0.15)}
@@ -43,30 +44,22 @@
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
     @keyframes typing{to{border-color:transparent}}
 
-    /* SLAM badge */
     #slam-badge{position:fixed;top:14px;left:14px;display:flex;align-items:center;gap:7px;padding:6px 13px;background:rgba(0,8,20,0.88);border:1px solid rgba(0,200,80,0.5);border-radius:14px;backdrop-filter:blur(8px);font-family:monospace;font-size:10px;color:rgba(0,200,80,0.9);z-index:100;opacity:0;transition:opacity 0.8s}
     #slam-badge.show{opacity:1}
     #slam-dot{width:7px;height:7px;background:#00c850;border-radius:50%;animation:blink 1.6s infinite;flex-shrink:0}
-
-    /* Status */
     #status{position:fixed;top:14px;left:50%;transform:translateX(-50%);padding:7px 16px;background:rgba(0,5,18,0.9);border:1px solid rgba(0,180,255,0.4);border-radius:20px;backdrop-filter:blur(10px);font-family:monospace;font-size:11px;color:rgba(0,210,255,0.95);z-index:100;opacity:0;transition:opacity 0.3s;white-space:nowrap}
     #status.show{opacity:1}
-
-    /* Flash */
     #flash{position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle,rgba(0,210,255,0.12),transparent 68%);z-index:5;pointer-events:none;opacity:0;transition:opacity 0.8s}
     #flash.active{opacity:1}
 
-    /* ════ HOLO PANEL — 底部浮動，不與影片重疊 ════ */
     #holo-panel{position:fixed;bottom:90px;left:10px;right:10px;z-index:50;opacity:0;transform:translateY(20px);transition:opacity 0.5s,transform 0.5s;pointer-events:none}
     #holo-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
     .hcard{background:linear-gradient(160deg,rgba(0,14,42,0.97),rgba(0,5,20,0.98));border:1.5px solid rgba(0,190,255,0.5);border-radius:18px;padding:16px 18px 14px;backdrop-filter:blur(18px);box-shadow:0 0 50px rgba(0,140,255,0.2),inset 0 1px 0 rgba(0,220,255,0.1);position:relative;overflow:hidden}
     .hcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,200,255,0.7) 40%,rgba(0,200,255,0.7) 60%,transparent)}
-    .hcard::after{content:'';position:absolute;left:0;right:0;height:50px;background:linear-gradient(180deg,transparent,rgba(0,150,255,0.04),transparent);animation:hscan 3.5s ease-in-out infinite;pointer-events:none}
-    @keyframes hscan{0%{top:0}100%{top:100%}}
     .hsysbar{display:flex;justify-content:space-between;margin-bottom:8px;font-family:monospace;font-size:9px;letter-spacing:1.5px;color:rgba(0,160,255,0.5)}
     .hsdot{display:inline-block;width:5px;height:5px;background:rgba(0,210,255,0.7);border-radius:50%;margin-right:5px;animation:blink 2s infinite}
     .hdiv{height:1px;margin:7px 0;background:linear-gradient(90deg,transparent,rgba(0,190,255,0.3) 30%,rgba(0,190,255,0.3) 70%,transparent)}
-    .htitle{font-size:21px;font-weight:700;color:rgba(230,248,255,1);text-shadow:0 0 18px rgba(0,200,255,0.65),0 0 36px rgba(0,150,255,0.25);letter-spacing:1px;margin-bottom:3px}
+    .htitle{font-size:21px;font-weight:700;color:rgba(230,248,255,1);text-shadow:0 0 18px rgba(0,200,255,0.65);letter-spacing:1px;margin-bottom:3px}
     .hbrand{font-family:monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,160,255,0.55);margin-bottom:10px}
     .htext{font-size:15px;line-height:1.8;color:rgba(210,242,255,0.92);min-height:48px}
     .hcursor{display:inline-block;width:2px;height:15px;background:rgba(0,220,255,0.9);margin-left:2px;vertical-align:middle;animation:typing 0.6s step-end infinite alternate}
@@ -74,7 +67,6 @@
     .hfooter{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:monospace;font-size:9px;letter-spacing:1px;color:rgba(0,140,200,0.5)}
     .hpill{padding:2px 8px;background:rgba(0,70,180,0.25);border:1px solid rgba(0,150,255,0.3);border-radius:7px;font-size:9px;color:rgba(0,175,255,0.7)}
 
-    /* Controls */
     .ctrl-row{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:10px;align-items:flex-end}
     .btn-col{display:flex;flex-direction:column;align-items:center;gap:4px}
     .cbtn{width:52px;height:52px;background:rgba(0,8,24,0.85);border:1.5px solid rgba(0,175,255,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(10px);transition:all 0.2s}
@@ -82,15 +74,9 @@
     .cbtn svg{width:22px;height:22px;fill:rgba(0,210,255,0.9)}
     .blbl{font-family:monospace;font-size:9px;color:rgba(0,155,255,0.6);white-space:nowrap}
 
-    /* Fullscreen */
     #fs-wrap{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999;background:rgba(0,0,0,0.97);display:none;align-items:center;justify-content:center;cursor:pointer}
     #fs-wrap.show{display:flex}
     #fs-vid{max-width:100%;max-height:100%}
-
-    /* Debug */
-    #dbg{position:fixed;bottom:84px;left:8px;right:8px;max-height:155px;overflow-y:auto;background:rgba(0,0,0,0.94);border:1px solid rgba(255,70,70,0.3);border-radius:10px;padding:8px;font-family:monospace;font-size:10px;z-index:300;display:none}
-    #dbg.show{display:block}
-    #dbg .ok{color:#88ff88} #dbg .err{color:#ff6666} #dbg .inf{color:#88ccff}
   </style>
 </head>
 <body>
@@ -109,7 +95,6 @@
   <div id="slam-badge"><div id="slam-dot"></div><span id="slam-txt">SLAM 初始化中</span></div>
   <div id="status"></div>
 
-  <!-- ★ AI 全息面板 — 底部浮動 HTML，完全清晰 ★ -->
   <div id="holo-panel">
     <div class="hcard">
       <div class="hsysbar">
@@ -155,285 +140,181 @@
         <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
       </button><span class="blbl">全息</span>
     </div>
-    <div class="btn-col">
-      <button class="cbtn" id="bdbg" style="border-color:rgba(255,140,0,0.35)">
-        <svg viewBox="0 0 24 24" style="fill:rgba(255,165,0,0.8)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-      </button><span class="blbl">偵錯</span>
-    </div>
   </div>
 
-  <div id="dbg"></div>
-
   <script>
-  // ═══ DEBUG ═══════════════════════════════════════════
-  const D = {
-    el: null,
-    init() {
-      this.el = document.getElementById('dbg');
-      const b = document.getElementById('bdbg');
-      let t;
-      b.addEventListener('touchstart', () => { t = setTimeout(() => this.el.classList.toggle('show'), 1200); });
-      b.addEventListener('touchend',   () => clearTimeout(t));
-      b.addEventListener('click',      () => this.el.classList.toggle('show'));
-      const oe = console.error.bind(console);
-      console.error = (...a) => { this.log(a.join(' '), 'err'); oe(...a); };
-      window.addEventListener('error', e => this.log(e.message + ' L' + e.lineno, 'err'));
-    },
-    log(m, t='inf') {
-      if (!this.el) return;
-      const d = document.createElement('div');
-      d.className = t;
-      d.textContent = new Date().toLocaleTimeString('zh-TW') + ' ' + m;
-      this.el.appendChild(d);
-      this.el.scrollTop = this.el.scrollHeight;
-    }
-  };
-  D.init();
-
-  // ═══ PREFLIGHT ════════════════════════════════════════
-  async function preflight() {
-    for (const [u,l] of [
-      ['./external/xr/xr.js','xr.js'],
-      ['./external/xr/xr-slam.js','xr-slam.js'],
-      [AR_CONFIG.targetJsonPath,'target JSON']
-    ]) {
-      try {
-        const r = await fetch(u, {method:'HEAD'});
-        D.log((r.ok?'✅':'❌') + ' ' + l + (r.ok?'':' HTTP'+r.status), r.ok?'ok':'err');
-      } catch { D.log('❌ ' + l, 'err'); }
-    }
-  }
-
-  // ═══ UI ══════════════════════════════════════════════
+  // ═══ 狀態與 UI ═══════════════════════════════════════════
+  const G = { isTracking: false, aiDone: false, isVideoPlaying: false, isMuted: true };
   let _st;
   function showSt(m,d=2800){const e=document.getElementById('status');e.textContent=m;e.classList.add('show');clearTimeout(_st);_st=setTimeout(()=>e.classList.remove('show'),d);}
   function flash(){const f=document.getElementById('flash');f.classList.add('active');setTimeout(()=>f.classList.remove('active'),900);}
   function slamBadge(s){
     const b=document.getElementById('slam-badge'),dot=document.getElementById('slam-dot'),t=document.getElementById('slam-txt');
     b.classList.add('show');
-    if(s==='locked'){dot.style.background='#00ff88';b.style.borderColor='rgba(0,255,136,0.5)';b.style.color='rgba(0,255,136,0.92)';t.textContent='SLAM 已鎖定 · 世界錨定';}
-    else if(s==='tracking'){dot.style.background='#00ccff';b.style.borderColor='rgba(0,200,255,0.5)';b.style.color='rgba(0,200,255,0.92)';t.textContent='SLAM 追蹤中';}
-    else{dot.style.background='rgba(255,175,0,0.9)';b.style.borderColor='rgba(255,175,0,0.4)';b.style.color='rgba(255,175,0,0.9)';t.textContent='SLAM 初始化中';}
+    if(s==='locked'){dot.style.background='#00ff88';b.style.borderColor='rgba(0,255,136,0.5)';t.textContent='影像已鎖定 · 錨定中';}
+    else if(s==='tracking'){dot.style.background='#00ccff';b.style.borderColor='rgba(0,200,255,0.5)';t.textContent='空間延伸追蹤中';}
   }
 
   // ═══ HOLO PANEL ══════════════════════════════════════
   const HP = {
-    _t: null, _typing: false,
-    init() {
-      setInterval(() => {
-        document.getElementById('hclock').textContent =
-          new Date().toLocaleTimeString('zh-TW',{hour12:false});
-      }, 1000);
-    },
+    _t: null,
+    init() { setInterval(() => { document.getElementById('hclock').textContent = new Date().toLocaleTimeString('zh-TW',{hour12:false}); }, 1000); },
     show(){ document.getElementById('holo-panel').classList.add('show'); },
-    hide(){ document.getElementById('holo-panel').classList.remove('show'); },
-    toggle(){ document.getElementById('holo-panel').classList.toggle('show'); },
     setMode(m){ document.getElementById('hpill').textContent = m; },
     setText(txt) {
       clearTimeout(this._t);
-      this._typing = true;
-      const c = document.getElementById('holo-content');
-      const cur = document.getElementById('holo-cur');
+      const c = document.getElementById('holo-content'), cur = document.getElementById('holo-cur');
       c.textContent = ''; cur.classList.remove('done');
       let i = 0;
       const go = () => {
-        if (i >= txt.length) { this._typing=false; cur.classList.add('done'); document.getElementById('hfooter-l').textContent='◉ AI READY · SLAM ANCHORED'; return; }
-        c.textContent += txt[i++];
-        this._t = setTimeout(go, 30);
-      };
-      go();
+        if (i >= txt.length) { cur.classList.add('done'); return; }
+        c.textContent += txt[i++]; this._t = setTimeout(go, 30);
+      }; go();
     }
   };
 
-  // ═══ AI ══════════════════════════════════════════════
-  const DEMOS = [
-    '此幅海賊船金屬海報採用昇華印刷工藝，色彩永久定著於鋁板，不褪色、不龜裂。細膩筆觸捕捉大海壯闊與船帆張力，典藏首選。',
-    '以一畫千言獨特工藝打造，高溫昇華讓色彩融入金屬纖維，展現超越紙張的層次感。每一塊金屬海報都是獨一無二的藝術品。',
-  ];
+  // ═══ AI 模擬 ══════════════════════════════════════════════
   async function getAI() {
-    if (!AR_CONFIG.claudeApiKey) {
-      await new Promise(r=>setTimeout(r,800));
-      return DEMOS[Math.floor(Math.random()*DEMOS.length)];
-    }
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':AR_CONFIG.claudeApiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:160,messages:[{role:'user',content:`你是AR博物館語音導覽AI。用繁體中文、80字以內介紹「${AR_CONFIG.productName}」。資訊：${AR_CONFIG.productInfo}。語氣如博物館解說員，簡潔有力。`}]})
-      });
-      if(!res.ok) throw new Error('HTTP'+res.status);
-      const d=await res.json();
-      return d.content?.[0]?.text?.trim()||DEMOS[0];
-    } catch(e) { D.log('AI err:'+e.message,'inf'); return DEMOS[0]; }
+    return '此幅海賊船金屬海報採用昇華印刷工藝，色彩永久定著於鋁板，不褪色。精緻細節捕捉大海壯闊與船帆張力，為您的空間增添冒險氛圍。';
   }
 
-  // ═══ THREE.JS 裝飾 ════════════════════════════════════
-  function mkRing(r,tube,hex,op){
-    const m=new THREE.Mesh(new THREE.TorusGeometry(r,tube,6,64),new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:op}));
-    m.rotation.x=Math.PI/2; return m;
-  }
-  function mkPts(n,radius){
-    const pos=new Float32Array(n*3),meta=[];
-    for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,r=radius*(0.7+Math.random()*0.55),h=(Math.random()-0.5)*0.5;pos[i*3]=Math.cos(a)*r;pos[i*3+1]=h;pos[i*3+2]=Math.sin(a)*r;meta.push({a,r,h,da:(Math.random()-0.5)*0.016,dh:(Math.random()-0.5)*0.004});}
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
-    const p=new THREE.Points(g,new THREE.PointsMaterial({color:0x00bbff,size:0.009,transparent:true,opacity:0.8}));
-    p.userData={meta,n};return p;
-  }
-  function tickPts(p){
-    const pos=p.geometry.attributes.position.array,{meta,n}=p.userData;
-    for(let i=0;i<n;i++){const m=meta[i];m.a+=m.da;m.h+=m.dh;if(Math.abs(m.h)>0.4)m.dh*=-1;pos[i*3]=Math.cos(m.a)*m.r;pos[i*3+1]=m.h;pos[i*3+2]=Math.sin(m.a)*m.r;}
-    p.geometry.attributes.position.needsUpdate=true;
-  }
-
-  // ═══ AR MODULE ════════════════════════════════════════
+  // ═══ AR MODULE (重構版) ══════════════════════════════════
   function mkARModule(){
-    let vEl,vTex,vMesh,hGrp,ring1,ring2,pts;
-    let frm=0, slamWarm=false, everFound=false;
-    const lastP=new THREE.Vector3(), lastQ=new THREE.Quaternion();
-    let lastS=1;
-    const st={play:false,mute:true,fs:false,holo:true};
-    const scanEl=document.getElementById('scan-ov');
-    const fsW=document.getElementById('fs-wrap'), fsV=document.getElementById('fs-vid');
+    let vEl, vTex, vMesh, hGrp, ring1, ring2, pts;
+    let mainScene, mainCamera;
+    const scanEl = document.getElementById('scan-ov');
+    const raycaster = new THREE.Raycaster();
+    const touchPos = new THREE.Vector2();
 
-    function mkVid(){const v=document.createElement('video');v.src=AR_CONFIG.videoSrc;v.loop=true;v.muted=true;v.playsInline=true;v.crossOrigin='anonymous';v.setAttribute('webkit-playsinline','true');v.addEventListener('canplay',()=>D.log('影片 canplay ✅','ok'));v.addEventListener('error',()=>D.log('影片錯誤 ❌','err'));return v;}
-    async function playV(v){if(!v)return;try{await v.play();}catch{v.muted=true;st.mute=true;uI();await v.play().catch(()=>{});}}
-    function pauseV(v){if(v)v.pause();}
-    function enterFS(){if(!vEl)return;fsV.src=vEl.src;fsV.currentTime=vEl.currentTime;fsV.muted=st.mute;fsW.classList.add('show');st.fs=true;playV(fsV);}
-    function exitFS(){if(!st.fs)return;if(vEl)vEl.currentTime=fsV.currentTime;fsW.classList.remove('show');st.fs=false;pauseV(fsV);fsV.src='';}
-    function uI(){document.getElementById('ipp').style.display=st.play?'none':'block';document.getElementById('ipa').style.display=st.play?'block':'none';document.getElementById('bp').classList.toggle('active',st.play);document.getElementById('ism').style.display=st.mute?'block':'none';document.getElementById('iss').style.display=st.mute?'none':'block';document.getElementById('bs').classList.toggle('active',!st.mute);}
-
-    function applyPose(det){
-      const{position:p,rotation:r,scale:s}=det;
-      lastP.set(p.x,p.y,p.z); lastQ.set(r.x,r.y,r.z,r.w); lastS=s;
-      vMesh.position.copy(lastP); vMesh.quaternion.copy(lastQ); vMesh.scale.setScalar(s);
-      hGrp.position.copy(lastP); hGrp.quaternion.copy(lastQ); hGrp.scale.setScalar(s);
+    function mkVid(){
+      const v=document.createElement('video'); v.src=AR_CONFIG.videoSrc; v.loop=true; v.muted=true; v.playsInline=true; v.crossOrigin='anonymous';
+      return v;
+    }
+    
+    function togglePlay() {
+      G.isVideoPlaying = !G.isVideoPlaying;
+      if (G.isVideoPlaying) { vEl.play(); showSt('▶ 播放中'); } 
+      else { vEl.pause(); showSt('⏸ 已暫停'); }
+      document.getElementById('ipp').style.display = G.isVideoPlaying ? 'none' : 'block';
+      document.getElementById('ipa').style.display = G.isVideoPlaying ? 'block' : 'none';
+      document.getElementById('bp').classList.toggle('active', G.isVideoPlaying);
     }
 
-    function setupBtns(){
-      document.getElementById('bp').addEventListener('click',()=>{
-        if(!everFound){showSt('請先掃描目標');return;}
-        st.play=!st.play;uI();
-        if(st.play){showSt('▶ 持續播放');if(!G.vis){enterFS();scanEl.classList.add('hidden');}else if(vEl&&vEl.paused)playV(vEl);}
-        else{showSt('⏸ 暫停');exitFS();if(!G.vis&&vEl)pauseV(vEl);if(!G.vis)scanEl.classList.remove('hidden');}
-      });
-      document.getElementById('bs').addEventListener('click',()=>{st.mute=!st.mute;if(vEl)vEl.muted=st.mute;fsV.muted=st.mute;uI();showSt(st.mute?'🔇 靜音':'🔊 聲音 ON');});
-      document.getElementById('bai').addEventListener('click',async()=>{
-        if(!everFound){showSt('請先掃描目標');return;}
-        const b=document.getElementById('bai');b.classList.add('active');
-        HP.setText('⬛ AI 重新分析中…');HP.setMode('AI THINKING');
-        const t=await getAI();HP.setText(t);HP.setMode('IMG LOCK');
-        b.classList.remove('active');showSt('🤖 AI 導覽已更新');
-      });
-      document.getElementById('bh').addEventListener('click',()=>{
-        st.holo=!st.holo;
-        if(hGrp) hGrp.visible=st.holo&&G.vis;
-        st.holo?HP.show():HP.hide();
-        document.getElementById('bh').classList.toggle('active',st.holo);
-        showSt(st.holo?'🔷 全息 ON':'🔲 全息 OFF');
-      });
-      fsW.addEventListener('click',()=>{exitFS();st.play=false;uI();if(!G.vis)scanEl.classList.remove('hidden');});
-    }
-
-    async function onFound({detail}){
-      D.log('✅ imagefound "'+detail.name+'" scale='+detail.scale?.toFixed(3)+' pos=('+detail.position.x.toFixed(2)+','+detail.position.y.toFixed(2)+','+detail.position.z.toFixed(2)+')','ok');
-      applyPose(detail);
-      vMesh.visible=true; hGrp.visible=st.holo; G.vis=true; everFound=true;
-      scanEl.classList.add('hidden');
-      flash(); slamBadge('locked'); showSt('✅ 目標鎖定');
-      if(st.fs)exitFS();
-      playV(vEl);
-      if(!G.aiDone){
-        G.aiDone=true;
-        HP.show(); HP.setText('⬛ AI 導覽生成中…'); HP.setMode('AI THINKING');
-        const t=await getAI(); HP.setText(t); HP.setMode('IMG LOCK');
-        showSt('🤖 AI 導覽已啟動',3500);
+    // ⭐ 進階應用：加入觸控 Raycaster (8th Wall 常見開源技巧)
+    function onTouch(event) {
+      if (!G.isTracking || !vMesh.visible) return;
+      touchPos.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+      touchPos.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(touchPos, mainCamera);
+      
+      const intersects = raycaster.intersectObject(vMesh);
+      if (intersects.length > 0) {
+        // 使用者點擊了 AR 影片，觸發播放/暫停
+        togglePlay();
+        // 觸控反饋動畫
+        vMesh.scale.setScalar(vMesh.scale.x * 0.95);
+        setTimeout(() => vMesh.scale.setScalar(vMesh.scale.x / 0.95), 150);
       }
     }
 
-    function onUpdated({detail}){
-      applyPose(detail);
-      if(!G.vis){G.vis=true;vMesh.visible=true;hGrp.visible=st.holo;scanEl.classList.add('hidden');}
-    }
-
-    function onLost(){
-      // ✅ SLAM 正確行為：完全不動任何 mesh，不顯示掃描遮罩
-      // vMesh / hGrp 已有世界座標，相機 SLAM 繼續追蹤 → 物件浮在原位
-      G.vis=false;
-      slamBadge('tracking');
-      showSt('📍 SLAM 追蹤中，可移開鏡頭');
-      D.log('📍 imagelost — mesh 保持世界座標不變','inf');
+    // 核心位移邏輯
+    function applyPose(detail){
+      const { position, rotation, scale } = detail;
+      vMesh.position.copy(position);
+      vMesh.quaternion.copy(rotation);
+      vMesh.scale.setScalar(scale);
+      hGrp.position.copy(position);
+      hGrp.quaternion.copy(rotation);
+      hGrp.scale.setScalar(scale);
     }
 
     return {
-      name:'ar-holo',
+      name:'ar-advanced-holo',
       onStart:()=>{
-        const{scene,renderer}=XR8.Threejs.xrScene();
+        const {scene, camera, renderer} = XR8.Threejs.xrScene();
+        mainScene = scene; mainCamera = camera;
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth,window.innerHeight,false);
-        Object.assign(renderer.domElement.style,{position:'fixed',top:'0',left:'0',width:'100vw',height:'100vh',zIndex:'0'});
-        D.log('Renderer '+window.innerWidth+'x'+window.innerHeight,'ok');
+        
+        // 影片材質
+        vEl = mkVid();
+        vTex = new THREE.VideoTexture(vEl);
+        vTex.minFilter = THREE.LinearFilter;
+        vMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1/AR_CONFIG.videoAspectRatio),
+          new THREE.MeshBasicMaterial({map: vTex, side: THREE.DoubleSide})
+        );
+        vMesh.visible = false;
+        scene.add(vMesh);
 
-        vEl=mkVid();
-        vTex=new THREE.VideoTexture(vEl);
-        vTex.minFilter=vTex.magFilter=THREE.LinearFilter;vTex.format=THREE.RGBAFormat;
-        vMesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1/AR_CONFIG.videoAspectRatio),new THREE.MeshBasicMaterial({map:vTex,side:THREE.DoubleSide,toneMapped:false}));
-        vMesh.visible=false;scene.add(vMesh);
+        // 全息裝飾群組
+        hGrp = new THREE.Group();
+        hGrp.visible = false;
+        scene.add(hGrp);
 
-        hGrp=new THREE.Group();hGrp.visible=false;scene.add(hGrp);
-        if(AR_CONFIG.enableHoloRings){ring1=mkRing(0.65,0.004,0x00ccff,0.75);ring1.rotation.x=Math.PI/2;hGrp.add(ring1);ring2=mkRing(0.52,0.003,0x0066ff,0.55);ring2.rotation.x=Math.PI/3;hGrp.add(ring2);}
-        if(AR_CONFIG.enableHoloParticles){pts=mkPts(80,0.6);hGrp.add(pts);}
-        scene.add(new THREE.AmbientLight(0xffffff,1));
-
-        HP.init();setupBtns();
-        D.log('✅ Scene ready','ok');
-        D.log('disableWorldTracking=false (SLAM ON)','ok');
-        setTimeout(()=>showSt('請緩慢移動手機，再對準目標',5000),1000);
+        HP.init();
+        
+        // 綁定按鈕
+        document.getElementById('bp').addEventListener('click', togglePlay);
+        
+        // 綁定觸控
+        window.addEventListener('touchstart', onTouch);
       },
       onUpdate:()=>{
-        frm++;
-        if(ring1) ring1.rotation.z+=0.007;
-        if(ring2){ring2.rotation.z-=0.005;ring2.rotation.y+=0.004;}
-        if(pts) tickPts(pts);
-        if(!slamWarm&&frm===90){slamWarm=true;slamBadge('tracking');D.log('SLAM 暖機完成 (90f)','ok');}
-        if(frm%120===0){const{camera}=XR8.Threejs.xrScene();const p=camera.position;D.log('cam=('+p.x.toFixed(2)+','+p.y.toFixed(2)+','+p.z.toFixed(2)+')','inf');}
+        // 可以在這裡加入裝飾物的旋轉動畫
       },
       listeners:[
-        {event:'reality.imagefound',   process:onFound},
-        {event:'reality.imageupdated', process:onUpdated},
-        {event:'reality.imagelost',    process:onLost},
-      ],
-      onAttach:()=>{
-        window.addEventListener('resize',()=>{const{renderer}=XR8.Threejs.xrScene();renderer.setSize(window.innerWidth,window.innerHeight,false);});
-        document.addEventListener('visibilitychange',()=>{if(document.hidden){if(vEl)pauseV(vEl);}else if(G.vis&&vEl)playV(vEl);});
-      }
+        {
+          event: 'reality.imagefound', 
+          process: async ({detail}) => {
+            applyPose(detail);
+            vMesh.visible = true; hGrp.visible = true;
+            G.isTracking = true;
+            scanEl.classList.add('hidden');
+            flash(); slamBadge('locked'); showSt('✅ 目標鎖定，可點擊畫面互動');
+            
+            if (!G.isVideoPlaying) togglePlay();
+            
+            if(!G.aiDone){
+              G.aiDone = true; HP.show(); HP.setText('⬛ 啟動 AI 解說...');
+              const t = await getAI(); HP.setText(t); HP.setMode('IMG LOCK');
+            }
+          }
+        },
+        {
+          event: 'reality.imageupdated', 
+          process: ({detail}) => {
+            // 當看到圖片時，持續更新位置
+            applyPose(detail);
+            slamBadge('locked');
+          }
+        },
+        {
+          event: 'reality.imagelost', 
+          process: () => {
+            // ⭐ 關鍵修正：遺失圖片時，我們「不」隱藏物件，也「不」更新座標。
+            // 由於 8th Wall 已開啟 disableWorldTracking: false，
+            // 系統會自動轉用空間追蹤(SLAM)維持物件在世界中的相對位置！
+            slamBadge('tracking');
+            showSt('📍 進入空間延伸追蹤');
+          }
+        }
+      ]
     };
   }
 
-  // ═══ GLOBAL STATE ═════════════════════════════════════
-  const G = { vis: false, aiDone: false };
-
-  // ═══ MAIN ═════════════════════════════════════════════
+  // ═══ 初始化 ═════════════════════════════════════════════
   window.addEventListener('xrloaded', async () => {
-    D.log('✅ xrloaded','ok');
-    showSt('載入目標資料…',3000);
-    slamBadge('init');
+    HP.init();
+    
+    // 載入 JSON Target
+    const r = await fetch(AR_CONFIG.targetJsonPath);
+    const targetData = await r.json();
 
-    let td;
-    try{
-      const r=await fetch(AR_CONFIG.targetJsonPath);
-      if(!r.ok) throw new Error('HTTP'+r.status);
-      td=await r.json();
-      D.log('✅ target JSON: "'+td.name+'"','ok');
-    }catch(e){
-      D.log('❌ JSON: '+e.message,'err');
-      document.getElementById('dbg').classList.add('show');
-      showSt('❌ 目標資料載入失敗',8000);
-      return;
-    }
-
-    // SLAM: disableWorldTracking=false → 世界追蹤啟用
-    XR8.XrController.configure({disableWorldTracking:false, imageTargetData:[td]});
-    D.log('XrController: SLAM=ON imageTarget="'+td.name+'"','ok');
+    // ⭐ disableWorldTracking 必須為 false 才能啟用 Extended Tracking (SLAM)
+    XR8.XrController.configure({ 
+      disableWorldTracking: false, 
+      imageTargetData: [targetData] 
+    });
 
     XR8.addCameraPipelineModules([
       XR8.GlTextureRenderer.pipelineModule(),
@@ -441,12 +322,9 @@
       XR8.XrController.pipelineModule(),
       mkARModule(),
     ]);
-    XR8.run({canvas:document.getElementById('renderCanvas')});
-    D.log('✅ XR8.run()','ok');
+    
+    XR8.run({ canvas: document.getElementById('renderCanvas') });
   });
-
-  window.addEventListener('xrerror',e=>{D.log('❌ xrerror:'+JSON.stringify(e.detail),'err');document.getElementById('dbg').classList.add('show');showSt('❌ AR 引擎錯誤',10000);});
-  window.addEventListener('load', preflight);
   </script>
 </body>
 </html>
