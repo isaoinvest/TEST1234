@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>8th Wall AR 流水體驗</title>
+  <title>AR 流水體驗</title>
 
   <!-- ★ CONFIG ★ -->
   <script>
@@ -19,20 +19,30 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 
-  <!-- ✅ 相對路徑，讓 worker 從同一個網域載入 -->
+  <!-- 8th Wall Engine（相對路徑，不載入 xrextras） -->
   <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
-  <script src="./external/xrextras/xrextras.js"></script>
+  <!-- ✅ xrextras 已移除 → 不再顯示「Tap Allow」提示與 8th Wall 浮水印 -->
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width:100%; height:100%; overflow:hidden; background:#000; touch-action:none; }
 
-    /* ✅ 修正1：強制 renderCanvas 全螢幕 */
     #renderCanvas {
       position: fixed !important;
       top: 0 !important; left: 0 !important;
       width: 100vw !important; height: 100vh !important;
       z-index: 0; display: block;
+    }
+
+    /* ✅ 以防萬一，CSS 層面也強制隱藏任何 8th Wall 浮水印元素 */
+    [class*="watermark"], [id*="watermark"],
+    [class*="xr8"], [id*="xr8"],
+    [class*="poweredby"], [id*="poweredby"],
+    [class*="powered-by"], [id*="powered-by"] {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
     }
 
     #p5-container {
@@ -179,271 +189,348 @@
     init() {
       this.panel = document.getElementById('debug-panel');
       const btn = document.getElementById('debug-button');
-      let t; btn.addEventListener('touchstart',()=>{t=setTimeout(()=>this.panel.classList.toggle('show'),1500);});
-      btn.addEventListener('touchend',()=>clearTimeout(t));
-      btn.addEventListener('click',()=>this.panel.classList.toggle('show'));
-      const oe=console.error.bind(console);
-      console.error=(...a)=>{this.log(a.join(' '),'err');oe(...a);};
-      window.addEventListener('error',e=>this.log(`JS:${e.message}(${e.lineno})`,'err'));
+      let t;
+      btn.addEventListener('touchstart', () => { t = setTimeout(() => this.panel.classList.toggle('show'), 1500); });
+      btn.addEventListener('touchend',   () => clearTimeout(t));
+      btn.addEventListener('click',      () => this.panel.classList.toggle('show'));
+      const oe = console.error.bind(console);
+      console.error = (...a) => { this.log(a.join(' '), 'err'); oe(...a); };
+      window.addEventListener('error', e => this.log(`JS:${e.message}(${e.lineno})`, 'err'));
     },
-    log(msg,type='inf'){
-      if(!this.panel)return;
-      const d=document.createElement('div'); d.className=type;
-      d.textContent=`${new Date().toLocaleTimeString()} ${msg}`;
-      this.panel.appendChild(d); this.panel.scrollTop=this.panel.scrollHeight;
+    log(msg, type = 'inf') {
+      if (!this.panel) return;
+      const d = document.createElement('div');
+      d.className = type;
+      d.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+      this.panel.appendChild(d);
+      this.panel.scrollTop = this.panel.scrollHeight;
     }
   };
   Debug.init();
 
+  // ═══════════════════════════════════════════════
+  //  啟動前檔案檢查
+  // ═══════════════════════════════════════════════
   async function preflightCheck() {
-    const checks=[
-      {url:'./external/xr/xr.js',label:'xr.js'},
-      {url:'./external/xr/xr-slam.js',label:'xr-slam.js'},
-      {url:'./external/xrextras/xrextras.js',label:'xrextras.js'},
-      {url:AR_CONFIG.targetJsonPath,label:'target JSON'},
+    const checks = [
+      { url: './external/xr/xr.js',            label: 'xr.js' },
+      { url: './external/xr/xr-slam.js',        label: 'xr-slam.js' },
+      { url: AR_CONFIG.targetJsonPath,           label: 'target JSON' },
     ];
-    let ok=true;
-    for(const c of checks){
-      try{const r=await fetch(c.url,{method:'HEAD'});r.ok?Debug.log(`✅ ${c.label}`,'ok'):(()=>{Debug.log(`❌ ${c.label} HTTP${r.status}`,'err');ok=false;})();}
-      catch{Debug.log(`❌ ${c.label} 網路錯誤`,'err');ok=false;}
+    let allOk = true;
+    for (const c of checks) {
+      try {
+        const r = await fetch(c.url, { method: 'HEAD' });
+        r.ok ? Debug.log(`✅ ${c.label}`, 'ok')
+             : (() => { Debug.log(`❌ ${c.label} HTTP${r.status}`, 'err'); allOk = false; })();
+      } catch { Debug.log(`❌ ${c.label} 網路錯誤`, 'err'); allOk = false; }
     }
-    return ok;
+    return allOk;
   }
 
   // ═══════════════════════════════════════════════
-  //  P5 流水
+  //  P5 流水系統
   // ═══════════════════════════════════════════════
-  let waterSketch, currentGesture='none', gestureTimeout;
-  const p5WaterSketch=(p)=>{
-    let particles=[],noiseOffset=0,touchActive=false,ctX=0,ctY=0,wInt=1;
-    class WP{
-      constructor(x,y,i=1,g='default'){
-        this.pos=p.createVector(x,y); this.vel=p.createVector(p.random(-1,1),p.random(-2,0));
-        this.acc=p.createVector(0,0); this.life=this.maxLife=255;
-        this.size=p.random(10,25)*i; this.i=i; this.g=g;
-        this.gravity=p.createVector(0,.05*i); this.drag=.98;
-        this.wh=false; this.wv=false;
-        if(g==='circle'){this.vel.mult(.5);this.wh=true;}
-        else if(g==='swipe')this.vel.mult(2);
-        else if(g==='s-curve')this.wv=true;
-        else if(g==='tap'){const a=p.random(p.TWO_PI);this.vel=p.createVector(p.cos(a),p.sin(a)).mult(p.random(1,4)*i);}
+  let waterSketch, currentGesture = 'none', gestureTimeout;
+
+  const p5WaterSketch = (p) => {
+    let particles = [], noiseOffset = 0;
+    let touchActive = false, ctX = 0, ctY = 0, wInt = 1;
+
+    class WP {
+      constructor(x, y, i = 1, g = 'default') {
+        this.pos = p.createVector(x, y);
+        this.vel = p.createVector(p.random(-1, 1), p.random(-2, 0));
+        this.acc = p.createVector(0, 0);
+        this.life = this.maxLife = 255;
+        this.size = p.random(10, 25) * i;
+        this.i = i; this.g = g;
+        this.gravity = p.createVector(0, .05 * i);
+        this.drag = .98; this.wh = false; this.wv = false;
+        if      (g === 'circle')  { this.vel.mult(.5); this.wh = true; }
+        else if (g === 'swipe')   { this.vel.mult(2); }
+        else if (g === 's-curve') { this.wv = true; }
+        else if (g === 'tap')     { const a = p.random(p.TWO_PI); this.vel = p.createVector(p.cos(a), p.sin(a)).mult(p.random(1, 4) * i); }
       }
-      af(f){this.acc.add(f);}
-      update(){
-        this.af(this.gravity); this.vel.add(this.acc); this.vel.mult(this.drag);
-        this.pos.add(this.vel); this.acc.mult(0);
-        this.vel.x+=(p.noise(this.pos.x*.01,this.pos.y*.01,noiseOffset)-.5)*.3;
-        if(this.wh){const a=p.atan2(this.pos.y-ctY,this.pos.x-ctX);this.af(p.createVector(p.cos(a+p.PI/2),p.sin(a+p.PI/2)).mult(.2*this.i));const pull=p.createVector(ctX-this.pos.x,ctY-this.pos.y);this.af(pull.normalize().mult(.05));}
-        if(this.wv)this.vel.x+=p.sin(this.pos.y*.05+noiseOffset)*.5;
-        this.life-=p.random(1.5,4); this.size*=.99;
+      af(f) { this.acc.add(f); }
+      update() {
+        this.af(this.gravity);
+        this.vel.add(this.acc); this.vel.mult(this.drag); this.pos.add(this.vel); this.acc.mult(0);
+        this.vel.x += (p.noise(this.pos.x * .01, this.pos.y * .01, noiseOffset) - .5) * .3;
+        if (this.wh) {
+          const a = p.atan2(this.pos.y - ctY, this.pos.x - ctX);
+          this.af(p.createVector(p.cos(a + p.PI / 2), p.sin(a + p.PI / 2)).mult(.2 * this.i));
+          const pull = p.createVector(ctX - this.pos.x, ctY - this.pos.y);
+          this.af(pull.normalize().mult(.05));
+        }
+        if (this.wv) this.vel.x += p.sin(this.pos.y * .05 + noiseOffset) * .5;
+        this.life -= p.random(1.5, 4); this.size *= .99;
       }
-      display(){
-        const a=p.map(this.life,0,this.maxLife,0,255),pr=1-this.life/this.maxLife;
-        let r,g,b;
-        if(pr<.3){r=200+pr*55;g=220+pr*35;b=255;}
-        else if(pr<.7){r=100-(pr-.3)*100;g=180-(pr-.3)*80;b=255;}
-        else{r=0;g=100-(pr-.7)*100;b=200-(pr-.7)*50;}
-        p.push();p.translate(this.pos.x,this.pos.y);p.noStroke();
-        p.fill(r,g,b,a*.2);p.ellipse(0,0,this.size*1.5);
-        p.fill(r,g,b,a*.7);p.ellipse(0,0,this.size);
-        if(this.life>this.maxLife*.5){p.fill(220,240,255,a);p.ellipse(0,0,this.size*.3);}
+      display() {
+        const a = p.map(this.life, 0, this.maxLife, 0, 255), pr = 1 - this.life / this.maxLife;
+        let r, g, b;
+        if      (pr < .3) { r = 200 + pr * 55; g = 220 + pr * 35; b = 255; }
+        else if (pr < .7) { r = 100 - (pr - .3) * 100; g = 180 - (pr - .3) * 80; b = 255; }
+        else              { r = 0; g = 100 - (pr - .7) * 100; b = 200 - (pr - .7) * 50; }
+        p.push(); p.translate(this.pos.x, this.pos.y); p.noStroke();
+        p.fill(r, g, b, a * .2); p.ellipse(0, 0, this.size * 1.5);
+        p.fill(r, g, b, a * .7); p.ellipse(0, 0, this.size);
+        if (this.life > this.maxLife * .5) { p.fill(220, 240, 255, a); p.ellipse(0, 0, this.size * .3); }
         p.pop();
       }
-      dead(){return this.life<=0||this.size<1;}
+      dead() { return this.life <= 0 || this.size < 1; }
     }
-    p.setup=()=>{const c=p.createCanvas(p.windowWidth,p.windowHeight);c.parent('p5-container');p.colorMode(p.RGB,255);p.blendMode(p.ADD);};
-    p.draw=()=>{
-      p.clear();noiseOffset+=.01;
-      if(touchActive&&particles.length<350)for(let i=0;i<Math.floor(wInt*8);i++)particles.push(new WP(ctX+p.random(-15,15),ctY+p.random(-15,15),wInt,currentGesture));
-      for(let i=particles.length-1;i>=0;i--){particles[i].update();particles[i].display();if(particles[i].dead())particles.splice(i,1);}
+
+    p.setup = () => {
+      const c = p.createCanvas(p.windowWidth, p.windowHeight);
+      c.parent('p5-container'); p.colorMode(p.RGB, 255); p.blendMode(p.ADD);
     };
-    p.windowResized=()=>p.resizeCanvas(p.windowWidth,p.windowHeight);
-    p.setTouchActive=(a,x,y)=>{touchActive=a;if(a){ctX=x;ctY=y;}};
-    p.updateTouchPosition=(x,y)=>{ctX=x;ctY=y;};
-    p.setWaterIntensity=v=>{wInt=p.constrain(v,.1,3);};
-    p.setGestureType=g=>{currentGesture=g;};
+    p.draw = () => {
+      p.clear(); noiseOffset += .01;
+      if (touchActive && particles.length < 350)
+        for (let i = 0; i < Math.floor(wInt * 8); i++)
+          particles.push(new WP(ctX + p.random(-15, 15), ctY + p.random(-15, 15), wInt, currentGesture));
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update(); particles[i].display();
+        if (particles[i].dead()) particles.splice(i, 1);
+      }
+    };
+    p.windowResized = () => p.resizeCanvas(p.windowWidth, p.windowHeight);
+    p.setTouchActive      = (a, x, y) => { touchActive = a; if (a) { ctX = x; ctY = y; } };
+    p.updateTouchPosition = (x, y)    => { ctX = x; ctY = y; };
+    p.setWaterIntensity   = v         => { wInt = p.constrain(v, .1, 3); };
+    p.setGestureType      = g         => { currentGesture = g; };
   };
 
   // ═══════════════════════════════════════════════
   //  手勢識別
   // ═══════════════════════════════════════════════
-  class GR{
-    constructor(){this.pts=[];}
-    start(x,y){this.pts=[{x,y}];}
-    add(x,y){if(!this.pts.length)return;this.pts.push({x,y});if(this.pts.length>50)this.pts.shift();}
-    end(){return this.pts.length<5?'tap':this._a();}
-    _a(){if(this._c())return'circle';if(this._s())return'swipe';if(this._sc())return's-curve';return'default';}
-    _c(){if(this.pts.length<10)return false;let cx=0,cy=0;this.pts.forEach(p=>{cx+=p.x;cy+=p.y;});cx/=this.pts.length;cy/=this.pts.length;let r=0;this.pts.forEach(p=>{r+=Math.hypot(p.x-cx,p.y-cy);});r/=this.pts.length;if(r<20)return false;return this.pts.filter(p=>Math.abs(Math.hypot(p.x-cx,p.y-cy)-r)<r*.4).length/this.pts.length>.8;}
-    _s(){const s=this.pts[0],e=this.pts[this.pts.length-1];return Math.hypot(e.x-s.x,e.y-s.y)>100;}
-    _sc(){if(this.pts.length<8)return false;let ch=0,ld=null;for(let i=1;i<this.pts.length-1;i++){let d=Math.atan2(this.pts[i+1].y-this.pts[i].y,this.pts[i+1].x-this.pts[i].x)-Math.atan2(this.pts[i].y-this.pts[i-1].y,this.pts[i].x-this.pts[i-1].x);while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;const dir=d>0?'L':'R';if(ld&&ld!==dir)ch++;ld=dir;}return ch>=2;}
+  class GR {
+    constructor() { this.pts = []; }
+    start(x, y) { this.pts = [{ x, y }]; }
+    add(x, y) { if (!this.pts.length) return; this.pts.push({ x, y }); if (this.pts.length > 50) this.pts.shift(); }
+    end() { return this.pts.length < 5 ? 'tap' : this._a(); }
+    _a() { if (this._c()) return 'circle'; if (this._s()) return 'swipe'; if (this._sc()) return 's-curve'; return 'default'; }
+    _c() {
+      if (this.pts.length < 10) return false;
+      let cx = 0, cy = 0; this.pts.forEach(p => { cx += p.x; cy += p.y; });
+      cx /= this.pts.length; cy /= this.pts.length;
+      let r = 0; this.pts.forEach(p => { r += Math.hypot(p.x - cx, p.y - cy); }); r /= this.pts.length;
+      if (r < 20) return false;
+      return this.pts.filter(p => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r) < r * .4).length / this.pts.length > .8;
+    }
+    _s() { const s = this.pts[0], e = this.pts[this.pts.length - 1]; return Math.hypot(e.x - s.x, e.y - s.y) > 100; }
+    _sc() {
+      if (this.pts.length < 8) return false;
+      let ch = 0, ld = null;
+      for (let i = 1; i < this.pts.length - 1; i++) {
+        let d = Math.atan2(this.pts[i + 1].y - this.pts[i].y, this.pts[i + 1].x - this.pts[i].x)
+              - Math.atan2(this.pts[i].y - this.pts[i - 1].y, this.pts[i].x - this.pts[i - 1].x);
+        while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+        const dir = d > 0 ? 'L' : 'R'; if (ld && ld !== dir) ch++; ld = dir;
+      }
+      return ch >= 2;
+    }
   }
 
-  function showStatus(t,d=2500){const e=document.getElementById('status');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),d);}
-  function showGesture(t,d=1800){const e=document.getElementById('gesture');e.textContent=t;e.classList.add('show');clearTimeout(gestureTimeout);gestureTimeout=setTimeout(()=>e.classList.remove('show'),d);}
-  function triggerFoundFlash(){const f=document.getElementById('found-flash');f.classList.add('flash');setTimeout(()=>f.classList.remove('flash'),800);}
-  function triggerWaterBurst(){const cx=window.innerWidth/2,cy=window.innerHeight/2;waterSketch.setTouchActive(true,cx,cy);waterSketch.setGestureType('tap');waterSketch.setWaterIntensity(3);setTimeout(()=>{waterSketch.setTouchActive(false,0,0);waterSketch.setWaterIntensity(appState.wi);},1200);}
+  // ═══════════════════════════════════════════════
+  //  UI 工具
+  // ═══════════════════════════════════════════════
+  function showStatus(t, d = 2500) { const e = document.getElementById('status'); e.textContent = t; e.classList.add('show'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('show'), d); }
+  function showGesture(t, d = 1800) { const e = document.getElementById('gesture'); e.textContent = t; e.classList.add('show'); clearTimeout(gestureTimeout); gestureTimeout = setTimeout(() => e.classList.remove('show'), d); }
+  function triggerFoundFlash() { const f = document.getElementById('found-flash'); f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 800); }
+  function triggerWaterBurst() {
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    waterSketch.setTouchActive(true, cx, cy); waterSketch.setGestureType('tap'); waterSketch.setWaterIntensity(3);
+    setTimeout(() => { waterSketch.setTouchActive(false, 0, 0); waterSketch.setWaterIntensity(appState.wi); }, 1200);
+  }
 
-  const appState={tf:false,ae:false,cp:false,fs:false,hp:false,wi:1.0};
+  const appState = { tf: false, ae: false, cp: false, fs: false, hp: false, wi: 1.0 };
 
   // ═══════════════════════════════════════════════
-  //  AR Pipeline
+  //  AR Pipeline Module
   // ═══════════════════════════════════════════════
-  function createARPipelineModule(){
-    let vEl,vTex,vMesh;
-    const sO=document.getElementById('scanning-overlay');
-    const fsC=document.getElementById('fullscreen-video-container');
-    const fsV=document.getElementById('fullscreen-video');
+  function createARPipelineModule() {
+    let vEl, vTex, vMesh;
+    const sO  = document.getElementById('scanning-overlay');
+    const fsC = document.getElementById('fullscreen-video-container');
+    const fsV = document.getElementById('fullscreen-video');
 
-    function mkV(){const v=document.createElement('video');v.src=AR_CONFIG.videoSrc;v.loop=true;v.muted=true;v.playsInline=true;v.crossOrigin='anonymous';v.setAttribute('webkit-playsinline','true');v.addEventListener('canplay',()=>Debug.log('影片 canplay','ok'));v.addEventListener('error',()=>Debug.log('影片載入錯誤','err'));return v;}
-    async function pV(v){if(!v||!v.src)return;try{await v.play();}catch(e){Debug.log('play失敗，靜音重試','inf');v.muted=true;appState.ae=false;uI();await v.play().catch(()=>{});}}
-    function paV(v){if(v)v.pause();}
-    function eFS(){if(!vEl)return;fsV.src=vEl.src;fsV.currentTime=vEl.currentTime;fsV.muted=!appState.ae;fsC.classList.add('visible');appState.fs=true;pV(fsV);}
-    function xFS(){if(!appState.fs)return;if(vEl)vEl.currentTime=fsV.currentTime;fsC.classList.remove('visible');appState.fs=false;paV(fsV);fsV.src='';}
-    function uI(){document.getElementById('play-icon').style.display=appState.cp?'none':'block';document.getElementById('pause-icon').style.display=appState.cp?'block':'none';document.getElementById('play-button').classList.toggle('active',appState.cp);document.getElementById('sound-on-icon').style.display=appState.ae?'block':'none';document.getElementById('sound-off-icon').style.display=appState.ae?'none':'block';document.getElementById('sound-button').classList.toggle('active',appState.ae);}
-    function tA(){appState.ae=!appState.ae;if(vEl)vEl.muted=!appState.ae;fsV.muted=!appState.ae;uI();showStatus(appState.ae?'🔊 聲音已開啟':'🔇 靜音');}
+    function mkV() {
+      const v = document.createElement('video');
+      v.src = AR_CONFIG.videoSrc; v.loop = true; v.muted = true; v.playsInline = true;
+      v.crossOrigin = 'anonymous'; v.setAttribute('webkit-playsinline', 'true');
+      v.addEventListener('canplay', () => Debug.log('影片 canplay 就緒', 'ok'));
+      v.addEventListener('error',   () => Debug.log('影片載入錯誤', 'err'));
+      return v;
+    }
+    async function pV(v) {
+      if (!v || !v.src) return;
+      try { await v.play(); }
+      catch (e) { Debug.log('play()失敗，靜音重試', 'inf'); v.muted = true; appState.ae = false; uI(); await v.play().catch(() => {}); }
+    }
+    function paV(v) { if (v) v.pause(); }
+    function eFS() { if (!vEl) return; fsV.src = vEl.src; fsV.currentTime = vEl.currentTime; fsV.muted = !appState.ae; fsC.classList.add('visible'); appState.fs = true; pV(fsV); }
+    function xFS() { if (!appState.fs) return; if (vEl) vEl.currentTime = fsV.currentTime; fsC.classList.remove('visible'); appState.fs = false; paV(fsV); fsV.src = ''; }
+    function uI() {
+      document.getElementById('play-icon').style.display    = appState.cp ? 'none' : 'block';
+      document.getElementById('pause-icon').style.display   = appState.cp ? 'block' : 'none';
+      document.getElementById('play-button').classList.toggle('active', appState.cp);
+      document.getElementById('sound-on-icon').style.display  = appState.ae ? 'block' : 'none';
+      document.getElementById('sound-off-icon').style.display = appState.ae ? 'none' : 'block';
+      document.getElementById('sound-button').classList.toggle('active', appState.ae);
+    }
+    function tA() { appState.ae = !appState.ae; if (vEl) vEl.muted = !appState.ae; fsV.muted = !appState.ae; uI(); showStatus(appState.ae ? '🔊 聲音已開啟' : '🔇 靜音'); }
 
-    function setupBtns(){
-      document.getElementById('play-button').addEventListener('click',()=>{
-        if(!appState.hp){showStatus('請先掃描目標');return;}
-        appState.cp=!appState.cp;uI();
-        if(appState.cp){showStatus('▶ 持續播放');if(!appState.tf){eFS();sO.classList.add('hidden');}else if(vEl&&vEl.paused)pV(vEl);}
-        else{showStatus('⏸ 暫停');xFS();if(!appState.tf&&vEl)paV(vEl);if(!appState.tf)sO.classList.remove('hidden');}
+    function setupBtns() {
+      document.getElementById('play-button').addEventListener('click', () => {
+        if (!appState.hp) { showStatus('請先掃描目標'); return; }
+        appState.cp = !appState.cp; uI();
+        if (appState.cp) { showStatus('▶ 持續播放'); if (!appState.tf) { eFS(); sO.classList.add('hidden'); } else if (vEl && vEl.paused) pV(vEl); }
+        else { showStatus('⏸ 暫停'); xFS(); if (!appState.tf && vEl) paV(vEl); if (!appState.tf) sO.classList.remove('hidden'); }
       });
-      document.getElementById('sound-button').addEventListener('click',tA);
-      let lvl=1;
-      document.getElementById('water-button').addEventListener('click',()=>{
-        lvl=(lvl%3)+1;appState.wi=lvl*.9;waterSketch.setWaterIntensity(appState.wi);
-        showStatus({1:'💧 弱',2:'💧💧 中',3:'💧💧💧 強'}[lvl]);
-        document.getElementById('water-button').classList.toggle('active',lvl===3);
+      document.getElementById('sound-button').addEventListener('click', tA);
+      let lvl = 1;
+      document.getElementById('water-button').addEventListener('click', () => {
+        lvl = (lvl % 3) + 1; appState.wi = lvl * .9; waterSketch.setWaterIntensity(appState.wi);
+        showStatus({ 1: '💧 弱', 2: '💧💧 中', 3: '💧💧💧 強' }[lvl]);
+        document.getElementById('water-button').classList.toggle('active', lvl === 3);
       });
-      fsC.addEventListener('click',()=>{xFS();appState.cp=false;uI();if(!appState.tf)sO.classList.remove('hidden');});
+      fsC.addEventListener('click', () => { xFS(); appState.cp = false; uI(); if (!appState.tf) sO.classList.remove('hidden'); });
     }
 
-    function onFound({detail}){
-      Debug.log(`✅ imagefound name="${detail.name}" scale=${detail.scale?.toFixed(3)}`,'ok');
-      const {position:pos,rotation:rot,scale:sc}=detail;
-      vMesh.position.set(pos.x,pos.y,pos.z);
-      vMesh.quaternion.set(rot.x,rot.y,rot.z,rot.w);
-      vMesh.scale.set(sc,sc,sc);
-      vMesh.visible=true;
-      appState.tf=true;appState.hp=true;
+    function onFound({ detail }) {
+      Debug.log(`✅ imagefound name="${detail.name}" scale=${detail.scale?.toFixed(3)}`, 'ok');
+      const { position: pos, rotation: rot, scale: sc } = detail;
+      vMesh.position.set(pos.x, pos.y, pos.z);
+      vMesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+      vMesh.scale.set(sc, sc, sc);
+      vMesh.visible = true;
+      appState.tf = true; appState.hp = true;
       sO.classList.add('hidden');
-      triggerFoundFlash();showStatus('✅ 目標已識別');
-      if(appState.fs)xFS();
-      pV(vEl);triggerWaterBurst();
+      triggerFoundFlash(); showStatus('✅ 目標已識別');
+      if (appState.fs) xFS();
+      pV(vEl); triggerWaterBurst();
     }
-    function onUpdated({detail}){
-      const {position:pos,rotation:rot,scale:sc}=detail;
-      vMesh.position.set(pos.x,pos.y,pos.z);
-      vMesh.quaternion.set(rot.x,rot.y,rot.z,rot.w);
-      vMesh.scale.set(sc,sc,sc);
+    function onUpdated({ detail }) {
+      const { position: pos, rotation: rot, scale: sc } = detail;
+      vMesh.position.set(pos.x, pos.y, pos.z);
+      vMesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+      vMesh.scale.set(sc, sc, sc);
     }
-    function onLost(){
-      Debug.log('⚠️ imagelost','inf');
-      vMesh.visible=false;appState.tf=false;showStatus('⚠️ 目標丟失');
-      if(appState.cp)eFS();
-      else{paV(vEl);setTimeout(()=>{if(!appState.tf&&!appState.cp)sO.classList.remove('hidden');},300);}
+    function onLost() {
+      Debug.log('⚠️ imagelost', 'inf');
+      vMesh.visible = false; appState.tf = false; showStatus('⚠️ 目標丟失');
+      if (appState.cp) eFS();
+      else { paV(vEl); setTimeout(() => { if (!appState.tf && !appState.cp) sO.classList.remove('hidden'); }, 300); }
     }
 
     return {
-      name:'ar-video-app',
-      onStart:()=>{
-        const {scene,renderer}=XR8.Threejs.xrScene();
+      name: 'ar-video-app',
+      onStart: () => {
+        const { scene, renderer } = XR8.Threejs.xrScene();
 
-        // ✅ 修正2：強制 renderer 填滿全螢幕
+        // 強制 renderer 全螢幕
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth,window.innerHeight,false);
-        const el=renderer.domElement;
-        el.style.position='fixed'; el.style.top='0'; el.style.left='0';
-        el.style.width='100vw'; el.style.height='100vh'; el.style.zIndex='0';
-        Debug.log(`Renderer: ${window.innerWidth}×${window.innerHeight}`,'ok');
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+        const el = renderer.domElement;
+        el.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0!important;';
+        Debug.log(`Renderer: ${window.innerWidth}×${window.innerHeight}`, 'ok');
 
-        vEl=mkV();
-        vTex=new THREE.VideoTexture(vEl);
-        vTex.minFilter=THREE.LinearFilter; vTex.magFilter=THREE.LinearFilter; vTex.format=THREE.RGBAFormat;
-        const geo=new THREE.PlaneGeometry(1,1/AR_CONFIG.videoAspectRatio);
-        const mat=new THREE.MeshBasicMaterial({map:vTex,side:THREE.DoubleSide,toneMapped:false});
-        vMesh=new THREE.Mesh(geo,mat); vMesh.visible=false; scene.add(vMesh);
-        scene.add(new THREE.AmbientLight(0xffffff,1));
+        vEl  = mkV();
+        vTex = new THREE.VideoTexture(vEl);
+        vTex.minFilter = THREE.LinearFilter; vTex.magFilter = THREE.LinearFilter; vTex.format = THREE.RGBAFormat;
+        const geo = new THREE.PlaneGeometry(1, 1 / AR_CONFIG.videoAspectRatio);
+        const mat = new THREE.MeshBasicMaterial({ map: vTex, side: THREE.DoubleSide, toneMapped: false });
+        vMesh = new THREE.Mesh(geo, mat); vMesh.visible = false; scene.add(vMesh);
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
         setupBtns();
-        Debug.log('✅ Scene 就緒','ok');
-        setTimeout(()=>{showStatus('請掃描目標圖像',3500);setTimeout(()=>showGesture('觸控螢幕體驗流水效果',3000),1200);},800);
+        Debug.log('✅ Scene 就緒', 'ok');
+        setTimeout(() => { showStatus('請掃描目標圖像', 3500); setTimeout(() => showGesture('觸控螢幕體驗流水效果', 3000), 1200); }, 800);
       },
-      listeners:[
-        {event:'reality.imagefound',  process:onFound  },
-        {event:'reality.imageupdated',process:onUpdated},
-        {event:'reality.imagelost',   process:onLost   },
+      listeners: [
+        { event: 'reality.imagefound',   process: onFound   },
+        { event: 'reality.imageupdated', process: onUpdated },
+        { event: 'reality.imagelost',    process: onLost    },
       ],
-      onAttach:()=>{
-        window.addEventListener('resize',()=>{
-          const {renderer}=XR8.Threejs.xrScene();
-          renderer.setSize(window.innerWidth,window.innerHeight,false);
+      onAttach: () => {
+        window.addEventListener('resize', () => {
+          const { renderer } = XR8.Threejs.xrScene();
+          renderer.setSize(window.innerWidth, window.innerHeight, false);
         });
-        document.addEventListener('visibilitychange',()=>{
-          if(document.hidden){if(vEl)paV(vEl);if(appState.fs)paV(fsV);waterSketch?.setTouchActive(false,0,0);}
-          else{if(appState.fs)pV(fsV);else if(appState.tf&&vEl)pV(vEl);}
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) { if (vEl) paV(vEl); if (appState.fs) paV(fsV); waterSketch?.setTouchActive(false, 0, 0); }
+          else { if (appState.fs) pV(fsV); else if (appState.tf && vEl) pV(vEl); }
         });
       },
     };
   }
 
   // ═══════════════════════════════════════════════
-  //  手勢觸控
+  //  觸控手勢
   // ═══════════════════════════════════════════════
-  function setupGestureSystem(){
-    const rec=new GR(); let drawing=false;
-    const msgs={tap:'💧 水滴漣漪',circle:'🌀 漩渦水流',swipe:'🌊 強力水流','s-curve':'🐍 蛇行水流',default:'💧 基礎水流'};
-    function oS(e){if(e.target.closest('.controls-container,#fullscreen-video-container'))return;const t=e.touches?e.touches[0]:e;drawing=true;rec.start(t.clientX,t.clientY);waterSketch.setTouchActive(true,t.clientX,t.clientY);waterSketch.setWaterIntensity(appState.wi);showGesture('💧 流水啟動',600);}
-    function oM(e){if(!drawing)return;const t=e.touches?e.touches[0]:e;rec.add(t.clientX,t.clientY);waterSketch.updateTouchPosition(t.clientX,t.clientY);}
-    function oE(){if(!drawing)return;drawing=false;const g=rec.end();currentGesture=g;waterSketch.setGestureType(g);waterSketch.setTouchActive(false,0,0);showGesture(msgs[g]||msgs.default,2000);}
-    document.body.addEventListener('touchstart',oS,{passive:false});
-    document.body.addEventListener('touchmove', oM,{passive:false});
-    document.body.addEventListener('touchend',  oE);
-    document.body.addEventListener('mousedown', oS);
-    document.body.addEventListener('mousemove', oM);
-    document.body.addEventListener('mouseup',   oE);
+  function setupGestureSystem() {
+    const rec = new GR(); let drawing = false;
+    const msgs = { tap: '💧 水滴漣漪', circle: '🌀 漩渦水流', swipe: '🌊 強力水流', 's-curve': '🐍 蛇行水流', default: '💧 基礎水流' };
+    function oS(e) { if (e.target.closest('.controls-container,#fullscreen-video-container')) return; const t = e.touches ? e.touches[0] : e; drawing = true; rec.start(t.clientX, t.clientY); waterSketch.setTouchActive(true, t.clientX, t.clientY); waterSketch.setWaterIntensity(appState.wi); showGesture('💧 流水啟動', 600); }
+    function oM(e) { if (!drawing) return; const t = e.touches ? e.touches[0] : e; rec.add(t.clientX, t.clientY); waterSketch.updateTouchPosition(t.clientX, t.clientY); }
+    function oE() { if (!drawing) return; drawing = false; const g = rec.end(); currentGesture = g; waterSketch.setGestureType(g); waterSketch.setTouchActive(false, 0, 0); showGesture(msgs[g] || msgs.default, 2000); }
+    document.body.addEventListener('touchstart', oS, { passive: false });
+    document.body.addEventListener('touchmove',  oM, { passive: false });
+    document.body.addEventListener('touchend',   oE);
+    document.body.addEventListener('mousedown',  oS);
+    document.body.addEventListener('mousemove',  oM);
+    document.body.addEventListener('mouseup',    oE);
   }
 
   // ═══════════════════════════════════════════════
   //  主入口
   // ═══════════════════════════════════════════════
-  window.addEventListener('xrloaded', async ()=>{
-    Debug.log('✅ xrloaded 觸發！','ok');
-    showStatus('載入目標資料...',3000);
+  window.addEventListener('xrloaded', async () => {
+    Debug.log('✅ xrloaded 觸發！', 'ok');
+    showStatus('載入目標資料...', 3000);
+
     let targetData;
-    try{
-      Debug.log('fetch: '+AR_CONFIG.targetJsonPath,'inf');
-      const r=await fetch(AR_CONFIG.targetJsonPath);
-      if(!r.ok)throw new Error(`HTTP ${r.status}`);
-      targetData=await r.json();
-      Debug.log(`✅ JSON 成功，name="${targetData.name}" imagePath="${targetData.imagePath}"`,'ok');
-    }catch(err){
-      Debug.log('❌ JSON 失敗: '+err.message,'err');
+    try {
+      Debug.log('fetch: ' + AR_CONFIG.targetJsonPath, 'inf');
+      const r = await fetch(AR_CONFIG.targetJsonPath);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      targetData = await r.json();
+      Debug.log(`✅ JSON 成功，name="${targetData.name}"`, 'ok');
+    } catch (err) {
+      Debug.log('❌ JSON 失敗: ' + err.message, 'err');
       Debug.panel.classList.add('show');
-      showStatus('❌ 目標資料載入失敗',8000);
+      showStatus('❌ 目標資料載入失敗', 8000);
       return;
     }
-    XR8.XrController.configure({disableWorldTracking:true,imageTargetData:[targetData]});
-    const mods=[XR8.GlTextureRenderer.pipelineModule(),XR8.Threejs.pipelineModule(),XR8.XrController.pipelineModule()];
-    if(typeof XRExtras!=='undefined'){
-      if(XRExtras.AlmostThere)mods.push(XRExtras.AlmostThere.pipelineModule());
-      if(XRExtras.Loading)mods.push(XRExtras.Loading.pipelineModule());
-      if(XRExtras.RuntimeError)mods.push(XRExtras.RuntimeError.pipelineModule());
-    }
-    mods.push(createARPipelineModule());
-    XR8.addCameraPipelineModules(mods);
-    XR8.run({canvas:document.getElementById('renderCanvas')});
-    Debug.log('✅ XR8.run() 執行中','ok');
-    waterSketch=new p5(p5WaterSketch);
+
+    XR8.XrController.configure({ disableWorldTracking: true, imageTargetData: [targetData] });
+
+    // ✅ 只用核心三個模組，完全不加任何 XRExtras
+    XR8.addCameraPipelineModules([
+      XR8.GlTextureRenderer.pipelineModule(),
+      XR8.Threejs.pipelineModule(),
+      XR8.XrController.pipelineModule(),
+      createARPipelineModule(),
+    ]);
+
+    XR8.run({ canvas: document.getElementById('renderCanvas') });
+    Debug.log('✅ XR8.run() 執行中', 'ok');
+
+    waterSketch = new p5(p5WaterSketch);
     setupGestureSystem();
   });
 
-  window.addEventListener('xrerror',e=>{Debug.log('❌ xrerror: '+JSON.stringify(e.detail),'err');Debug.panel.classList.add('show');showStatus('❌ AR 引擎錯誤',10000);});
+  window.addEventListener('xrerror', e => {
+    Debug.log('❌ xrerror: ' + JSON.stringify(e.detail), 'err');
+    Debug.panel.classList.add('show');
+    showStatus('❌ AR 引擎錯誤', 10000);
+  });
 
-  window.addEventListener('load',async()=>{
-    Debug.log('頁面載入，preflight 中...','inf');
-    const ok=await preflightCheck();
-    if(!ok){Debug.panel.classList.add('show');showStatus('❌ 有檔案缺失',8000);}
+  window.addEventListener('load', async () => {
+    Debug.log('頁面載入，preflight 中...', 'inf');
+    const ok = await preflightCheck();
+    if (!ok) { Debug.panel.classList.add('show'); showStatus('❌ 有檔案缺失', 8000); }
   });
   </script>
 </body>
