@@ -1,128 +1,167 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>AR 全息體驗</title>
+
+  <!-- ══════════════════════════════════════════════════
+       ★★★  CONFIG — 在這裡設定所有海報  ★★★
+       複製 targets 陣列中的 { } 區塊即可新增第二張海報
+  ══════════════════════════════════════════════════ -->
   <script>
-    const AR_CONFIG = {
-      videoSrc:         'https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4',
-      targetJsonPath:   './image-targets/shoptarget.json',
-      videoAspectRatio: 16 / 9,
-      claudeApiKey:  '',
-      productName:   '海賊船金屬海報',
-      productInfo:   '一畫千言品牌，昇華金屬板印刷工藝，高解析度海賊船主題藝術海報，色彩永久定著於鋁板',
-      enableHoloRings:     true,
-      enableHoloParticles: true,
-    };
+  const AR_CONFIG = {
+
+    // ── 多目標海報設定 ────────────────────────────────
+    targets: [
+      {
+        jsonPath:         './image-targets/shoptarget.json',
+        videoSrc:         'https://pub-ac80c6d0a305452bbe0bdfcec65b6a2c.r2.dev/Pirate%20ship.mp4',
+        videoAspectRatio: 16 / 9,
+        productName:      '海賊船金屬海報',
+        productInfo:      '一畫千言品牌，昇華金屬板印刷工藝，高解析度海賊船主題藝術海報，色彩永久定著於鋁板',
+        accentColor:      '#00ccff',   // 全息主色（可改為金色 #ffcc44 等）
+      },
+      // ── 新增第二張海報時，取消下面的註解並填入資料 ──
+      // {
+      //   jsonPath:         './image-targets/target2.json',
+      //   videoSrc:         'https://your-r2.../video2.mp4',
+      //   videoAspectRatio: 16 / 9,
+      //   productName:      '第二張海報',
+      //   productInfo:      '描述文字',
+      //   accentColor:      '#ff8800',
+      // },
+    ],
+
+    // ── AI 設定 ───────────────────────────────────────
+    claudeApiKey: '',   // 填入 Anthropic API Key（空白 = 示範文字）
+
+    // ── 功能開關 ──────────────────────────────────────
+    enableHoloRings:       true,
+    enableHoloParticles:   true,
+    enableGyroParallax:    true,  // ★ 陀螺儀視差（手機傾斜讓全息元素浮動）
+    enableScreenshot:      true,  // ★ AR 截圖分享按鈕
+  };
   </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
+  <!-- SLAM 已移除：data-preload-chunks="slam" 不再需要 -->
+  <script src="./external/xr/xr.js"></script>
+
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
-    #renderCanvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0;display:block}
-    [class*="watermark"],[id*="watermark"],[class*="xr8"],[id*="xr8"],[class*="poweredby"],[id*="powered"]{display:none!important}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
+  #renderCanvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0;display:block}
+  [class*="watermark"],[id*="watermark"],[class*="xr8"],[id*="xr8"],[class*="poweredby"],[id*="powered"]{display:none!important}
 
-    /* Scanning overlay */
-    #scan-ov{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;pointer-events:none;background:rgba(0,0,0,0.2);opacity:1;transition:opacity 0.6s}
-    #scan-ov.hidden{opacity:0}
-    .sbox{width:230px;height:230px;position:relative;border:2px solid rgba(0,220,255,0.4);border-radius:14px;box-shadow:0 0 30px rgba(0,220,255,0.15)}
-    .sline{position:absolute;height:2px;width:100%;top:0;background:linear-gradient(90deg,transparent,#00eeff 30%,#00eeff 70%,transparent);animation:scan 2s ease-in-out infinite;box-shadow:0 0 10px rgba(0,238,255,0.8)}
-    .corn{position:absolute;width:22px;height:22px;border-color:rgba(0,238,255,0.9);border-style:solid;border-width:0}
-    .c-tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-radius:5px 0 0 0}
-    .c-tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-radius:0 5px 0 0}
-    .c-bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 5px}
-    .c-br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 5px 0}
-    #slam-hint{font-family:monospace;font-size:11px;letter-spacing:2px;color:rgba(0,220,255,0.8);text-align:center;line-height:2;animation:pulse 2s infinite}
+  /* ── Scanning overlay ── */
+  #scan-ov{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;pointer-events:none;background:rgba(0,0,0,0.18);opacity:1;transition:opacity 0.6s}
+  #scan-ov.hidden{opacity:0;pointer-events:none}
+  .sbox{width:230px;height:230px;position:relative;border:2px solid rgba(0,220,255,0.4);border-radius:14px;box-shadow:0 0 30px rgba(0,220,255,0.15)}
+  .sline{position:absolute;height:2px;width:100%;top:0;background:linear-gradient(90deg,transparent,#00eeff 30%,#00eeff 70%,transparent);animation:scan 2s ease-in-out infinite;box-shadow:0 0 10px rgba(0,238,255,0.8)}
+  .corn{position:absolute;width:22px;height:22px;border-color:rgba(0,238,255,0.9);border-style:solid;border-width:0}
+  .c-tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-radius:5px 0 0 0}
+  .c-tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-radius:0 5px 0 0}
+  .c-bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 5px}
+  .c-br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 5px 0}
+  #scan-label{font-family:monospace;font-size:11px;letter-spacing:2px;color:rgba(0,220,255,0.8);text-align:center;line-height:2;animation:pulse 2s infinite}
 
-    @keyframes scan{0%{transform:translateY(0)}50%{transform:translateY(225px)}100%{transform:translateY(0)}}
-    @keyframes pulse{0%,100%{opacity:0.9}50%{opacity:0.25}}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
-    @keyframes typing{to{border-color:transparent}}
+  /* ── 動畫 ── */
+  @keyframes scan{0%{transform:translateY(0)}50%{transform:translateY(225px)}100%{transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:.9}50%{opacity:.25}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+  @keyframes typing{to{border-color:transparent}}
+  @keyframes ringBurst{0%{transform:scale(1);opacity:.8}60%{transform:scale(2.2);opacity:.3}100%{transform:scale(3);opacity:0}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
-    /* SLAM badge */
-    #slam-badge{position:fixed;top:14px;left:14px;display:flex;align-items:center;gap:7px;padding:6px 13px;background:rgba(0,8,20,0.88);border:1px solid rgba(0,200,80,0.5);border-radius:14px;backdrop-filter:blur(8px);font-family:monospace;font-size:10px;color:rgba(0,200,80,0.9);z-index:100;opacity:0;transition:opacity 0.8s}
-    #slam-badge.show{opacity:1}
-    #slam-dot{width:7px;height:7px;background:#00c850;border-radius:50%;animation:blink 1.6s infinite;flex-shrink:0}
+  /* ── Status ── */
+  #status{position:fixed;top:14px;left:50%;transform:translateX(-50%);padding:7px 16px;background:rgba(0,5,18,0.9);border:1px solid rgba(0,180,255,0.4);border-radius:20px;backdrop-filter:blur(10px);font-family:monospace;font-size:11px;color:rgba(0,210,255,0.95);z-index:100;opacity:0;transition:opacity .3s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+  #status.show{opacity:1}
 
-    /* Status */
-    #status{position:fixed;top:14px;left:50%;transform:translateX(-50%);padding:7px 16px;background:rgba(0,5,18,0.9);border:1px solid rgba(0,180,255,0.4);border-radius:20px;backdrop-filter:blur(10px);font-family:monospace;font-size:11px;color:rgba(0,210,255,0.95);z-index:100;opacity:0;transition:opacity 0.3s;white-space:nowrap}
-    #status.show{opacity:1}
+  /* ── Target badge（左上，顯示目前偵測到的海報名稱）── */
+  #target-badge{position:fixed;top:14px;left:14px;display:flex;align-items:center;gap:7px;padding:6px 13px;background:rgba(0,8,20,0.88);border:1px solid rgba(0,175,255,0.4);border-radius:14px;backdrop-filter:blur(8px);font-family:monospace;font-size:10px;color:rgba(0,200,255,0.9);z-index:100;opacity:0;transition:opacity .8s;max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #target-badge.show{opacity:1}
+  #target-dot{width:7px;height:7px;border-radius:50%;animation:blink 1.6s infinite;flex-shrink:0}
 
-    /* Flash */
-    #flash{position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle,rgba(0,210,255,0.12),transparent 68%);z-index:5;pointer-events:none;opacity:0;transition:opacity 0.8s}
-    #flash.active{opacity:1}
+  /* ── Flash ── */
+  #flash{position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;opacity:0;transition:opacity .8s;background:radial-gradient(circle,rgba(0,210,255,0.14),transparent 68%)}
+  #flash.on{opacity:1}
 
-    /* ════ HOLO PANEL — 底部浮動，不與影片重疊 ════ */
-    #holo-panel{position:fixed;bottom:90px;left:10px;right:10px;z-index:50;opacity:0;transform:translateY(20px);transition:opacity 0.5s,transform 0.5s;pointer-events:none}
-    #holo-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
-    .hcard{background:linear-gradient(160deg,rgba(0,14,42,0.97),rgba(0,5,20,0.98));border:1.5px solid rgba(0,190,255,0.5);border-radius:18px;padding:16px 18px 14px;backdrop-filter:blur(18px);box-shadow:0 0 50px rgba(0,140,255,0.2),inset 0 1px 0 rgba(0,220,255,0.1);position:relative;overflow:hidden}
-    .hcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,200,255,0.7) 40%,rgba(0,200,255,0.7) 60%,transparent)}
-    .hcard::after{content:'';position:absolute;left:0;right:0;height:50px;background:linear-gradient(180deg,transparent,rgba(0,150,255,0.04),transparent);animation:hscan 3.5s ease-in-out infinite;pointer-events:none}
-    @keyframes hscan{0%{top:0}100%{top:100%}}
-    .hsysbar{display:flex;justify-content:space-between;margin-bottom:8px;font-family:monospace;font-size:9px;letter-spacing:1.5px;color:rgba(0,160,255,0.5)}
-    .hsdot{display:inline-block;width:5px;height:5px;background:rgba(0,210,255,0.7);border-radius:50%;margin-right:5px;animation:blink 2s infinite}
-    .hdiv{height:1px;margin:7px 0;background:linear-gradient(90deg,transparent,rgba(0,190,255,0.3) 30%,rgba(0,190,255,0.3) 70%,transparent)}
-    .htitle{font-size:21px;font-weight:700;color:rgba(230,248,255,1);text-shadow:0 0 18px rgba(0,200,255,0.65),0 0 36px rgba(0,150,255,0.25);letter-spacing:1px;margin-bottom:3px}
-    .hbrand{font-family:monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,160,255,0.55);margin-bottom:10px}
-    .htext{font-size:15px;line-height:1.8;color:rgba(210,242,255,0.92);min-height:48px}
-    .hcursor{display:inline-block;width:2px;height:15px;background:rgba(0,220,255,0.9);margin-left:2px;vertical-align:middle;animation:typing 0.6s step-end infinite alternate}
-    .hcursor.done{display:none}
-    .hfooter{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:monospace;font-size:9px;letter-spacing:1px;color:rgba(0,140,200,0.5)}
-    .hpill{padding:2px 8px;background:rgba(0,70,180,0.25);border:1px solid rgba(0,150,255,0.3);border-radius:7px;font-size:9px;color:rgba(0,175,255,0.7)}
+  /* ── Ring burst overlay（目標找到時的光環爆發）── */
+  #ring-burst{position:fixed;top:50%;left:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;border:3px solid rgba(0,210,255,0.7);z-index:6;pointer-events:none;opacity:0}
+  #ring-burst.burst{animation:ringBurst 0.7s ease-out forwards}
 
-    /* Controls */
-    .ctrl-row{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:10px;align-items:flex-end}
-    .btn-col{display:flex;flex-direction:column;align-items:center;gap:4px}
-    .cbtn{width:52px;height:52px;background:rgba(0,8,24,0.85);border:1.5px solid rgba(0,175,255,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(10px);transition:all 0.2s}
-    .cbtn:active,.cbtn.active{background:rgba(0,95,215,0.45);border-color:rgba(0,230,255,0.95);box-shadow:0 0 14px rgba(0,200,255,0.3)}
-    .cbtn svg{width:22px;height:22px;fill:rgba(0,210,255,0.9)}
-    .blbl{font-family:monospace;font-size:9px;color:rgba(0,155,255,0.6);white-space:nowrap}
+  /* ════ AI 全息面板 — 底部浮動 ════ */
+  #holo-panel{position:fixed;bottom:90px;left:10px;right:10px;z-index:50;opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s;pointer-events:none}
+  #holo-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
+  .hcard{background:linear-gradient(160deg,rgba(0,14,42,0.97),rgba(0,5,20,0.98));border:1.5px solid var(--holo-accent,rgba(0,190,255,0.5));border-radius:18px;padding:16px 18px 14px;backdrop-filter:blur(18px);box-shadow:0 0 50px rgba(0,140,255,0.18),inset 0 1px 0 rgba(0,220,255,0.09);position:relative;overflow:hidden;transition:border-color .5s}
+  .hcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--holo-accent,rgba(0,200,255,0.7)) 40%,var(--holo-accent,rgba(0,200,255,0.7)) 60%,transparent)}
+  .hcard::after{content:'';position:absolute;left:0;right:0;height:50px;background:linear-gradient(180deg,transparent,rgba(0,150,255,0.04),transparent);animation:hscan 3.5s ease-in-out infinite;pointer-events:none}
+  @keyframes hscan{0%{top:0}100%{top:100%}}
+  .hsysbar{display:flex;justify-content:space-between;margin-bottom:8px;font-family:monospace;font-size:9px;letter-spacing:1.5px;color:rgba(0,160,255,0.5)}
+  .hsdot{display:inline-block;width:5px;height:5px;background:rgba(0,210,255,0.7);border-radius:50%;margin-right:5px;animation:blink 2s infinite}
+  .hdiv{height:1px;margin:7px 0;background:linear-gradient(90deg,transparent,rgba(0,190,255,0.3) 30%,rgba(0,190,255,0.3) 70%,transparent)}
+  .htitle{font-size:21px;font-weight:700;color:rgba(230,248,255,1);text-shadow:0 0 18px rgba(0,200,255,0.65);letter-spacing:1px;margin-bottom:3px;animation:fadeUp .4s ease}
+  .hbrand{font-family:monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,160,255,0.55);margin-bottom:10px}
+  .htext{font-size:15px;line-height:1.8;color:rgba(210,242,255,0.92);min-height:48px}
+  .hcursor{display:inline-block;width:2px;height:15px;background:rgba(0,220,255,0.9);margin-left:2px;vertical-align:middle;animation:typing .6s step-end infinite alternate}
+  .hcursor.done{display:none}
+  .hfooter{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:monospace;font-size:9px;letter-spacing:1px;color:rgba(0,140,200,0.5)}
+  .hpill{padding:2px 8px;background:rgba(0,70,180,0.25);border:1px solid rgba(0,150,255,0.3);border-radius:7px;font-size:9px;color:rgba(0,175,255,0.7)}
 
-    /* Fullscreen */
-    #fs-wrap{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999;background:rgba(0,0,0,0.97);display:none;align-items:center;justify-content:center;cursor:pointer}
-    #fs-wrap.show{display:flex}
-    #fs-vid{max-width:100%;max-height:100%}
+  /* ── Controls ── */
+  .ctrl-row{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:8px;align-items:flex-end}
+  .btn-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .cbtn{width:50px;height:50px;background:rgba(0,8,24,0.85);border:1.5px solid rgba(0,175,255,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent}
+  .cbtn:active,.cbtn.active{background:rgba(0,95,215,0.45);border-color:rgba(0,230,255,0.95);box-shadow:0 0 14px rgba(0,200,255,0.3)}
+  .cbtn svg{width:21px;height:21px;fill:rgba(0,210,255,0.9)}
+  .cbtn.snap-btn{border-color:rgba(255,200,0,0.5)}
+  .cbtn.snap-btn svg{fill:rgba(255,220,60,0.9)}
+  .cbtn.snap-btn:active{background:rgba(200,150,0,0.35);border-color:rgba(255,220,0,.95);box-shadow:0 0 14px rgba(255,200,0,.3)}
+  .blbl{font-family:monospace;font-size:9px;color:rgba(0,155,255,0.6);white-space:nowrap}
+  .blbl.snap-lbl{color:rgba(255,200,0,0.55)}
 
-    /* Debug */
-    #dbg{position:fixed;bottom:84px;left:8px;right:8px;max-height:155px;overflow-y:auto;background:rgba(0,0,0,0.94);border:1px solid rgba(255,70,70,0.3);border-radius:10px;padding:8px;font-family:monospace;font-size:10px;z-index:300;display:none}
-    #dbg.show{display:block}
-    #dbg .ok{color:#88ff88} #dbg .err{color:#ff6666} #dbg .inf{color:#88ccff}
+  /* ── Screenshot flash ── */
+  #snap-flash{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9998;pointer-events:none;opacity:0;transition:opacity .15s}
+  #snap-flash.on{opacity:0.7}
 
-    /* ════ PERMISSION GATE ════ */
-    #perm-gate{position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;transition:opacity 0.7s}
-    #perm-gate.fade{opacity:0;pointer-events:none}
-    .pgate-logo{font-family:monospace;font-size:11px;letter-spacing:3px;color:rgba(0,180,255,0.5);text-align:center}
-    .pgate-title{font-size:26px;font-weight:700;color:#fff;text-align:center;letter-spacing:1px;text-shadow:0 0 30px rgba(0,180,255,0.4)}
-    .pgate-sub{font-size:13px;color:rgba(200,230,255,0.6);text-align:center;line-height:1.7;max-width:260px}
-    .pgate-hints{display:flex;flex-direction:column;gap:8px;width:260px}
-    .pgate-hint{display:flex;align-items:center;gap:10px;font-size:11px;color:rgba(160,210,255,0.55);font-family:monospace}
-    .pgate-hint-dot{width:6px;height:6px;border-radius:50%;background:rgba(0,200,255,0.5);flex-shrink:0}
-    #btn-start{margin-top:8px;padding:16px 48px;background:transparent;border:1.5px solid rgba(0,200,255,0.7);border-radius:50px;color:rgba(0,220,255,0.95);font-size:16px;font-family:monospace;letter-spacing:2px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
-    #btn-start::before{content:'';position:absolute;inset:0;background:rgba(0,180,255,0.08);opacity:0;transition:opacity 0.2s}
-    #btn-start:active::before{opacity:1}
-    #btn-start:disabled{opacity:0.4;cursor:wait;letter-spacing:1px}
-    .pgate-note{font-size:10px;color:rgba(150,180,210,0.35);text-align:center;max-width:240px;line-height:1.6;font-family:monospace}
-    /* 掃描線裝飾 */
-    .pgate-scan{width:180px;height:180px;position:relative;border:1px solid rgba(0,200,255,0.2);border-radius:12px}
-    .pgate-scan::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,220,255,0.6),transparent);animation:pgscan 2.5s ease-in-out infinite}
-    @keyframes pgscan{0%{transform:translateY(0)}50%{transform:translateY(179px)}100%{transform:translateY(0)}}
-    .pgcorn{position:absolute;width:18px;height:18px;border-color:rgba(0,200,255,0.7);border-style:solid;border-width:0}
-    .pgc-tl{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px;border-radius:4px 0 0 0}
-    .pgc-tr{top:-1px;right:-1px;border-top-width:2px;border-right-width:2px;border-radius:0 4px 0 0}
-    .pgc-bl{bottom:-1px;left:-1px;border-bottom-width:2px;border-left-width:2px;border-radius:0 0 0 4px}
-    .pgc-br{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px;border-radius:0 0 4px 0}
-    .pgcenter{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
-    .pgcenter-icon{font-size:36px;margin-bottom:6px}
-    .pgcenter-text{font-family:monospace;font-size:9px;letter-spacing:2px;color:rgba(0,200,255,0.5);animation:pulse 2s infinite}
+  /* ── Fullscreen ── */
+  #fs-wrap{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999;background:rgba(0,0,0,.97);display:none;align-items:center;justify-content:center;cursor:pointer}
+  #fs-wrap.show{display:flex}
+  #fs-vid{max-width:100%;max-height:100%}
+
+  /* ── Debug ── */
+  #dbg{position:fixed;bottom:84px;left:8px;right:8px;max-height:155px;overflow-y:auto;background:rgba(0,0,0,0.94);border:1px solid rgba(255,70,70,0.3);border-radius:10px;padding:8px;font-family:monospace;font-size:10px;z-index:300;display:none}
+  #dbg.show{display:block}
+  #dbg .ok{color:#88ff88}#dbg .err{color:#ff6666}#dbg .inf{color:#88ccff}
+
+  /* ════ PERMISSION GATE ════ */
+  #perm-gate{position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .7s}
+  #perm-gate.fade{opacity:0;pointer-events:none}
+  .pgate-logo{font-family:monospace;font-size:11px;letter-spacing:3px;color:rgba(0,180,255,0.5);text-align:center}
+  .pgate-scan{width:160px;height:160px;position:relative;border:1px solid rgba(0,200,255,0.2);border-radius:12px}
+  .pgate-scan::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,220,255,0.6),transparent);animation:pgscan 2.5s ease-in-out infinite}
+  @keyframes pgscan{0%{transform:translateY(0)}50%{transform:translateY(159px)}100%{transform:translateY(0)}}
+  .pgcorn{position:absolute;width:16px;height:16px;border-color:rgba(0,200,255,0.7);border-style:solid;border-width:0}
+  .pgc-tl{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px}
+  .pgc-tr{top:-1px;right:-1px;border-top-width:2px;border-right-width:2px}
+  .pgc-bl{bottom:-1px;left:-1px;border-bottom-width:2px;border-left-width:2px}
+  .pgc-br{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px}
+  .pgcenter{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+  .pgcenter-icon{font-size:32px;margin-bottom:4px}
+  .pgcenter-text{font-family:monospace;font-size:9px;letter-spacing:2px;color:rgba(0,200,255,0.5);animation:pulse 2s infinite}
+  .pgate-title{font-size:24px;font-weight:700;color:#fff;text-align:center;text-shadow:0 0 30px rgba(0,180,255,0.4)}
+  .pgate-sub{font-size:12px;color:rgba(200,230,255,0.55);text-align:center;line-height:1.8;max-width:260px}
+  #btn-start{padding:15px 44px;background:transparent;border:1.5px solid rgba(0,200,255,0.7);border-radius:50px;color:rgba(0,220,255,0.95);font-size:15px;font-family:monospace;letter-spacing:2px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  #btn-start:disabled{opacity:.4;cursor:wait}
+  .pgate-note{font-size:10px;color:rgba(150,180,210,0.3);text-align:center;max-width:240px;line-height:1.6;font-family:monospace}
   </style>
 </head>
 <body>
 
-  <!-- ★ PERMISSION GATE — 一次取得所有權限 ★ -->
+  <!-- Permission Gate -->
   <div id="perm-gate">
     <div class="pgate-logo">一畫千言 × AR EXPERIENCE</div>
     <div class="pgate-scan">
@@ -135,35 +174,40 @@
     </div>
     <div class="pgate-title">AR 全息體驗</div>
     <div class="pgate-sub">掃描金屬海報，解鎖 AI 全息導覽</div>
-    <div class="pgate-hints">
-      <div class="pgate-hint"><div class="pgate-hint-dot"></div>需要相機使用權限</div>
-      <div class="pgate-hint"><div class="pgate-hint-dot"></div>需要動作感測器權限（iOS）</div>
-      <div class="pgate-hint"><div class="pgate-hint-dot"></div>點擊後僅詢問一次</div>
-    </div>
     <button id="btn-start">▶ 開始體驗</button>
-    <div class="pgate-note">點擊後系統將詢問相機與感測器授權<br>請點選「允許」以啟動 AR 功能</div>
+    <div class="pgate-note">點擊後系統將詢問相機授權<br>請點選「允許」以啟動 AR</div>
   </div>
 
+  <!-- AR Canvas -->
   <canvas id="renderCanvas"></canvas>
   <div id="flash"></div>
+  <div id="ring-burst"></div>
+  <div id="snap-flash"></div>
 
+  <!-- Scanning UI -->
   <div id="scan-ov">
     <div class="sbox">
       <div class="sline"></div>
       <div class="corn c-tl"></div><div class="corn c-tr"></div>
       <div class="corn c-bl"></div><div class="corn c-br"></div>
     </div>
-    <div id="slam-hint">SLAM + IMAGE TRACKING<br>請緩慢移動手機掃描環境<br>再對準目標圖像</div>
+    <div id="scan-label">IMAGE TRACKING<br>對準金屬海報</div>
   </div>
 
-  <div id="slam-badge"><div id="slam-dot"></div><span id="slam-txt">SLAM 初始化中</span></div>
+  <!-- Target badge (top-left) -->
+  <div id="target-badge">
+    <div id="target-dot" style="background:#00ccff"></div>
+    <span id="target-name">偵測中</span>
+  </div>
+
+  <!-- Status -->
   <div id="status"></div>
 
-  <!-- ★ AI 全息面板 — 底部浮動 HTML，完全清晰 ★ -->
+  <!-- AI 全息面板 -->
   <div id="holo-panel">
     <div class="hcard">
       <div class="hsysbar">
-        <span><span class="hsdot"></span>AR · AI SYSTEM ONLINE</span>
+        <span><span class="hsdot"></span>AR · AI SYSTEM</span>
         <span id="hclock">--:--:--</span>
       </div>
       <div class="hdiv"></div>
@@ -171,17 +215,19 @@
       <div class="hbrand">一畫千言 × AI NARRATOR</div>
       <div class="hdiv"></div>
       <div class="htext">
-        <span id="holo-content">⬛ 正在初始化 AI 導覽…</span><span class="hcursor" id="holo-cur"></span>
+        <span id="holo-content">⬛ 初始化中…</span><span class="hcursor" id="holo-cur"></span>
       </div>
       <div class="hfooter">
-        <span id="hfooter-l">◉ SLAM ANCHORED</span>
-        <span class="hpill" id="hpill">IMG LOCK</span>
+        <span id="hfooter-l">◉ IMAGE LOCK</span>
+        <span class="hpill" id="hpill">READY</span>
       </div>
     </div>
   </div>
 
+  <!-- Fullscreen video -->
   <div id="fs-wrap"><video id="fs-vid" playsinline webkit-playsinline loop></video></div>
 
+  <!-- Controls -->
   <div class="ctrl-row">
     <div class="btn-col">
       <button class="cbtn" id="bp">
@@ -205,17 +251,22 @@
         <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
       </button><span class="blbl">全息</span>
     </div>
+    <div class="btn-col" id="snap-col" style="display:none">
+      <button class="cbtn snap-btn" id="bsnap">
+        <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zm6.4-9.6H17l-1.4-2H8.4L7 5.6H5.6A2.4 2.4 0 0 0 3.2 8v9.6a2.4 2.4 0 0 0 2.4 2.4h12.8a2.4 2.4 0 0 0 2.4-2.4V8a2.4 2.4 0 0 0-2.4-2.4zM12 17.6A4.8 4.8 0 1 1 12 8a4.8 4.8 0 0 1 0 9.6z"/></svg>
+      </button><span class="blbl snap-lbl">截圖</span>
+    </div>
     <div class="btn-col">
-      <button class="cbtn" id="bdbg" style="border-color:rgba(255,140,0,0.35)">
-        <svg viewBox="0 0 24 24" style="fill:rgba(255,165,0,0.8)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-      </button><span class="blbl">偵錯</span>
+      <button class="cbtn" id="bdbg" style="border-color:rgba(255,140,0,.35)">
+        <svg viewBox="0 0 24 24" style="fill:rgba(255,165,0,.8)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      </button><span class="blbl" style="color:rgba(255,140,0,.5)">偵錯</span>
     </div>
   </div>
 
   <div id="dbg"></div>
 
   <script>
-  // ═══ DEBUG ═══════════════════════════════════════════
+  // ═══ DEBUG ═══════════════════════════════════════════════
   const D = {
     el: null,
     init() {
@@ -225,11 +276,9 @@
       b.addEventListener('touchstart', () => { t = setTimeout(() => this.el.classList.toggle('show'), 1200); });
       b.addEventListener('touchend',   () => clearTimeout(t));
       b.addEventListener('click',      () => this.el.classList.toggle('show'));
-      const oe = console.error.bind(console);
-      console.error = (...a) => { this.log(a.join(' '), 'err'); oe(...a); };
       window.addEventListener('error', e => this.log(e.message + ' L' + e.lineno, 'err'));
     },
-    log(m, t='inf') {
+    log(m, t = 'inf') {
       if (!this.el) return;
       const d = document.createElement('div');
       d.className = t;
@@ -240,54 +289,70 @@
   };
   D.init();
 
-  // ═══ PREFLIGHT ════════════════════════════════════════
+  // ═══ PREFLIGHT ═══════════════════════════════════════════
   async function preflight() {
-    for (const [u,l] of [
-      ['./external/xr/xr.js','xr.js'],
-      ['./external/xr/xr-slam.js','xr-slam.js'],
-      [AR_CONFIG.targetJsonPath,'target JSON']
+    for (const [u, l] of [
+      ['./external/xr/xr.js',      'xr.js'],
+      ...AR_CONFIG.targets.map((t,i) => [t.jsonPath, 'target['+i+']']),
     ]) {
       try {
-        const r = await fetch(u, {method:'HEAD'});
-        D.log((r.ok?'✅':'❌') + ' ' + l + (r.ok?'':' HTTP'+r.status), r.ok?'ok':'err');
+        const r = await fetch(u, { method: 'HEAD' });
+        D.log((r.ok ? '✅' : '❌') + ' ' + l + (r.ok ? '' : ' HTTP' + r.status), r.ok ? 'ok' : 'err');
       } catch { D.log('❌ ' + l, 'err'); }
     }
   }
 
-  // ═══ UI ══════════════════════════════════════════════
+  // ═══ UI HELPERS ══════════════════════════════════════════
   let _st;
-  function showSt(m,d=2800){const e=document.getElementById('status');e.textContent=m;e.classList.add('show');clearTimeout(_st);_st=setTimeout(()=>e.classList.remove('show'),d);}
-  function flash(){const f=document.getElementById('flash');f.classList.add('active');setTimeout(()=>f.classList.remove('active'),900);}
-  function slamBadge(s){
-    const b=document.getElementById('slam-badge'),dot=document.getElementById('slam-dot'),t=document.getElementById('slam-txt');
-    b.classList.add('show');
-    if(s==='locked'){dot.style.background='#00ff88';b.style.borderColor='rgba(0,255,136,0.5)';b.style.color='rgba(0,255,136,0.92)';t.textContent='SLAM 已鎖定 · 世界錨定';}
-    else if(s==='tracking'){dot.style.background='#00ccff';b.style.borderColor='rgba(0,200,255,0.5)';b.style.color='rgba(0,200,255,0.92)';t.textContent='SLAM 追蹤中';}
-    else{dot.style.background='rgba(255,175,0,0.9)';b.style.borderColor='rgba(255,175,0,0.4)';b.style.color='rgba(255,175,0,0.9)';t.textContent='SLAM 初始化中';}
+  function showSt(m, d = 2800) {
+    const e = document.getElementById('status');
+    e.textContent = m; e.classList.add('show');
+    clearTimeout(_st); _st = setTimeout(() => e.classList.remove('show'), d);
+  }
+  function doFlash() {
+    const f = document.getElementById('flash');
+    f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 900);
+  }
+  function doBurst() {
+    const r = document.getElementById('ring-burst');
+    r.classList.remove('burst');
+    void r.offsetWidth;           // reflow to restart animation
+    r.classList.add('burst');
+  }
+  function setTargetBadge(name, color, state) {
+    const b = document.getElementById('target-badge');
+    document.getElementById('target-dot').style.background = color;
+    document.getElementById('target-name').textContent = name;
+    b.classList.toggle('show', state !== 'hide');
   }
 
-  // ═══ HOLO PANEL ══════════════════════════════════════
+  // ═══ HOLO PANEL ══════════════════════════════════════════
   const HP = {
-    _t: null, _typing: false,
+    _t: null,
     init() {
       setInterval(() => {
         document.getElementById('hclock').textContent =
-          new Date().toLocaleTimeString('zh-TW',{hour12:false});
+          new Date().toLocaleTimeString('zh-TW', { hour12: false });
       }, 1000);
     },
-    show(){ document.getElementById('holo-panel').classList.add('show'); },
-    hide(){ document.getElementById('holo-panel').classList.remove('show'); },
-    toggle(){ document.getElementById('holo-panel').classList.toggle('show'); },
-    setMode(m){ document.getElementById('hpill').textContent = m; },
+    show()   { document.getElementById('holo-panel').classList.add('show'); },
+    hide()   { document.getElementById('holo-panel').classList.remove('show'); },
+    toggle() { document.getElementById('holo-panel').classList.toggle('show'); },
+    setMode(m) { document.getElementById('hpill').textContent = m; },
+    setTitle(t) { document.getElementById('holo-title').textContent = t; },
+    // Dynamically update holo accent color from target config
+    setAccent(hex) {
+      document.querySelector('.hcard').style.setProperty('--holo-accent', hex + '88');
+      document.getElementById('target-dot').style.background = hex;
+    },
     setText(txt) {
       clearTimeout(this._t);
-      this._typing = true;
       const c = document.getElementById('holo-content');
       const cur = document.getElementById('holo-cur');
       c.textContent = ''; cur.classList.remove('done');
       let i = 0;
       const go = () => {
-        if (i >= txt.length) { this._typing=false; cur.classList.add('done'); document.getElementById('hfooter-l').textContent='◉ AI READY · SLAM ANCHORED'; return; }
+        if (i >= txt.length) { cur.classList.add('done'); document.getElementById('hfooter-l').textContent = '◉ AI READY'; return; }
         c.textContent += txt[i++];
         this._t = setTimeout(go, 30);
       };
@@ -295,294 +360,521 @@
     }
   };
 
-  // ═══ AI ══════════════════════════════════════════════
+  // ═══ AI ══════════════════════════════════════════════════
   const DEMOS = [
-    '此幅海賊船金屬海報採用昇華印刷工藝，色彩永久定著於鋁板，不褪色、不龜裂。細膩筆觸捕捉大海壯闊與船帆張力，典藏首選。',
+    '此幅金屬海報採用昇華印刷工藝，色彩永久定著於鋁板，不褪色、不龜裂。細膩筆觸捕捉大海壯闊與船帆張力，典藏首選。',
     '以一畫千言獨特工藝打造，高溫昇華讓色彩融入金屬纖維，展現超越紙張的層次感。每一塊金屬海報都是獨一無二的藝術品。',
   ];
-  async function getAI() {
+  async function getAI(target) {
     if (!AR_CONFIG.claudeApiKey) {
-      await new Promise(r=>setTimeout(r,800));
-      return DEMOS[Math.floor(Math.random()*DEMOS.length)];
+      await new Promise(r => setTimeout(r, 600));
+      return DEMOS[Math.floor(Math.random() * DEMOS.length)];
     }
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':AR_CONFIG.claudeApiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:160,messages:[{role:'user',content:`你是AR博物館語音導覽AI。用繁體中文、80字以內介紹「${AR_CONFIG.productName}」。資訊：${AR_CONFIG.productInfo}。語氣如博物館解說員，簡潔有力。`}]})
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': AR_CONFIG.claudeApiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 160,
+          messages: [{ role: 'user', content:
+            `你是AR博物館語音導覽AI。用繁體中文、80字以內介紹「${target.productName}」。資訊：${target.productInfo}。語氣如博物館解說員，簡潔有力。`
+          }]
+        }),
       });
-      if(!res.ok) throw new Error('HTTP'+res.status);
-      const d=await res.json();
-      return d.content?.[0]?.text?.trim()||DEMOS[0];
-    } catch(e) { D.log('AI err:'+e.message,'inf'); return DEMOS[0]; }
+      if (!res.ok) throw new Error('HTTP' + res.status);
+      const d = await res.json();
+      return d.content?.[0]?.text?.trim() || DEMOS[0];
+    } catch (e) { D.log('AI err: ' + e.message, 'inf'); return DEMOS[0]; }
   }
 
-  // ═══ THREE.JS 裝飾 ════════════════════════════════════
-  function mkRing(r,tube,hex,op){
-    const m=new THREE.Mesh(new THREE.TorusGeometry(r,tube,6,64),new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:op}));
-    m.rotation.x=Math.PI/2; return m;
+  // ═══ ★ GYROSCOPE PARALLAX ════════════════════════════════
+  // DeviceOrientation → holo group 輕微偏移，打造浮空立體感
+  const Gyro = {
+    beta:  0,  // 前後傾斜 (-180~180)
+    gamma: 0,  // 左右傾斜 (-90~90)
+    _raw_beta:  0,
+    _raw_gamma: 0,
+    _base_beta:  null,
+    _base_gamma: null,
+
+    init() {
+      if (!AR_CONFIG.enableGyroParallax) return;
+      const handler = (e) => {
+        this._raw_beta  = e.beta  || 0;
+        this._raw_gamma = e.gamma || 0;
+        // 校正基準（目標找到時設定）
+        if (this._base_beta !== null) {
+          // 平滑插值，避免抖動
+          this.beta  += ((this._raw_beta  - this._base_beta)  - this.beta)  * 0.08;
+          this.gamma += ((this._raw_gamma - this._base_gamma) - this.gamma) * 0.08;
+          // 限制範圍 ±20 度
+          this.beta  = Math.max(-20, Math.min(20, this.beta));
+          this.gamma = Math.max(-20, Math.min(20, this.gamma));
+        }
+      };
+      window.addEventListener('deviceorientation', handler, true);
+      D.log('✅ Gyro parallax 監聽中', 'ok');
+    },
+
+    calibrate() {
+      this._base_beta  = this._raw_beta;
+      this._base_gamma = this._raw_gamma;
+      this.beta = 0; this.gamma = 0;
+    },
+
+    // 回傳 Three.js offset（放大係數讓視差更明顯）
+    offset(scale) {
+      return {
+        x: this.gamma * 0.003 * scale,
+        y: -this.beta * 0.003 * scale,
+      };
+    }
+  };
+
+  // ═══ ★ AR SCREENSHOT / SHARE ════════════════════════════
+  const Screenshot = {
+    _pendingCapture: false,
+    _canvas: null,
+    _lastDataUrl: null,
+
+    init(canvas) {
+      this._canvas = canvas;
+      if (!AR_CONFIG.enableScreenshot) return;
+      document.getElementById('snap-col').style.display = 'flex';
+      document.getElementById('bsnap').addEventListener('click', () => this.capture());
+    },
+
+    // 在 onUpdate 裡被呼叫，抓取當前畫格
+    tick() {
+      if (!this._pendingCapture || !this._canvas) return;
+      this._pendingCapture = false;
+      try {
+        this._lastDataUrl = this._canvas.toDataURL('image/jpeg', 0.92);
+        this._share(this._lastDataUrl);
+      } catch (e) {
+        D.log('截圖失敗: ' + e.message, 'err');
+        showSt('❌ 截圖失敗，請重試');
+      }
+    },
+
+    capture() {
+      // 白色閃光效果
+      const sf = document.getElementById('snap-flash');
+      sf.classList.add('on');
+      setTimeout(() => sf.classList.remove('on'), 300);
+      // 下一幀渲染後截取
+      this._pendingCapture = true;
+      showSt('📸 擷取中…', 1500);
+    },
+
+    async _share(dataUrl) {
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'ar-moment.jpg', { type: 'image/jpeg' });
+
+      // 嘗試 Web Share API（iOS/Android 原生分享）
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: '一畫千言 AR 全息體驗',
+            text: '掃描金屬海報解鎖的 AR 瞬間 ✨',
+          });
+          showSt('✅ 分享成功！');
+          D.log('Web Share API 成功', 'ok');
+          return;
+        } catch (e) { D.log('Share cancelled: ' + e.message, 'inf'); return; }
+      }
+
+      // Fallback：直接下載
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = 'ar-moment-' + Date.now() + '.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSt('✅ 截圖已儲存');
+      D.log('截圖下載完成', 'ok');
+    }
+  };
+
+  // ═══ THREE.JS 全息裝飾 ════════════════════════════════════
+  function mkRing(r, tube, hex, op) {
+    return new THREE.Mesh(
+      new THREE.TorusGeometry(r, tube, 6, 64),
+      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: op })
+    );
   }
-  function mkPts(n,radius){
-    const pos=new Float32Array(n*3),meta=[];
-    for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,r=radius*(0.7+Math.random()*0.55),h=(Math.random()-0.5)*0.5;pos[i*3]=Math.cos(a)*r;pos[i*3+1]=h;pos[i*3+2]=Math.sin(a)*r;meta.push({a,r,h,da:(Math.random()-0.5)*0.016,dh:(Math.random()-0.5)*0.004});}
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
-    const p=new THREE.Points(g,new THREE.PointsMaterial({color:0x00bbff,size:0.009,transparent:true,opacity:0.8}));
-    p.userData={meta,n};return p;
+  function mkPts(n, radius) {
+    const pos = new Float32Array(n * 3), meta = [];
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, r = radius * (.7 + Math.random() * .55), h = (Math.random() - .5) * .5;
+      pos[i*3] = Math.cos(a)*r; pos[i*3+1] = h; pos[i*3+2] = Math.sin(a)*r;
+      meta.push({ a, r, h, da: (Math.random() - .5) * .016, dh: (Math.random() - .5) * .004 });
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const p = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x00bbff, size: .009, transparent: true, opacity: .8 }));
+    p.userData = { meta, n }; return p;
   }
-  function tickPts(p){
-    const pos=p.geometry.attributes.position.array,{meta,n}=p.userData;
-    for(let i=0;i<n;i++){const m=meta[i];m.a+=m.da;m.h+=m.dh;if(Math.abs(m.h)>0.4)m.dh*=-1;pos[i*3]=Math.cos(m.a)*m.r;pos[i*3+1]=m.h;pos[i*3+2]=Math.sin(m.a)*m.r;}
-    p.geometry.attributes.position.needsUpdate=true;
+  function tickPts(p) {
+    const pos = p.geometry.attributes.position.array, { meta, n } = p.userData;
+    for (let i = 0; i < n; i++) {
+      const m = meta[i]; m.a += m.da; m.h += m.dh;
+      if (Math.abs(m.h) > .4) m.dh *= -1;
+      pos[i*3] = Math.cos(m.a)*m.r; pos[i*3+1] = m.h; pos[i*3+2] = Math.sin(m.a)*m.r;
+    }
+    p.geometry.attributes.position.needsUpdate = true;
   }
 
-  // ═══ AR MODULE ════════════════════════════════════════
-  function mkARModule(){
-    let vEl,vTex,vMesh,hGrp,ring1,ring2,pts;
-    let frm=0, slamWarm=false, everFound=false;
-    const lastP=new THREE.Vector3(), lastQ=new THREE.Quaternion();
-    let lastS=1;
-    const st={play:false,mute:true,fs:false,holo:true};
-    const scanEl=document.getElementById('scan-ov');
-    const fsW=document.getElementById('fs-wrap'), fsV=document.getElementById('fs-vid');
+  // ═══ AR MODULE ═══════════════════════════════════════════
+  function mkARModule(allTargetData) {
+    // 建立 targetName → targetConfig 查詢表
+    const targetMap = {};
+    AR_CONFIG.targets.forEach((cfg, i) => {
+      const name = allTargetData[i].name;
+      targetMap[name] = { cfg, data: allTargetData[i] };
+      D.log(`targetMap["${name}"] → "${cfg.productName}"`, 'ok');
+    });
 
-    function mkVid(){const v=document.createElement('video');v.src=AR_CONFIG.videoSrc;v.loop=true;v.muted=true;v.playsInline=true;v.crossOrigin='anonymous';v.setAttribute('webkit-playsinline','true');v.addEventListener('canplay',()=>D.log('影片 canplay ✅','ok'));v.addEventListener('error',()=>D.log('影片錯誤 ❌','err'));return v;}
-    async function playV(v){if(!v)return;try{await v.play();}catch{v.muted=true;st.mute=true;uI();await v.play().catch(()=>{});}}
-    function pauseV(v){if(v)v.pause();}
-    function enterFS(){if(!vEl)return;fsV.src=vEl.src;fsV.currentTime=vEl.currentTime;fsV.muted=st.mute;fsW.classList.add('show');st.fs=true;playV(fsV);}
-    function exitFS(){if(!st.fs)return;if(vEl)vEl.currentTime=fsV.currentTime;fsW.classList.remove('show');st.fs=false;pauseV(fsV);fsV.src='';}
-    function uI(){document.getElementById('ipp').style.display=st.play?'none':'block';document.getElementById('ipa').style.display=st.play?'block':'none';document.getElementById('bp').classList.toggle('active',st.play);document.getElementById('ism').style.display=st.mute?'block':'none';document.getElementById('iss').style.display=st.mute?'none':'block';document.getElementById('bs').classList.toggle('active',!st.mute);}
+    let vEl, vTex, vMesh, hGrp, ring1, ring2, pts;
+    let frm = 0;
+    let currentTargetCfg = AR_CONFIG.targets[0];   // 目前追蹤的目標設定
+    const st = { play: false, mute: true, fs: false, holo: true };
+    const scanEl = document.getElementById('scan-ov');
+    const fsW = document.getElementById('fs-wrap'), fsV = document.getElementById('fs-vid');
 
-    function applyPose(det){
-      const{position:p,rotation:r,scale:s}=det;
-      lastP.set(p.x,p.y,p.z); lastQ.set(r.x,r.y,r.z,r.w); lastS=s;
-      vMesh.position.copy(lastP); vMesh.quaternion.copy(lastQ); vMesh.scale.setScalar(s);
-      hGrp.position.copy(lastP); hGrp.quaternion.copy(lastQ); hGrp.scale.setScalar(s);
+    function mkVid(src) {
+      const v = document.createElement('video');
+      v.src = src; v.loop = true; v.muted = true; v.playsInline = true;
+      v.crossOrigin = 'anonymous';
+      v.setAttribute('webkit-playsinline', 'true');
+      v.addEventListener('canplay', () => D.log('影片 canplay ✅', 'ok'));
+      return v;
+    }
+    async function playV(v) {
+      if (!v) return;
+      try { await v.play(); }
+      catch { v.muted = true; st.mute = true; uI(); await v.play().catch(() => {}); }
+    }
+    function pauseV(v) { if (v) v.pause(); }
+    function enterFS() {
+      if (!vEl) return;
+      fsV.src = vEl.src; fsV.currentTime = vEl.currentTime; fsV.muted = st.mute;
+      fsW.classList.add('show'); st.fs = true; playV(fsV);
+    }
+    function exitFS() {
+      if (!st.fs) return;
+      if (vEl) vEl.currentTime = fsV.currentTime;
+      fsW.classList.remove('show'); st.fs = false; pauseV(fsV); fsV.src = '';
+    }
+    function uI() {
+      document.getElementById('ipp').style.display = st.play ? 'none' : 'block';
+      document.getElementById('ipa').style.display = st.play ? 'block' : 'none';
+      document.getElementById('bp').classList.toggle('active', st.play);
+      document.getElementById('ism').style.display = st.mute ? 'block' : 'none';
+      document.getElementById('iss').style.display = st.mute ? 'none'  : 'block';
+      document.getElementById('bs').classList.toggle('active', !st.mute);
     }
 
-    function setupBtns(){
-      document.getElementById('bp').addEventListener('click',()=>{
-        if(!everFound){showSt('請先掃描目標');return;}
-        st.play=!st.play;uI();
-        if(st.play){showSt('▶ 持續播放');if(!G.vis){enterFS();scanEl.classList.add('hidden');}else if(vEl&&vEl.paused)playV(vEl);}
-        else{showSt('⏸ 暫停');exitFS();if(!G.vis&&vEl)pauseV(vEl);if(!G.vis)scanEl.classList.remove('hidden');}
-      });
-      document.getElementById('bs').addEventListener('click',()=>{st.mute=!st.mute;if(vEl)vEl.muted=st.mute;fsV.muted=st.mute;uI();showSt(st.mute?'🔇 靜音':'🔊 聲音 ON');});
-      document.getElementById('bai').addEventListener('click',async()=>{
-        if(!everFound){showSt('請先掃描目標');return;}
-        const b=document.getElementById('bai');b.classList.add('active');
-        HP.setText('⬛ AI 重新分析中…');HP.setMode('AI THINKING');
-        const t=await getAI();HP.setText(t);HP.setMode('IMG LOCK');
-        b.classList.remove('active');showSt('🤖 AI 導覽已更新');
-      });
-      document.getElementById('bh').addEventListener('click',()=>{
-        st.holo=!st.holo;
-        if(hGrp) hGrp.visible=st.holo&&G.vis;
-        st.holo?HP.show():HP.hide();
-        document.getElementById('bh').classList.toggle('active',st.holo);
-        showSt(st.holo?'🔷 全息 ON':'🔲 全息 OFF');
-      });
-      fsW.addEventListener('click',()=>{exitFS();st.play=false;uI();if(!G.vis)scanEl.classList.remove('hidden');});
+    // 套用 image target pose（無 SLAM，直接 screen-space tracking）
+    function applyPose(detail) {
+      const { position: p, rotation: r, scale: s } = detail;
+      vMesh.position.set(p.x, p.y, p.z);
+      vMesh.quaternion.set(r.x, r.y, r.z, r.w);
+      vMesh.scale.setScalar(s);
+      hGrp.position.set(p.x, p.y, p.z);
+      hGrp.quaternion.set(r.x, r.y, r.z, r.w);
+      hGrp.scale.setScalar(s);
     }
 
-    async function onFound({detail}){
-      D.log('✅ imagefound "'+detail.name+'" scale='+detail.scale?.toFixed(3)+' pos=('+detail.position.x.toFixed(2)+','+detail.position.y.toFixed(2)+','+detail.position.z.toFixed(2)+')','ok');
+    // 當切換到新海報時更新影片與 UI
+    function switchTarget(cfg) {
+      if (currentTargetCfg === cfg) return;
+      currentTargetCfg = cfg;
+      D.log(`切換目標: "${cfg.productName}"`, 'ok');
+
+      // 換影片
+      if (vEl) { pauseV(vEl); vEl.src = cfg.videoSrc; }
+      // 換全息主色
+      HP.setAccent(cfg.accentColor);
+      HP.setTitle(cfg.productName);
+      // 重置 AI（讓新海報重新生成說明）
+      G.aiDone = false;
+      // 換粒子色
+      if (pts) pts.material.color.set(cfg.accentColor);
+      if (ring1) ring1.material.color.set(cfg.accentColor);
+      // badge
+      setTargetBadge(cfg.productName, cfg.accentColor, 'show');
+    }
+
+    function setupBtns() {
+      document.getElementById('bp').addEventListener('click', () => {
+        if (!G.everFound) { showSt('請先掃描目標'); return; }
+        st.play = !st.play; uI();
+        if (st.play) {
+          if (!G.vis) { enterFS(); scanEl.classList.add('hidden'); }
+          else if (vEl && vEl.paused) playV(vEl);
+          showSt('▶ 持續播放');
+        } else {
+          exitFS();
+          if (!G.vis && vEl) pauseV(vEl);
+          if (!G.vis) scanEl.classList.remove('hidden');
+          showSt('⏸ 暫停');
+        }
+      });
+      document.getElementById('bs').addEventListener('click', () => {
+        st.mute = !st.mute;
+        if (vEl) vEl.muted = st.mute; fsV.muted = st.mute;
+        uI(); showSt(st.mute ? '🔇 靜音' : '🔊 聲音 ON');
+      });
+      document.getElementById('bai').addEventListener('click', async () => {
+        if (!G.everFound) { showSt('請先掃描目標'); return; }
+        const b = document.getElementById('bai'); b.classList.add('active');
+        HP.setText('⬛ AI 重新分析中…'); HP.setMode('AI THINKING');
+        const t = await getAI(currentTargetCfg);
+        HP.setText(t); HP.setMode('IMG LOCK'); b.classList.remove('active');
+        showSt('🤖 AI 導覽已更新');
+      });
+      document.getElementById('bh').addEventListener('click', () => {
+        st.holo = !st.holo;
+        if (hGrp) hGrp.visible = st.holo && G.vis;
+        st.holo ? HP.show() : HP.hide();
+        document.getElementById('bh').classList.toggle('active', st.holo);
+        showSt(st.holo ? '🔷 全息 ON' : '🔲 全息 OFF');
+      });
+      fsW.addEventListener('click', () => { exitFS(); st.play = false; uI(); if (!G.vis) scanEl.classList.remove('hidden'); });
+    }
+
+    async function onFound({ detail }) {
+      const name = detail.name;
+      const entry = targetMap[name];
+      if (!entry) { D.log('⚠ 未知目標: ' + name, 'inf'); return; }
+
+      D.log(`✅ imagefound "${name}"`, 'ok');
+      switchTarget(entry.cfg);
       applyPose(detail);
-      vMesh.visible=true; hGrp.visible=st.holo; G.vis=true; everFound=true;
+
+      vMesh.visible = true; hGrp.visible = st.holo;
+      G.vis = true; G.everFound = true;
+
       scanEl.classList.add('hidden');
-      flash(); slamBadge('locked'); showSt('✅ 目標鎖定');
-      if(st.fs)exitFS();
+      doFlash(); doBurst();
+      setTargetBadge(entry.cfg.productName, entry.cfg.accentColor, 'show');
+      showSt('✅ ' + entry.cfg.productName + ' — 目標鎖定');
+
+      // 陀螺儀視差基準校正
+      Gyro.calibrate();
+
+      if (st.fs) exitFS();
       playV(vEl);
-      if(!G.aiDone){
-        G.aiDone=true;
+
+      if (!G.aiDone) {
+        G.aiDone = true;
         HP.show(); HP.setText('⬛ AI 導覽生成中…'); HP.setMode('AI THINKING');
-        const t=await getAI(); HP.setText(t); HP.setMode('IMG LOCK');
-        showSt('🤖 AI 導覽已啟動',3500);
+        const t = await getAI(entry.cfg);
+        HP.setText(t); HP.setMode('IMG LOCK');
+        showSt('🤖 AI 導覽已啟動', 3500);
       }
     }
 
-    function onUpdated({detail}){
+    function onUpdated({ detail }) {
       applyPose(detail);
-      if(!G.vis){G.vis=true;vMesh.visible=true;hGrp.visible=st.holo;scanEl.classList.add('hidden');}
+      if (!G.vis) {
+        G.vis = true; vMesh.visible = true; hGrp.visible = st.holo;
+        scanEl.classList.add('hidden');
+      }
     }
 
-    function onLost(){
-      // ✅ SLAM 正確行為：完全不動任何 mesh，不顯示掃描遮罩
-      // vMesh / hGrp 已有世界座標，相機 SLAM 繼續追蹤 → 物件浮在原位
-      G.vis=false;
-      slamBadge('tracking');
-      showSt('📍 SLAM 追蹤中，可移開鏡頭');
-      D.log('📍 imagelost — mesh 保持世界座標不變','inf');
+    function onLost() {
+      D.log('📍 imagelost', 'inf');
+      G.vis = false;
+      vMesh.visible = false; hGrp.visible = false;
+      scanEl.classList.remove('hidden');
+      setTargetBadge('搜尋中…', '#888', 'show');
+      showSt('🔍 請重新對準海報');
     }
 
     return {
-      name:'ar-holo',
-      onStart:()=>{
-        const{scene,renderer}=XR8.Threejs.xrScene();
+      name: 'ar-holo',
+      onStart: () => {
+        const { scene, renderer, camera } = XR8.Threejs.xrScene();
+
+        // preserveDrawingBuffer 讓截圖可以讀取畫布
+        // XR8 建立 renderer 後，透過重建方式設定此屬性
+        // 實際上 XR8.run 帶入 canvas，我們在這裡直接設定截圖用的備用方案
+        Screenshot.init(renderer.domElement);
+
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth,window.innerHeight,false);
-        Object.assign(renderer.domElement.style,{position:'fixed',top:'0',left:'0',width:'100vw',height:'100vh',zIndex:'0'});
-        D.log('Renderer '+window.innerWidth+'x'+window.innerHeight,'ok');
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+        Object.assign(renderer.domElement.style, {
+          position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh', zIndex: '0',
+        });
+        D.log('Renderer ' + window.innerWidth + 'x' + window.innerHeight, 'ok');
 
-        vEl=mkVid();
-        vTex=new THREE.VideoTexture(vEl);
-        vTex.minFilter=vTex.magFilter=THREE.LinearFilter;vTex.format=THREE.RGBAFormat;
-        vMesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1/AR_CONFIG.videoAspectRatio),new THREE.MeshBasicMaterial({map:vTex,side:THREE.DoubleSide,toneMapped:false}));
-        vMesh.visible=false;scene.add(vMesh);
+        // 影片平面（使用第一個目標的影片初始化）
+        vEl  = mkVid(AR_CONFIG.targets[0].videoSrc);
+        vTex = new THREE.VideoTexture(vEl);
+        vTex.minFilter = vTex.magFilter = THREE.LinearFilter;
+        vTex.format = THREE.RGBAFormat;
+        vMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1 / AR_CONFIG.targets[0].videoAspectRatio),
+          new THREE.MeshBasicMaterial({ map: vTex, side: THREE.DoubleSide, toneMapped: false })
+        );
+        vMesh.visible = false; scene.add(vMesh);
 
-        hGrp=new THREE.Group();hGrp.visible=false;scene.add(hGrp);
-        if(AR_CONFIG.enableHoloRings){ring1=mkRing(0.65,0.004,0x00ccff,0.75);ring1.rotation.x=Math.PI/2;hGrp.add(ring1);ring2=mkRing(0.52,0.003,0x0066ff,0.55);ring2.rotation.x=Math.PI/3;hGrp.add(ring2);}
-        if(AR_CONFIG.enableHoloParticles){pts=mkPts(80,0.6);hGrp.add(pts);}
-        scene.add(new THREE.AmbientLight(0xffffff,1));
+        // 全息裝飾群組
+        hGrp = new THREE.Group(); hGrp.visible = false; scene.add(hGrp);
+        if (AR_CONFIG.enableHoloRings) {
+          ring1 = mkRing(.65, .004, AR_CONFIG.targets[0].accentColor, .75);
+          ring1.rotation.x = Math.PI / 2; hGrp.add(ring1);
+          ring2 = mkRing(.52, .003, 0x0066ff, .55);
+          ring2.rotation.x = Math.PI / 3; hGrp.add(ring2);
+        }
+        if (AR_CONFIG.enableHoloParticles) {
+          pts = mkPts(80, .6); hGrp.add(pts);
+        }
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-        HP.init();setupBtns();
-        D.log('✅ Scene ready','ok');
-        D.log('disableWorldTracking=false (SLAM ON)','ok');
-        setTimeout(()=>showSt('請緩慢移動手機，再對準目標',5000),1000);
+        HP.init(); setupBtns(); Gyro.init();
+        D.log('✅ Scene ready (no SLAM — image tracking only)', 'ok');
+        setTimeout(() => showSt('請對準金屬海報以啟動 AR', 4000), 800);
       },
-      onUpdate:()=>{
+
+      onUpdate: () => {
         frm++;
-        if(ring1) ring1.rotation.z+=0.007;
-        if(ring2){ring2.rotation.z-=0.005;ring2.rotation.y+=0.004;}
-        if(pts) tickPts(pts);
-        if(!slamWarm&&frm===90){slamWarm=true;slamBadge('tracking');D.log('SLAM 暖機完成 (90f)','ok');}
-        if(frm%120===0){const{camera}=XR8.Threejs.xrScene();const p=camera.position;D.log('cam=('+p.x.toFixed(2)+','+p.y.toFixed(2)+','+p.z.toFixed(2)+')','inf');}
+        if (ring1) ring1.rotation.z += .007;
+        if (ring2) { ring2.rotation.z -= .005; ring2.rotation.y += .004; }
+        if (pts) tickPts(pts);
+
+        // ★ 陀螺儀視差：讓全息群組隨手機傾斜輕微偏移
+        if (AR_CONFIG.enableGyroParallax && G.vis && hGrp.visible) {
+          const ofs = Gyro.offset(hGrp.scale.x);
+          // 在 group 本地座標系中偏移
+          hGrp.position.x += (ofs.x - 0) * .15;
+          hGrp.position.y += (ofs.y - 0) * .15;
+        }
+
+        // ★ 截圖：在渲染後立即讀取 canvas
+        Screenshot.tick();
       },
-      listeners:[
-        {event:'reality.imagefound',   process:onFound},
-        {event:'reality.imageupdated', process:onUpdated},
-        {event:'reality.imagelost',    process:onLost},
+
+      listeners: [
+        { event: 'reality.imagefound',   process: onFound   },
+        { event: 'reality.imageupdated', process: onUpdated },
+        { event: 'reality.imagelost',    process: onLost    },
       ],
-      onAttach:()=>{
-        window.addEventListener('resize',()=>{const{renderer}=XR8.Threejs.xrScene();renderer.setSize(window.innerWidth,window.innerHeight,false);});
-        document.addEventListener('visibilitychange',()=>{if(document.hidden){if(vEl)pauseV(vEl);}else if(G.vis&&vEl)playV(vEl);});
+      onAttach: () => {
+        window.addEventListener('resize', () => {
+          const { renderer } = XR8.Threejs.xrScene();
+          renderer.setSize(window.innerWidth, window.innerHeight, false);
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) { if (vEl) pauseV(vEl); }
+          else if (G.vis && vEl) playV(vEl);
+        });
       }
     };
   }
 
-  // ═══ GLOBAL STATE ═════════════════════════════════════
-  const G = { vis: false, aiDone: false };
+  // ═══ GLOBAL STATE ════════════════════════════════════════
+  const G = { vis: false, aiDone: false, everFound: false };
 
-  // ═══ MAIN ═════════════════════════════════════════════
-  // ═══ PERMISSION GATE — 核心權限管理 ═══════════════
-  // 策略：所有 iOS 感測器權限在「同一個 user gesture」內申請
-  // → 相機(XR8內部) + DeviceMotion + DeviceOrientation
-  // → 使用者只會看到系統提示各一次，不重複
-  // ────────────────────────────────────────────────
-  let _xrReady = false;   // xr.js 已載入完成
-  let _tdCache = null;    // 預載的 target JSON
+  // ═══ PERMISSION GATE + MAIN ══════════════════════════════
+  let _xrReady = false;
+  let _allTargetData = null;   // 所有 target JSON 陣列
 
-  // xr.js 載入完成後只做預備工作，不啟動 XR8
   window.addEventListener('xrloaded', () => {
     _xrReady = true;
-    D.log('✅ xrloaded — 等待使用者授權','ok');
+    D.log('✅ xrloaded', 'ok');
   });
 
-  // 預先非同步載入 target JSON（不需要任何權限）
-  async function preloadTargetJSON() {
-    try {
-      const r = await fetch(AR_CONFIG.targetJsonPath);
-      if (!r.ok) throw new Error('HTTP' + r.status);
-      _tdCache = await r.json();
-      D.log('✅ target JSON 預載完成: "' + _tdCache.name + '"','ok');
-    } catch(e) {
-      D.log('❌ JSON 預載失敗: ' + e.message,'err');
-      document.getElementById('dbg').classList.add('show');
-    }
-  }
-
-  // 申請 iOS 感測器權限（必須在 user gesture 內呼叫）
-  async function requestMotionPermissions() {
+  async function preloadTargets() {
     const results = [];
-    // DeviceMotionEvent（加速度計）
-    if (typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function') {
+    for (const [i, cfg] of AR_CONFIG.targets.entries()) {
       try {
-        const s = await DeviceMotionEvent.requestPermission();
-        results.push('motion:' + s);
-        D.log('DeviceMotion: ' + s, s === 'granted' ? 'ok' : 'inf');
-      } catch(e) { D.log('DeviceMotion err: ' + e.message,'inf'); }
+        const r = await fetch(cfg.jsonPath);
+        if (!r.ok) throw new Error('HTTP' + r.status);
+        const d = await r.json();
+        results.push(d);
+        D.log(`✅ target[${i}] "${d.name}" 預載完成`, 'ok');
+      } catch (e) {
+        D.log(`❌ target[${i}] 失敗: ${e.message}`, 'err');
+        results.push(null);
+      }
     }
-    // DeviceOrientationEvent（陀螺儀）
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      try {
-        const s = await DeviceOrientationEvent.requestPermission();
-        results.push('orientation:' + s);
-        D.log('DeviceOrientation: ' + s, s === 'granted' ? 'ok' : 'inf');
-      } catch(e) { D.log('DeviceOrientation err: ' + e.message,'inf'); }
+    if (results.some(r => !r)) {
+      document.getElementById('dbg').classList.add('show');
+      showSt('❌ 部分目標資料載入失敗', 8000);
     }
-    return results;
+    _allTargetData = results.filter(Boolean);
+    return _allTargetData.length > 0;
   }
 
-  // 啟動 XR8（在權限授予後）
+  async function requestMotionPermissions() {
+    for (const Evt of [DeviceMotionEvent, DeviceOrientationEvent]) {
+      if (typeof Evt !== 'undefined' && typeof Evt.requestPermission === 'function') {
+        try { await Evt.requestPermission(); } catch {}
+      }
+    }
+  }
+
   async function startXR8() {
-    if (!_tdCache) {
-      // 如果 JSON 還沒預載完，等待
-      showSt('載入資料中…', 3000);
-      let wait = 0;
-      while (!_tdCache && wait < 8000) {
-        await new Promise(r => setTimeout(r, 200));
-        wait += 200;
-      }
-      if (!_tdCache) {
-        showSt('❌ 目標資料載入失敗', 8000);
-        return;
-      }
-    }
-    if (!_xrReady) {
-      showSt('AR 引擎載入中…', 3000);
-      let wait = 0;
-      while (!_xrReady && wait < 10000) {
-        await new Promise(r => setTimeout(r, 200));
-        wait += 200;
-      }
-      if (!_xrReady) { showSt('❌ AR 引擎未就緒', 8000); return; }
-    }
+    showSt('AR 載入中…', 4000);
 
-    slamBadge('init');
-    showSt('AR 啟動中…', 3000);
+    // 等待 target JSON
+    if (!_allTargetData) {
+      let w = 0;
+      while (!_allTargetData && w < 10000) { await new Promise(r => setTimeout(r, 200)); w += 200; }
+    }
+    if (!_allTargetData || !_allTargetData.length) { showSt('❌ 目標資料未就緒', 8000); return; }
 
-    XR8.XrController.configure({disableWorldTracking: false, imageTargetData: [_tdCache]});
-    D.log('XrController: SLAM=ON imageTarget="' + _tdCache.name + '"','ok');
+    // 等待 xr.js
+    let w = 0;
+    while (!_xrReady && w < 12000) { await new Promise(r => setTimeout(r, 200)); w += 200; }
+    if (!_xrReady) { showSt('❌ AR 引擎未就緒', 8000); return; }
+
+    // ★ 無 SLAM：disableWorldTracking: true（穩定、輕量）
+    XR8.XrController.configure({
+      disableWorldTracking: true,
+      imageTargetData: _allTargetData,
+    });
+    D.log('XrController: SLAM=OFF, targets=' + _allTargetData.length, 'ok');
 
     XR8.addCameraPipelineModules([
       XR8.GlTextureRenderer.pipelineModule(),
       XR8.Threejs.pipelineModule(),
       XR8.XrController.pipelineModule(),
-      mkARModule(),
+      mkARModule(_allTargetData),
     ]);
-    XR8.run({canvas: document.getElementById('renderCanvas')});
-    D.log('✅ XR8.run()','ok');
+    XR8.run({ canvas: document.getElementById('renderCanvas') });
+    D.log('✅ XR8.run()', 'ok');
   }
 
-  // ── 開始按鈕：唯一的 user gesture 入口 ──
-  document.getElementById('btn-start').addEventListener('click', async function() {
-    const btn = this;
-    btn.disabled = true;
-    btn.textContent = '授權中…';
-
-    // Step 1: 在同一個 gesture 內申請 iOS 感測器權限
+  document.getElementById('btn-start').addEventListener('click', async function () {
+    this.disabled = true; this.textContent = '授權中…';
     await requestMotionPermissions();
-
-    // Step 2: 淡出 permission gate
-    const gate = document.getElementById('perm-gate');
-    gate.classList.add('fade');
-    setTimeout(() => { gate.style.display = 'none'; }, 700);
-
-    // Step 3: 啟動 XR8（XR8.run 內部會申請相機 → 只會出現一次）
+    document.getElementById('perm-gate').classList.add('fade');
+    setTimeout(() => { document.getElementById('perm-gate').style.display = 'none'; }, 700);
     await startXR8();
   });
 
   window.addEventListener('xrerror', e => {
-    D.log('❌ xrerror: ' + JSON.stringify(e.detail),'err');
+    D.log('❌ xrerror: ' + JSON.stringify(e.detail), 'err');
     document.getElementById('dbg').classList.add('show');
     showSt('❌ AR 引擎錯誤', 10000);
   });
 
-  // 頁面載入後立即預載 JSON（不需要任何權限）
   window.addEventListener('load', () => {
     preflight();
-    preloadTargetJSON();
+    preloadTargets();
   });
   </script>
 </body>
