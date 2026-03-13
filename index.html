@@ -47,14 +47,36 @@
   </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- SLAM 已移除：data-preload-chunks="slam" 不再需要 -->
-  <script src="./external/xr/xr.js"></script>
+  <!--
+    ★ data-preload-chunks="slam" 必須保留！
+    xr-slam.js 不只是 SLAM 世界追蹤，它同時包含相機畫面處理管線
+    （frame decoder、GlTextureRenderer 數據來源）。
+    移除此屬性 → xr-slam.js 不載入 → 相機無畫面 → 黑屏。
+    disableWorldTracking:true 只是「不做空間定位」，不代表不需要此二進位。
+  -->
+  <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
 
   <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
   #renderCanvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0;display:block}
-  [class*="watermark"],[id*="watermark"],[class*="xr8"],[id*="xr8"],[class*="poweredby"],[id*="powered"]{display:none!important}
+  /*
+   * ★ 重要：不可用 display:none 隱藏 XR8 內部元素！
+   * xr-slam.js 在 DOM 裡建立隱藏 <video> 用於相機輸入。
+   * iOS Safari 對 display:none 的 <video> 會停止解碼畫面 → 黑屏。
+   * 改用 visibility:hidden（元素繼續解碼，只是視覺上不顯示）。
+   * 只有已知的「純視覺」浮水印 div 才用 display:none。
+   */
+  /* XR8 內部元素 → visibility:hidden（保持解碼運作） */
+  [class*="xr8"],[id*="xr8"],
+  [class*="poweredby"],[id*="powered"]{
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+  /* 純視覺浮水印文字/圖片 → 可以 display:none */
+  [class*="watermark"],[id*="watermark"]{
+    display:none!important;
+  }
 
   /* ── Scanning overlay ── */
   #scan-ov{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;pointer-events:none;background:rgba(0,0,0,0.18);opacity:1;transition:opacity 0.6s}
@@ -292,7 +314,8 @@
   // ═══ PREFLIGHT ═══════════════════════════════════════════
   async function preflight() {
     for (const [u, l] of [
-      ['./external/xr/xr.js',      'xr.js'],
+      ['./external/xr/xr.js',       'xr.js'],
+      ['./external/xr/xr-slam.js',  'xr-slam.js ← 相機核心'],  // ★ 必須存在
       ...AR_CONFIG.targets.map((t,i) => [t.jsonPath, 'target['+i+']']),
     ]) {
       try {
@@ -438,25 +461,41 @@
   };
 
   // ═══ ★ AR SCREENSHOT / SHARE ════════════════════════════
+  // 說明：XR8 的 WebGL context 預設 preserveDrawingBuffer=false，
+  // 直接呼叫 toDataURL() 只會得到空白圖片。
+  // 解法：在 onUpdate 裡，用 drawImage 把 WebGL canvas 複製到
+  // 一個離屏 2D canvas，再從 2D canvas 讀取像素。
   const Screenshot = {
     _pendingCapture: false,
-    _canvas: null,
-    _lastDataUrl: null,
+    _srcCanvas: null,       // WebGL canvas (renderer.domElement)
+    _offCanvas: null,       // 離屏 2D canvas（用於讀取像素）
+    _offCtx: null,
 
     init(canvas) {
-      this._canvas = canvas;
+      this._srcCanvas = canvas;
+      // 建立與 src 同尺寸的離屏 2D canvas
+      this._offCanvas = document.createElement('canvas');
+      this._offCtx    = this._offCanvas.getContext('2d');
+
       if (!AR_CONFIG.enableScreenshot) return;
       document.getElementById('snap-col').style.display = 'flex';
       document.getElementById('bsnap').addEventListener('click', () => this.capture());
+      D.log('✅ Screenshot 初始化（離屏 canvas 模式）', 'ok');
     },
 
-    // 在 onUpdate 裡被呼叫，抓取當前畫格
+    // onUpdate 裡每幀呼叫，有 pending 時才真正複製
     tick() {
-      if (!this._pendingCapture || !this._canvas) return;
+      if (!this._pendingCapture || !this._srcCanvas) return;
       this._pendingCapture = false;
+
       try {
-        this._lastDataUrl = this._canvas.toDataURL('image/jpeg', 0.92);
-        this._share(this._lastDataUrl);
+        const w = this._srcCanvas.width, h = this._srcCanvas.height;
+        this._offCanvas.width  = w;
+        this._offCanvas.height = h;
+        // 把 WebGL canvas 內容複製到 2D canvas
+        this._offCtx.drawImage(this._srcCanvas, 0, 0, w, h);
+        const dataUrl = this._offCanvas.toDataURL('image/jpeg', 0.92);
+        this._share(dataUrl);
       } catch (e) {
         D.log('截圖失敗: ' + e.message, 'err');
         showSt('❌ 截圖失敗，請重試');
@@ -464,11 +503,9 @@
     },
 
     capture() {
-      // 白色閃光效果
       const sf = document.getElementById('snap-flash');
       sf.classList.add('on');
       setTimeout(() => sf.classList.remove('on'), 300);
-      // 下一幀渲染後截取
       this._pendingCapture = true;
       showSt('📸 擷取中…', 1500);
     },
@@ -477,7 +514,7 @@
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], 'ar-moment.jpg', { type: 'image/jpeg' });
 
-      // 嘗試 Web Share API（iOS/Android 原生分享）
+      // Web Share API（iOS/Android 原生分享表單）
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
@@ -494,14 +531,10 @@
       // Fallback：直接下載
       const url = URL.createObjectURL(blob);
       const a   = document.createElement('a');
-      a.href     = url;
-      a.download = 'ar-moment-' + Date.now() + '.jpg';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      a.href = url; a.download = 'ar-moment-' + Date.now() + '.jpg';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
       showSt('✅ 截圖已儲存');
-      D.log('截圖下載完成', 'ok');
     }
   };
 
@@ -707,16 +740,20 @@
       onStart: () => {
         const { scene, renderer, camera } = XR8.Threejs.xrScene();
 
-        // preserveDrawingBuffer 讓截圖可以讀取畫布
-        // XR8 建立 renderer 後，透過重建方式設定此屬性
-        // 實際上 XR8.run 帶入 canvas，我們在這裡直接設定截圖用的備用方案
-        Screenshot.init(renderer.domElement);
+        // ★ 黑屏修復關鍵：禁止 Three.js 在每幀開始前清除畫布
+        // GlTextureRenderer 已把相機畫面畫到畫布上，
+        // 若 autoClear=true，Three.js 會用黑色蓋掉它 → 黑屏
+        renderer.autoClear = false;
 
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight, false);
-        Object.assign(renderer.domElement.style, {
-          position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh', zIndex: '0',
-        });
+        // 用 cssText + !important 確保 renderer 畫布永遠全螢幕
+        renderer.domElement.style.cssText =
+          'position:fixed!important;top:0!important;left:0!important;' +
+          'width:100vw!important;height:100vh!important;z-index:0!important;';
+
+        // 截圖初始化（用離屏 canvas 方式，不依賴 preserveDrawingBuffer）
+        Screenshot.init(renderer.domElement);
         D.log('Renderer ' + window.innerWidth + 'x' + window.innerHeight, 'ok');
 
         // 影片平面（使用第一個目標的影片初始化）
