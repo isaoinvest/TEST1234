@@ -5,16 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>AR 全息體驗</title>
+  <title>AI AR 金屬海報 × 一畫千言</title>
 
   <!-- ══════════════════════════════════════════════════
-       ★★★  CONFIG — 在這裡設定所有海報  ★★★
-       複製 targets 陣列中的 { } 區塊即可新增第二張海報
+       ★★★  CONFIG  ★★★
   ══════════════════════════════════════════════════ -->
   <script>
   const AR_CONFIG = {
-
-    // ── 多目標海報設定 ────────────────────────────────
     targets: [
       {
         jsonPath:         './image-targets/shoptarget.json',
@@ -22,9 +19,10 @@
         videoAspectRatio: 16 / 9,
         productName:      '海賊船金屬海報',
         productInfo:      '一畫千言品牌，昇華金屬板印刷工藝，高解析度海賊船主題藝術海報，色彩永久定著於鋁板',
-        accentColor:      '#00ccff',   // 全息主色（可改為金色 #ffcc44 等）
+        accentColor:      '#00ccff',
+        characterName:    'ARIA',
+        characterRole:    'AI 海洋探索導航員',
       },
-      // ── 新增第二張海報時，取消下面的註解並填入資料 ──
       // {
       //   jsonPath:         './image-targets/target2.json',
       //   videoSrc:         'https://your-r2.../video2.mp4',
@@ -32,887 +30,1251 @@
       //   productName:      '第二張海報',
       //   productInfo:      '描述文字',
       //   accentColor:      '#ff8800',
+      //   characterName:    'NOVA',
+      //   characterRole:    'AI 星際導航員',
       // },
     ],
-
-    // ── AI 設定 ───────────────────────────────────────
-    claudeApiKey: '',   // 填入 Anthropic API Key（空白 = 示範文字）
-
-    // ── 功能開關 ──────────────────────────────────────
-    enableHoloRings:       true,
-    enableHoloParticles:   true,
-    enableGyroParallax:    true,  // ★ 陀螺儀視差（手機傾斜讓全息元素浮動）
-    enableScreenshot:      true,  // ★ AR 截圖分享按鈕
+    claudeApiKey: '',   // Anthropic API Key（空白 = 示範文字）
+    enableHoloRings:     true,
+    enableHoloParticles: true,
+    enableGyroParallax:  true,
+    enableScreenshot:    true,
   };
   </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!--
-    ★ data-preload-chunks="slam" 必須保留！
-    xr-slam.js 不只是 SLAM 世界追蹤，它同時包含相機畫面處理管線
-    （frame decoder、GlTextureRenderer 數據來源）。
-    移除此屬性 → xr-slam.js 不載入 → 相機無畫面 → 黑屏。
-    disableWorldTracking:true 只是「不做空間定位」，不代表不需要此二進位。
-  -->
   <script src="./external/xr/xr.js" data-preload-chunks="slam"></script>
 
   <style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
-  #renderCanvas{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0;display:block}
-  /*
-   * ★ 重要：不可用 display:none 隱藏 XR8 內部元素！
-   * xr-slam.js 在 DOM 裡建立隱藏 <video> 用於相機輸入。
-   * iOS Safari 對 display:none 的 <video> 會停止解碼畫面 → 黑屏。
-   * 改用 visibility:hidden（元素繼續解碼，只是視覺上不顯示）。
-   * 只有已知的「純視覺」浮水印 div 才用 display:none。
-   */
-  /* XR8 內部元素 → visibility:hidden（保持解碼運作） */
-  [class*="xr8"],[id*="xr8"],
-  [class*="poweredby"],[id*="powered"]{
-    visibility:hidden!important;
-    pointer-events:none!important;
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+
+  :root {
+    --accent: #00ccff;
+    --accent2: #0066ff;
+    --bg-deep: #000810;
+    --bg-card: rgba(0,10,28,0.97);
+    --text-bright: rgba(220,248,255,1);
+    --text-mid: rgba(160,220,255,0.85);
+    --text-dim: rgba(80,160,200,0.55);
+    --font-hud: 'Share Tech Mono', monospace;
+    --font-title: 'Orbitron', monospace;
+    --font-body: 'Noto Sans TC', sans-serif;
   }
-  /* 純視覺浮水印文字/圖片 → 可以 display:none */
-  [class*="watermark"],[id*="watermark"]{
-    display:none!important;
+  *,*::before,*::after { box-sizing:border-box;margin:0;padding:0 }
+  html,body { width:100%;height:100%;overflow:hidden;background:#000;touch-action:none }
+  #renderCanvas { position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0;display:block }
+  [class*="xr8"],[id*="xr8"],[class*="poweredby"],[id*="powered"] { visibility:hidden!important;pointer-events:none!important }
+  [class*="watermark"],[id*="watermark"] { display:none!important }
+
+  /* ═══════════════════════════════════════
+     TAP-TO-START OVERLAY（無按鈕）
+  ═══════════════════════════════════════ */
+  #tap-start {
+    position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;
+    background:var(--bg-deep);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    transition:opacity .9s ease;
+    overflow:hidden;
+  }
+  #tap-start::before {
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0,80,180,0.18) 0%, transparent 70%);
+    pointer-events:none;
   }
 
-  /* ── Scanning overlay ── */
-  #scan-ov{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;pointer-events:none;background:rgba(0,0,0,0.18);opacity:1;transition:opacity 0.6s}
-  #scan-ov.hidden{opacity:0;pointer-events:none}
-  .sbox{width:230px;height:230px;position:relative;border:2px solid rgba(0,220,255,0.4);border-radius:14px;box-shadow:0 0 30px rgba(0,220,255,0.15)}
-  .sline{position:absolute;height:2px;width:100%;top:0;background:linear-gradient(90deg,transparent,#00eeff 30%,#00eeff 70%,transparent);animation:scan 2s ease-in-out infinite;box-shadow:0 0 10px rgba(0,238,255,0.8)}
-  .corn{position:absolute;width:22px;height:22px;border-color:rgba(0,238,255,0.9);border-style:solid;border-width:0}
-  .c-tl{top:-2px;left:-2px;border-top-width:3px;border-left-width:3px;border-radius:5px 0 0 0}
-  .c-tr{top:-2px;right:-2px;border-top-width:3px;border-right-width:3px;border-radius:0 5px 0 0}
-  .c-bl{bottom:-2px;left:-2px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 5px}
-  .c-br{bottom:-2px;right:-2px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 5px 0}
-  #scan-label{font-family:monospace;font-size:11px;letter-spacing:2px;color:rgba(0,220,255,0.8);text-align:center;line-height:2;animation:pulse 2s infinite}
+  /* 背景粒子星點 */
+  .ts-stars { position:absolute;inset:0;overflow:hidden;pointer-events:none }
+  .ts-star {
+    position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;
+    animation:starFade 4s ease-in-out infinite;
+  }
+  @keyframes starFade { 0%,100%{opacity:.1} 50%{opacity:.8} }
 
-  /* ── 動畫 ── */
-  @keyframes scan{0%{transform:translateY(0)}50%{transform:translateY(225px)}100%{transform:translateY(0)}}
-  @keyframes pulse{0%,100%{opacity:.9}50%{opacity:.25}}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
-  @keyframes typing{to{border-color:transparent}}
-  @keyframes ringBurst{0%{transform:scale(1);opacity:.8}60%{transform:scale(2.2);opacity:.3}100%{transform:scale(3);opacity:0}}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  /* 品牌標語 */
+  .ts-brand {
+    font-family:var(--font-hud);font-size:9px;letter-spacing:3px;
+    color:rgba(0,180,255,0.45);margin-bottom:40px;text-align:center;
+    animation:fadeIn 1.2s ease forwards;opacity:0;animation-delay:.2s;
+  }
 
-  /* ── Status ── */
-  #status{position:fixed;top:14px;left:50%;transform:translateX(-50%);padding:7px 16px;background:rgba(0,5,18,0.9);border:1px solid rgba(0,180,255,0.4);border-radius:20px;backdrop-filter:blur(10px);font-family:monospace;font-size:11px;color:rgba(0,210,255,0.95);z-index:100;opacity:0;transition:opacity .3s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
-  #status.show{opacity:1}
+  /* 中央 portal 動畫圓環 */
+  .ts-portal {
+    position:relative;width:180px;height:180px;margin-bottom:36px;
+    animation:fadeIn .8s ease forwards;opacity:0;animation-delay:.4s;
+  }
+  .ts-ring {
+    position:absolute;top:50%;left:50%;border-radius:50%;
+    border:1.5px solid var(--accent);transform:translate(-50%,-50%);
+    animation:tsRingSpin 6s linear infinite;
+  }
+  .ts-ring:nth-child(1){ width:180px;height:180px;opacity:.25;animation-duration:8s }
+  .ts-ring:nth-child(2){ width:140px;height:140px;opacity:.4;animation-duration:5s;animation-direction:reverse }
+  .ts-ring:nth-child(3){ width:100px;height:100px;opacity:.6;animation-duration:3.5s;border-color:var(--accent2) }
+  .ts-ring:nth-child(4){
+    width:60px;height:60px;opacity:.9;animation-duration:2s;
+    border-color:#fff;box-shadow:0 0 20px rgba(0,200,255,0.6);
+  }
+  .ts-ring-dot {
+    position:absolute;width:8px;height:8px;background:var(--accent);
+    border-radius:50%;box-shadow:0 0 12px var(--accent);
+    top:-4px;left:50%;margin-left:-4px;
+    transform-origin:4px calc(50px);
+    animation:tsRingSpin 2s linear infinite;
+  }
+  @keyframes tsRingSpin { from{transform:translate(-50%,-50%) rotate(0deg)} to{transform:translate(-50%,-50%) rotate(360deg)} }
+  .ts-portal-center {
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    text-align:center;
+  }
+  .ts-icon { font-size:28px;display:block;margin-bottom:4px;animation:iconFloat 3s ease-in-out infinite }
+  @keyframes iconFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .ts-scan-txt {
+    font-family:var(--font-hud);font-size:8px;letter-spacing:2px;
+    color:rgba(0,200,255,0.5);animation:pulse 2s infinite;
+  }
 
-  /* ── Target badge（左上，顯示目前偵測到的海報名稱）── */
-  #target-badge{position:fixed;top:14px;left:14px;display:flex;align-items:center;gap:7px;padding:6px 13px;background:rgba(0,8,20,0.88);border:1px solid rgba(0,175,255,0.4);border-radius:14px;backdrop-filter:blur(8px);font-family:monospace;font-size:10px;color:rgba(0,200,255,0.9);z-index:100;opacity:0;transition:opacity .8s;max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #target-badge.show{opacity:1}
-  #target-dot{width:7px;height:7px;border-radius:50%;animation:blink 1.6s infinite;flex-shrink:0}
+  /* 主標題 */
+  .ts-title {
+    font-family:var(--font-title);font-size:22px;font-weight:900;color:#fff;
+    text-align:center;line-height:1.35;letter-spacing:2px;margin-bottom:10px;
+    text-shadow:0 0 40px rgba(0,180,255,0.6);
+    animation:fadeIn .8s ease forwards;opacity:0;animation-delay:.6s;
+  }
+  .ts-tagline {
+    font-family:var(--font-hud);font-size:10px;color:rgba(0,180,255,0.5);
+    letter-spacing:2px;text-align:center;margin-bottom:32px;
+    animation:fadeIn .8s ease forwards;opacity:0;animation-delay:.8s;
+  }
 
-  /* ── Flash ── */
-  #flash{position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;opacity:0;transition:opacity .8s;background:radial-gradient(circle,rgba(0,210,255,0.14),transparent 68%)}
-  #flash.on{opacity:1}
+  /* 流程圖示 */
+  .ts-flow {
+    display:flex;align-items:center;gap:6px;margin-bottom:44px;
+    animation:fadeIn .8s ease forwards;opacity:0;animation-delay:1s;
+  }
+  .ts-step {
+    font-family:var(--font-hud);font-size:9px;letter-spacing:1px;
+    color:rgba(0,180,255,0.6);text-align:center;line-height:1.4;
+    padding:6px 8px;border:1px solid rgba(0,150,255,0.2);border-radius:6px;
+    background:rgba(0,60,150,0.12);
+  }
+  .ts-arrow { font-size:10px;color:rgba(0,150,255,0.35) }
 
-  /* ── Ring burst overlay（目標找到時的光環爆發）── */
-  #ring-burst{position:fixed;top:50%;left:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;border:3px solid rgba(0,210,255,0.7);z-index:6;pointer-events:none;opacity:0}
-  #ring-burst.burst{animation:ringBurst 0.7s ease-out forwards}
+  /* 輕觸提示 */
+  .ts-tap {
+    font-family:var(--font-hud);font-size:12px;letter-spacing:3px;
+    color:rgba(0,220,255,0.8);text-align:center;
+    animation:tapBlink 1.8s ease-in-out infinite,fadeIn .8s ease forwards;
+    opacity:0;animation-delay:1.2s;
+  }
+  @keyframes tapBlink { 0%,100%{opacity:.9;transform:scale(1)} 50%{opacity:.3;transform:scale(.97)} }
+  @keyframes fadeIn { to{opacity:1} }
+  @keyframes pulse { 0%,100%{opacity:.9} 50%{opacity:.25} }
 
-  /* ════ AI 全息面板 — 底部浮動 ════ */
-  #holo-panel{position:fixed;bottom:90px;left:10px;right:10px;z-index:50;opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s;pointer-events:none}
-  #holo-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
-  .hcard{background:linear-gradient(160deg,rgba(0,14,42,0.97),rgba(0,5,20,0.98));border:1.5px solid var(--holo-accent,rgba(0,190,255,0.5));border-radius:18px;padding:16px 18px 14px;backdrop-filter:blur(18px);box-shadow:0 0 50px rgba(0,140,255,0.18),inset 0 1px 0 rgba(0,220,255,0.09);position:relative;overflow:hidden;transition:border-color .5s}
-  .hcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--holo-accent,rgba(0,200,255,0.7)) 40%,var(--holo-accent,rgba(0,200,255,0.7)) 60%,transparent)}
-  .hcard::after{content:'';position:absolute;left:0;right:0;height:50px;background:linear-gradient(180deg,transparent,rgba(0,150,255,0.04),transparent);animation:hscan 3.5s ease-in-out infinite;pointer-events:none}
-  @keyframes hscan{0%{top:0}100%{top:100%}}
-  .hsysbar{display:flex;justify-content:space-between;margin-bottom:8px;font-family:monospace;font-size:9px;letter-spacing:1.5px;color:rgba(0,160,255,0.5)}
-  .hsdot{display:inline-block;width:5px;height:5px;background:rgba(0,210,255,0.7);border-radius:50%;margin-right:5px;animation:blink 2s infinite}
-  .hdiv{height:1px;margin:7px 0;background:linear-gradient(90deg,transparent,rgba(0,190,255,0.3) 30%,rgba(0,190,255,0.3) 70%,transparent)}
-  .htitle{font-size:21px;font-weight:700;color:rgba(230,248,255,1);text-shadow:0 0 18px rgba(0,200,255,0.65);letter-spacing:1px;margin-bottom:3px;animation:fadeUp .4s ease}
-  .hbrand{font-family:monospace;font-size:9px;letter-spacing:2.5px;color:rgba(0,160,255,0.55);margin-bottom:10px}
-  .htext{font-size:15px;line-height:1.8;color:rgba(210,242,255,0.92);min-height:48px}
-  .hcursor{display:inline-block;width:2px;height:15px;background:rgba(0,220,255,0.9);margin-left:2px;vertical-align:middle;animation:typing .6s step-end infinite alternate}
-  .hcursor.done{display:none}
-  .hfooter{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:monospace;font-size:9px;letter-spacing:1px;color:rgba(0,140,200,0.5)}
-  .hpill{padding:2px 8px;background:rgba(0,70,180,0.25);border:1px solid rgba(0,150,255,0.3);border-radius:7px;font-size:9px;color:rgba(0,175,255,0.7)}
+  /* 載入狀態（tap 後顯示） */
+  .ts-loading {
+    position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
+    font-family:var(--font-hud);font-size:10px;letter-spacing:2px;
+    color:rgba(0,200,255,0.6);display:none;white-space:nowrap;
+    animation:pulse 1.2s infinite;
+  }
+  .ts-loading.show { display:block }
 
-  /* ── Controls ── */
-  .ctrl-row{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:8px;align-items:flex-end}
-  .btn-col{display:flex;flex-direction:column;align-items:center;gap:4px}
-  .cbtn{width:50px;height:50px;background:rgba(0,8,24,0.85);border:1.5px solid rgba(0,175,255,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent}
-  .cbtn:active,.cbtn.active{background:rgba(0,95,215,0.45);border-color:rgba(0,230,255,0.95);box-shadow:0 0 14px rgba(0,200,255,0.3)}
-  .cbtn svg{width:21px;height:21px;fill:rgba(0,210,255,0.9)}
-  .cbtn.snap-btn{border-color:rgba(255,200,0,0.5)}
-  .cbtn.snap-btn svg{fill:rgba(255,220,60,0.9)}
-  .cbtn.snap-btn:active{background:rgba(200,150,0,0.35);border-color:rgba(255,220,0,.95);box-shadow:0 0 14px rgba(255,200,0,.3)}
-  .blbl{font-family:monospace;font-size:9px;color:rgba(0,155,255,0.6);white-space:nowrap}
-  .blbl.snap-lbl{color:rgba(255,200,0,0.55)}
+  /* ═══════════════════════════════════════
+     PORTAL OPENING 特效層（target found 時）
+  ═══════════════════════════════════════ */
+  #portal-vfx {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    z-index:8;pointer-events:none;display:none;
+  }
+  #portal-vfx.active { display:block }
+  .pvfx-ring {
+    position:absolute;top:50%;left:50%;border-radius:50%;
+    border:2px solid var(--accent);
+    transform:translate(-50%,-50%) scale(0);
+    opacity:0;
+  }
+  .pvfx-ring.burst {
+    animation:portalRingBurst .9s cubic-bezier(0.2,0.8,0.3,1) forwards;
+  }
+  .pvfx-ring:nth-child(2) { animation-delay:.12s!important }
+  .pvfx-ring:nth-child(3) { animation-delay:.24s!important;border-color:rgba(0,100,255,0.7) }
+  @keyframes portalRingBurst {
+    0%   { transform:translate(-50%,-50%) scale(0);opacity:.9 }
+    60%  { transform:translate(-50%,-50%) scale(2.5);opacity:.5 }
+    100% { transform:translate(-50%,-50%) scale(5);opacity:0 }
+  }
+  .pvfx-flash {
+    position:absolute;inset:0;
+    background:radial-gradient(circle at 50% 50%, rgba(0,180,255,0.22), transparent 65%);
+    opacity:0;animation:portalFlash 1.2s ease forwards;
+  }
+  @keyframes portalFlash { 0%{opacity:0} 20%{opacity:1} 100%{opacity:0} }
+  .pvfx-rays {
+    position:absolute;top:50%;left:50%;width:0;height:0;
+    animation:raysAppear 1s ease forwards;
+  }
+  @keyframes raysAppear { from{opacity:0} 30%{opacity:1} to{opacity:0} }
 
-  /* ── Screenshot flash ── */
-  #snap-flash{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9998;pointer-events:none;opacity:0;transition:opacity .15s}
-  #snap-flash.on{opacity:0.7}
+  /* ═══════════════════════════════════════
+     SCAN OVERLAY
+  ═══════════════════════════════════════ */
+  #scan-ov {
+    position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;
+    pointer-events:none;transition:opacity .6s;
+  }
+  #scan-ov.hidden { opacity:0 }
+  .sbox {
+    width:220px;height:220px;position:relative;
+    border:1.5px solid rgba(0,200,255,0.3);border-radius:12px;
+    box-shadow:0 0 40px rgba(0,200,255,0.08);
+  }
+  .sline {
+    position:absolute;height:2px;width:100%;top:0;
+    background:linear-gradient(90deg,transparent,var(--accent) 30%,var(--accent) 70%,transparent);
+    animation:scan 2.2s ease-in-out infinite;
+    box-shadow:0 0 12px rgba(0,220,255,0.7);
+  }
+  .corn { position:absolute;width:20px;height:20px;border-color:rgba(0,220,255,.9);border-style:solid;border-width:0 }
+  .c-tl{top:-2px;left:-2px;border-top-width:2.5px;border-left-width:2.5px;border-radius:4px 0 0 0}
+  .c-tr{top:-2px;right:-2px;border-top-width:2.5px;border-right-width:2.5px;border-radius:0 4px 0 0}
+  .c-bl{bottom:-2px;left:-2px;border-bottom-width:2.5px;border-left-width:2.5px;border-radius:0 0 0 4px}
+  .c-br{bottom:-2px;right:-2px;border-bottom-width:2.5px;border-right-width:2.5px;border-radius:0 0 4px 0}
+  #scan-label {
+    font-family:var(--font-hud);font-size:10px;letter-spacing:2.5px;
+    color:rgba(0,200,255,0.7);text-align:center;line-height:2.2;
+    animation:pulse 2s infinite;
+  }
+  @keyframes scan { 0%{transform:translateY(0)} 50%{transform:translateY(215px)} 100%{transform:translateY(0)} }
 
-  /* ── Fullscreen ── */
-  #fs-wrap{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999;background:rgba(0,0,0,.97);display:none;align-items:center;justify-content:center;cursor:pointer}
-  #fs-wrap.show{display:flex}
-  #fs-vid{max-width:100%;max-height:100%}
+  /* ═══════════════════════════════════════
+     STATUS BAR
+  ═══════════════════════════════════════ */
+  #status {
+    position:fixed;top:14px;left:50%;transform:translateX(-50%);
+    padding:7px 18px;background:rgba(0,5,18,.92);
+    border:1px solid rgba(0,180,255,.4);border-radius:20px;
+    backdrop-filter:blur(12px);font-family:var(--font-hud);font-size:10px;
+    color:rgba(0,210,255,.95);z-index:100;opacity:0;transition:opacity .3s;
+    white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;
+  }
+  #status.show { opacity:1 }
 
-  /* ── Debug ── */
-  #dbg{position:fixed;bottom:84px;left:8px;right:8px;max-height:155px;overflow-y:auto;background:rgba(0,0,0,0.94);border:1px solid rgba(255,70,70,0.3);border-radius:10px;padding:8px;font-family:monospace;font-size:10px;z-index:300;display:none}
-  #dbg.show{display:block}
+  /* ═══════════════════════════════════════
+     TARGET BADGE
+  ═══════════════════════════════════════ */
+  #target-badge {
+    position:fixed;top:14px;left:14px;
+    display:flex;align-items:center;gap:7px;
+    padding:6px 12px;background:rgba(0,8,20,.9);
+    border:1px solid rgba(0,175,255,.35);border-radius:14px;
+    backdrop-filter:blur(10px);font-family:var(--font-hud);font-size:9px;
+    color:rgba(0,200,255,.9);z-index:100;opacity:0;transition:opacity .8s;
+    max-width:50vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  #target-badge.show { opacity:1 }
+  #target-dot { width:6px;height:6px;border-radius:50%;animation:blink 1.6s infinite;flex-shrink:0 }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
+
+  /* ═══════════════════════════════════════
+     AI HOLOGRAM PANEL（全新設計）
+  ═══════════════════════════════════════ */
+  #holo-panel {
+    position:fixed;bottom:88px;left:10px;right:10px;z-index:50;
+    opacity:0;transform:translateY(24px);
+    transition:opacity .6s cubic-bezier(.2,.8,.3,1),transform .6s cubic-bezier(.2,.8,.3,1);
+    pointer-events:none;
+  }
+  #holo-panel.show { opacity:1;transform:translateY(0);pointer-events:auto }
+
+  .hcard {
+    background:linear-gradient(155deg,rgba(0,10,32,.97),rgba(0,4,18,.98));
+    border:1.5px solid var(--accent);
+    border-color:rgba(0,200,255,.45);
+    border-radius:20px;padding:14px 16px 12px;
+    backdrop-filter:blur(20px);
+    box-shadow:0 0 60px rgba(0,120,255,.15),inset 0 1px 0 rgba(0,220,255,.08);
+    position:relative;overflow:hidden;
+    transition:border-color .5s;
+  }
+  .hcard::before {
+    content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+    background:linear-gradient(90deg,transparent,var(--accent) 40%,var(--accent) 60%,transparent);
+  }
+  /* Holographic scan sweep */
+  .hcard::after {
+    content:'';position:absolute;left:0;right:0;height:60px;
+    background:linear-gradient(180deg,transparent,rgba(0,150,255,.04),transparent);
+    animation:hcardScan 4s ease-in-out infinite;pointer-events:none;
+  }
+  @keyframes hcardScan { 0%{top:-60px} 100%{top:110%} }
+
+  /* ── HUD 系統列 ── */
+  .h-sysbar {
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:var(--font-hud);font-size:8.5px;letter-spacing:1.5px;
+    color:rgba(0,150,255,.45);margin-bottom:10px;
+  }
+  .h-dot { display:inline-block;width:5px;height:5px;border-radius:50%;background:rgba(0,210,255,.7);margin-right:5px;animation:blink 2s infinite }
+  .hdiv { height:1px;margin:8px 0;background:linear-gradient(90deg,transparent,rgba(0,190,255,.25) 30%,rgba(0,190,255,.25) 70%,transparent) }
+
+  /* ── 角色區 ── */
+  .char-section {
+    display:flex;align-items:center;gap:14px;margin-bottom:10px;
+  }
+
+  /* SVG 全息人形 */
+  .char-avatar {
+    width:54px;height:80px;flex-shrink:0;position:relative;
+    animation:charFloat 4s ease-in-out infinite;
+  }
+  @keyframes charFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+  .char-svg {
+    width:100%;height:100%;overflow:visible;
+    filter:drop-shadow(0 0 6px var(--accent));
+  }
+  /* Scan line sweeps through character */
+  .char-scanline {
+    animation:charScan 2.5s linear infinite;
+  }
+  @keyframes charScan {
+    0%   { transform:translateY(-10px);opacity:.2 }
+    50%  { opacity:.5 }
+    100% { transform:translateY(110px);opacity:.1 }
+  }
+  /* Speaking pulse on chest core */
+  .char-core { animation:corePulse 1.2s ease-in-out infinite }
+  @keyframes corePulse { 0%,100%{opacity:.7;r:2} 50%{opacity:1;r:3.5} }
+  #char-core-active { display:none }
+  .speaking .char-core { animation:coreSpeakPulse .4s ease-in-out infinite }
+  @keyframes coreSpeakPulse { 0%,100%{opacity:1;r:3} 50%{opacity:.4;r:1.5} }
+
+  /* 角色資訊 */
+  .char-info { flex:1;min-width:0 }
+  .char-name {
+    font-family:var(--font-title);font-size:16px;font-weight:700;
+    color:var(--text-bright);text-shadow:0 0 16px rgba(0,200,255,.6);
+    letter-spacing:2px;margin-bottom:2px;
+  }
+  .char-role {
+    font-family:var(--font-hud);font-size:9px;letter-spacing:1.5px;
+    color:var(--text-dim);margin-bottom:8px;
+  }
+  /* 狀態 pill */
+  .char-status {
+    display:inline-flex;align-items:center;gap:5px;
+    padding:3px 9px;background:rgba(0,60,160,.25);
+    border:1px solid rgba(0,140,255,.3);border-radius:8px;
+    font-family:var(--font-hud);font-size:8px;color:rgba(0,175,255,.75);
+  }
+  .char-status-dot { width:5px;height:5px;border-radius:50%;background:rgba(0,210,255,.7);animation:blink 1.5s infinite }
+
+  /* ── 語音氣泡 ── */
+  .speech-bubble {
+    font-family:var(--font-body);font-size:14px;line-height:1.85;
+    color:var(--text-mid);min-height:44px;padding:10px 12px;
+    background:rgba(0,30,80,.3);border-radius:12px;
+    border:1px solid rgba(0,150,255,.18);position:relative;
+    margin-bottom:8px;
+  }
+  .hcursor {
+    display:inline-block;width:2px;height:14px;background:rgba(0,220,255,.9);
+    margin-left:2px;vertical-align:middle;
+    animation:cursorBlink .55s step-end infinite alternate;
+  }
+  .hcursor.done { display:none }
+  @keyframes cursorBlink { to{background:transparent} }
+
+  /* ── 互動選項 ── */
+  .ai-options { display:flex;flex-wrap:wrap;gap:6px;margin-top:4px }
+  .opt-btn {
+    font-family:var(--font-hud);font-size:9px;letter-spacing:1px;
+    padding:5px 12px;background:rgba(0,50,140,.25);
+    border:1px solid rgba(0,150,255,.35);border-radius:8px;
+    color:rgba(0,185,255,.8);cursor:pointer;
+    transition:all .2s;-webkit-tap-highlight-color:transparent;
+  }
+  .opt-btn:active { background:rgba(0,90,200,.45);border-color:rgba(0,220,255,.7) }
+
+  /* ── Footer ── */
+  .hfooter {
+    display:flex;justify-content:space-between;align-items:center;margin-top:8px;
+    font-family:var(--font-hud);font-size:8.5px;letter-spacing:1px;color:rgba(0,130,190,.45);
+  }
+  .hpill {
+    padding:2px 8px;background:rgba(0,60,170,.22);
+    border:1px solid rgba(0,140,255,.28);border-radius:6px;
+    font-size:8px;color:rgba(0,165,255,.65);
+  }
+
+  /* ═══════════════════════════════════════
+     CONTROLS
+  ═══════════════════════════════════════ */
+  .ctrl-row {
+    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+    z-index:200;display:flex;gap:6px;align-items:flex-end;
+  }
+  .btn-col { display:flex;flex-direction:column;align-items:center;gap:3px }
+  .cbtn {
+    width:48px;height:48px;background:rgba(0,8,24,.88);
+    border:1.5px solid rgba(0,175,255,.38);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;backdrop-filter:blur(12px);
+    transition:all .2s;-webkit-tap-highlight-color:transparent;
+  }
+  .cbtn:active,.cbtn.active { background:rgba(0,90,210,.45);border-color:rgba(0,230,255,.95);box-shadow:0 0 16px rgba(0,200,255,.35) }
+  .cbtn svg { width:20px;height:20px;fill:rgba(0,210,255,.9) }
+  .cbtn.snap-btn { border-color:rgba(255,195,0,.45) }
+  .cbtn.snap-btn svg { fill:rgba(255,215,50,.9) }
+  .cbtn.snap-btn:active { background:rgba(180,130,0,.35);border-color:rgba(255,215,0,.95);box-shadow:0 0 14px rgba(255,195,0,.35) }
+  .blbl { font-family:var(--font-hud);font-size:8.5px;color:rgba(0,150,255,.55);white-space:nowrap }
+  .blbl.snap-lbl { color:rgba(255,195,0,.5) }
+
+  /* ═══════════════════════════════════════
+     MISC
+  ═══════════════════════════════════════ */
+  #flash { position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .8s;background:radial-gradient(circle,rgba(0,210,255,.16),transparent 68%) }
+  #flash.on { opacity:1 }
+  #ring-burst { position:fixed;top:50%;left:50%;width:200px;height:200px;margin:-100px;border-radius:50%;border:2.5px solid rgba(0,210,255,.7);z-index:6;pointer-events:none;opacity:0 }
+  #ring-burst.burst { animation:ringBurst .7s ease-out forwards }
+  @keyframes ringBurst { 0%{transform:scale(1);opacity:.85} 60%{transform:scale(2.2);opacity:.3} 100%{transform:scale(3.2);opacity:0} }
+  #snap-flash { position:fixed;inset:0;background:#fff;z-index:9998;pointer-events:none;opacity:0;transition:opacity .15s }
+  #snap-flash.on { opacity:.7 }
+  #fs-wrap { position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.97);display:none;align-items:center;justify-content:center;cursor:pointer }
+  #fs-wrap.show { display:flex }
+  #fs-vid { max-width:100%;max-height:100% }
+  #dbg { position:fixed;bottom:80px;left:8px;right:8px;max-height:150px;overflow-y:auto;background:rgba(0,0,0,.95);border:1px solid rgba(255,70,70,.3);border-radius:10px;padding:8px;font-family:monospace;font-size:10px;z-index:300;display:none }
+  #dbg.show { display:block }
   #dbg .ok{color:#88ff88}#dbg .err{color:#ff6666}#dbg .inf{color:#88ccff}
-
-  /* ════ PERMISSION GATE ════ */
-  #perm-gate{position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .7s}
-  #perm-gate.fade{opacity:0;pointer-events:none}
-  .pgate-logo{font-family:monospace;font-size:11px;letter-spacing:3px;color:rgba(0,180,255,0.5);text-align:center}
-  .pgate-scan{width:160px;height:160px;position:relative;border:1px solid rgba(0,200,255,0.2);border-radius:12px}
-  .pgate-scan::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,220,255,0.6),transparent);animation:pgscan 2.5s ease-in-out infinite}
-  @keyframes pgscan{0%{transform:translateY(0)}50%{transform:translateY(159px)}100%{transform:translateY(0)}}
-  .pgcorn{position:absolute;width:16px;height:16px;border-color:rgba(0,200,255,0.7);border-style:solid;border-width:0}
-  .pgc-tl{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px}
-  .pgc-tr{top:-1px;right:-1px;border-top-width:2px;border-right-width:2px}
-  .pgc-bl{bottom:-1px;left:-1px;border-bottom-width:2px;border-left-width:2px}
-  .pgc-br{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px}
-  .pgcenter{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
-  .pgcenter-icon{font-size:32px;margin-bottom:4px}
-  .pgcenter-text{font-family:monospace;font-size:9px;letter-spacing:2px;color:rgba(0,200,255,0.5);animation:pulse 2s infinite}
-  .pgate-title{font-size:24px;font-weight:700;color:#fff;text-align:center;text-shadow:0 0 30px rgba(0,180,255,0.4)}
-  .pgate-sub{font-size:12px;color:rgba(200,230,255,0.55);text-align:center;line-height:1.8;max-width:260px}
-  #btn-start{padding:15px 44px;background:transparent;border:1.5px solid rgba(0,200,255,0.7);border-radius:50px;color:rgba(0,220,255,0.95);font-size:15px;font-family:monospace;letter-spacing:2px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  #btn-start:disabled{opacity:.4;cursor:wait}
-  .pgate-note{font-size:10px;color:rgba(150,180,210,0.3);text-align:center;max-width:240px;line-height:1.6;font-family:monospace}
   </style>
 </head>
 <body>
 
-  <!-- Permission Gate -->
-  <div id="perm-gate">
-    <div class="pgate-logo">一畫千言 × AR EXPERIENCE</div>
-    <div class="pgate-scan">
-      <div class="pgcorn pgc-tl"></div><div class="pgcorn pgc-tr"></div>
-      <div class="pgcorn pgc-bl"></div><div class="pgcorn pgc-br"></div>
-      <div class="pgcenter">
-        <div class="pgcenter-icon">🎯</div>
-        <div class="pgcenter-text">SCAN TO UNLOCK</div>
+<!-- ═══════════════════════════════════════════
+     TAP-TO-START（輕觸任意處 = 唯一互動）
+═══════════════════════════════════════════ -->
+<div id="tap-start">
+  <div class="ts-stars" id="ts-stars"></div>
+
+  <div class="ts-brand">一畫千言 × AI METAL POSTER</div>
+
+  <div class="ts-portal">
+    <div class="ts-ring"></div>
+    <div class="ts-ring"></div>
+    <div class="ts-ring"></div>
+    <div class="ts-ring">
+      <div class="ts-ring-dot"></div>
+    </div>
+    <div class="ts-portal-center">
+      <span class="ts-icon">🪙</span>
+      <span class="ts-scan-txt">METAL POSTER</span>
+    </div>
+  </div>
+
+  <div class="ts-title">每張海報<br>都是一個 AI 入口</div>
+  <div class="ts-tagline">SCAN · PORTAL · HOLOGRAM · INTERACT</div>
+
+  <div class="ts-flow">
+    <div class="ts-step">掃描<br>海報</div>
+    <div class="ts-arrow">→</div>
+    <div class="ts-step">AR<br>Portal</div>
+    <div class="ts-arrow">→</div>
+    <div class="ts-step">AI<br>Hologram</div>
+    <div class="ts-arrow">→</div>
+    <div class="ts-step">互動<br>世界</div>
+  </div>
+
+  <div class="ts-tap">▶ 輕觸任意處啟動</div>
+  <div class="ts-loading" id="ts-loading">⬛ 初始化中…</div>
+</div>
+
+<!-- AR Canvas -->
+<canvas id="renderCanvas"></canvas>
+<div id="flash"></div>
+<div id="ring-burst"></div>
+<div id="snap-flash"></div>
+
+<!-- Portal VFX layer -->
+<div id="portal-vfx">
+  <div class="pvfx-flash"></div>
+  <div class="pvfx-ring" style="width:120px;height:120px"></div>
+  <div class="pvfx-ring" style="width:200px;height:200px"></div>
+  <div class="pvfx-ring" style="width:300px;height:300px"></div>
+</div>
+
+<!-- Scanning UI -->
+<div id="scan-ov">
+  <div class="sbox">
+    <div class="sline"></div>
+    <div class="corn c-tl"></div><div class="corn c-tr"></div>
+    <div class="corn c-bl"></div><div class="corn c-br"></div>
+  </div>
+  <div id="scan-label">IMAGE TRACKING<br>對準金屬海報</div>
+</div>
+
+<!-- Target badge -->
+<div id="target-badge">
+  <div id="target-dot" style="background:#00ccff"></div>
+  <span id="target-name">掃描中</span>
+</div>
+
+<!-- Status -->
+<div id="status"></div>
+
+<!-- ═══ AI HOLOGRAM PANEL ═══ -->
+<div id="holo-panel">
+  <div class="hcard" id="hcard-el">
+    <div class="h-sysbar">
+      <span><span class="h-dot"></span>ARIA · AI HOLOGRAM SYSTEM</span>
+      <span id="hclock">--:--:--</span>
+    </div>
+    <div class="hdiv"></div>
+
+    <!-- 角色區 -->
+    <div class="char-section">
+      <div class="char-avatar" id="char-avatar">
+        <svg class="char-svg" viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="charGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- Head: hexagon -->
+          <polygon points="30,3 43,11 43,27 30,35 17,27 17,11"
+            fill="rgba(0,200,255,0.07)" stroke="var(--accent,#00ccff)" stroke-width="1.5"
+            filter="url(#charGlow)"/>
+          <!-- Eye left -->
+          <line x1="22" y1="18" x2="27" y2="18" stroke="var(--accent,#00ccff)" stroke-width="1.5" opacity=".9"/>
+          <!-- Eye right -->
+          <line x1="33" y1="18" x2="38" y2="18" stroke="var(--accent,#00ccff)" stroke-width="1.5" opacity=".9"/>
+          <!-- Mouth -->
+          <path d="M24 26 Q30 30 36 26" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1" opacity=".7"/>
+          <!-- Neck -->
+          <line x1="27" y1="35" x2="27" y2="42" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <line x1="33" y1="35" x2="33" y2="42" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <!-- Collar -->
+          <path d="M12 46 L27 42 L33 42 L48 46" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <!-- Torso -->
+          <path d="M18 46 L16 72 L30 75 L44 72 L42 46 Z"
+            fill="rgba(0,200,255,0.07)" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <!-- Chest core -->
+          <circle cx="30" cy="57" r="4" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1.2"/>
+          <circle class="char-core" cx="30" cy="57" r="2" fill="var(--accent,#00ccff)"/>
+          <!-- Shoulder epaulettes -->
+          <rect x="10" y="44" width="8" height="4" rx="2"
+            fill="rgba(0,150,255,0.15)" stroke="var(--accent,#00ccff)" stroke-width="1"/>
+          <rect x="42" y="44" width="8" height="4" rx="2"
+            fill="rgba(0,150,255,0.15)" stroke="var(--accent,#00ccff)" stroke-width="1"/>
+          <!-- Arms -->
+          <path d="M18 46 L8 47 L6 68 L12 71" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <path d="M42 46 L52 47 L54 68 L48 71" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <!-- Legs -->
+          <path d="M24 75 L20 98" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <path d="M36 75 L40 98" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <!-- Boots -->
+          <path d="M18 95 L22 98 L26 98" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <path d="M38 95 L36 98 L42 98" fill="none" stroke="var(--accent,#00ccff)" stroke-width="1.5"/>
+          <!-- Body detail lines -->
+          <line x1="22" y1="55" x2="28" y2="55" stroke="var(--accent,#00ccff)" stroke-width=".8" opacity=".4"/>
+          <line x1="32" y1="55" x2="38" y2="55" stroke="var(--accent,#00ccff)" stroke-width=".8" opacity=".4"/>
+          <line x1="20" y1="62" x2="40" y2="62" stroke="var(--accent,#00ccff)" stroke-width=".8" opacity=".3"/>
+          <!-- Scan line (CSS animated) -->
+          <rect class="char-scanline" x="0" y="0" width="60" height="3" fill="var(--accent,#00ccff)" opacity=".15" rx="1"/>
+        </svg>
+      </div>
+
+      <div class="char-info">
+        <div class="char-name" id="char-name">ARIA</div>
+        <div class="char-role" id="char-role">AI 海洋探索導航員</div>
+        <div class="char-status">
+          <div class="char-status-dot"></div>
+          <span id="char-status-txt">HOLOGRAM ACTIVE</span>
+        </div>
       </div>
     </div>
-    <div class="pgate-title">AR 全息體驗</div>
-    <div class="pgate-sub">掃描金屬海報，解鎖 AI 全息導覽</div>
-    <button id="btn-start">▶ 開始體驗</button>
-    <div class="pgate-note">點擊後系統將詢問相機授權<br>請點選「允許」以啟動 AR</div>
-  </div>
 
-  <!-- AR Canvas -->
-  <canvas id="renderCanvas"></canvas>
-  <div id="flash"></div>
-  <div id="ring-burst"></div>
-  <div id="snap-flash"></div>
+    <div class="hdiv"></div>
 
-  <!-- Scanning UI -->
-  <div id="scan-ov">
-    <div class="sbox">
-      <div class="sline"></div>
-      <div class="corn c-tl"></div><div class="corn c-tr"></div>
-      <div class="corn c-bl"></div><div class="corn c-br"></div>
+    <!-- 語音氣泡 -->
+    <div class="speech-bubble">
+      <span id="holo-content">⬛ 初始化中…</span><span class="hcursor" id="holo-cur"></span>
     </div>
-    <div id="scan-label">IMAGE TRACKING<br>對準金屬海報</div>
-  </div>
 
-  <!-- Target badge (top-left) -->
-  <div id="target-badge">
-    <div id="target-dot" style="background:#00ccff"></div>
-    <span id="target-name">偵測中</span>
-  </div>
+    <!-- 互動選項 -->
+    <div class="ai-options" id="ai-options" style="display:none">
+      <button class="opt-btn" id="opt-more">🔍 深入了解</button>
+      <button class="opt-btn" id="opt-hist">📜 歷史背景</button>
+      <button class="opt-btn" id="opt-craft">⚗️ 工藝細節</button>
+    </div>
 
-  <!-- Status -->
-  <div id="status"></div>
-
-  <!-- AI 全息面板 -->
-  <div id="holo-panel">
-    <div class="hcard">
-      <div class="hsysbar">
-        <span><span class="hsdot"></span>AR · AI SYSTEM</span>
-        <span id="hclock">--:--:--</span>
-      </div>
-      <div class="hdiv"></div>
-      <div class="htitle" id="holo-title">海賊船金屬海報</div>
-      <div class="hbrand">一畫千言 × AI NARRATOR</div>
-      <div class="hdiv"></div>
-      <div class="htext">
-        <span id="holo-content">⬛ 初始化中…</span><span class="hcursor" id="holo-cur"></span>
-      </div>
-      <div class="hfooter">
-        <span id="hfooter-l">◉ IMAGE LOCK</span>
-        <span class="hpill" id="hpill">READY</span>
-      </div>
+    <div class="hfooter">
+      <span id="hfooter-l">◉ PORTAL LOCKED</span>
+      <span class="hpill" id="hpill">INIT</span>
     </div>
   </div>
+</div>
 
-  <!-- Fullscreen video -->
-  <div id="fs-wrap"><video id="fs-vid" playsinline webkit-playsinline loop></video></div>
+<!-- Fullscreen video -->
+<div id="fs-wrap"><video id="fs-vid" playsinline webkit-playsinline loop></video></div>
 
-  <!-- Controls -->
-  <div class="ctrl-row">
-    <div class="btn-col">
-      <button class="cbtn" id="bp">
-        <svg id="ipp" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        <svg id="ipa" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-      </button><span class="blbl">播放</span>
-    </div>
-    <div class="btn-col">
-      <button class="cbtn" id="bs">
-        <svg id="ism" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-        <svg id="iss" viewBox="0 0 24 24" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-      </button><span class="blbl">音效</span>
-    </div>
-    <div class="btn-col">
-      <button class="cbtn" id="bai">
-        <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2M7.5 13A2.5 2.5 0 0 0 5 15.5 2.5 2.5 0 0 0 7.5 18 2.5 2.5 0 0 0 10 15.5 2.5 2.5 0 0 0 7.5 13m9 0a2.5 2.5 0 0 0-2.5 2.5 2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"/></svg>
-      </button><span class="blbl">AI講解</span>
-    </div>
-    <div class="btn-col">
-      <button class="cbtn" id="bh">
-        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
-      </button><span class="blbl">全息</span>
-    </div>
-    <div class="btn-col" id="snap-col" style="display:none">
-      <button class="cbtn snap-btn" id="bsnap">
-        <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zm6.4-9.6H17l-1.4-2H8.4L7 5.6H5.6A2.4 2.4 0 0 0 3.2 8v9.6a2.4 2.4 0 0 0 2.4 2.4h12.8a2.4 2.4 0 0 0 2.4-2.4V8a2.4 2.4 0 0 0-2.4-2.4zM12 17.6A4.8 4.8 0 1 1 12 8a4.8 4.8 0 0 1 0 9.6z"/></svg>
-      </button><span class="blbl snap-lbl">截圖</span>
-    </div>
-    <div class="btn-col">
-      <button class="cbtn" id="bdbg" style="border-color:rgba(255,140,0,.35)">
-        <svg viewBox="0 0 24 24" style="fill:rgba(255,165,0,.8)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-      </button><span class="blbl" style="color:rgba(255,140,0,.5)">偵錯</span>
-    </div>
+<!-- Controls -->
+<div class="ctrl-row">
+  <div class="btn-col">
+    <button class="cbtn" id="bp">
+      <svg id="ipp" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg id="ipa" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button><span class="blbl">播放</span>
   </div>
+  <div class="btn-col">
+    <button class="cbtn" id="bs">
+      <svg id="ism" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+      <svg id="iss" viewBox="0 0 24 24" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+    </button><span class="blbl">音效</span>
+  </div>
+  <div class="btn-col">
+    <button class="cbtn" id="bai">
+      <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2M7.5 13A2.5 2.5 0 0 0 5 15.5 2.5 2.5 0 0 0 7.5 18 2.5 2.5 0 0 0 10 15.5 2.5 2.5 0 0 0 7.5 13m9 0a2.5 2.5 0 0 0-2.5 2.5 2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"/></svg>
+    </button><span class="blbl">AI講解</span>
+  </div>
+  <div class="btn-col">
+    <button class="cbtn" id="bh">
+      <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+    </button><span class="blbl">全息</span>
+  </div>
+  <div class="btn-col" id="snap-col" style="display:none">
+    <button class="cbtn snap-btn" id="bsnap">
+      <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zm6.4-9.6H17l-1.4-2H8.4L7 5.6H5.6A2.4 2.4 0 0 0 3.2 8v9.6a2.4 2.4 0 0 0 2.4 2.4h12.8a2.4 2.4 0 0 0 2.4-2.4V8a2.4 2.4 0 0 0-2.4-2.4zM12 17.6A4.8 4.8 0 1 1 12 8a4.8 4.8 0 0 1 0 9.6z"/></svg>
+    </button><span class="blbl snap-lbl">截圖</span>
+  </div>
+  <div class="btn-col">
+    <button class="cbtn" id="bdbg" style="border-color:rgba(255,140,0,.3)">
+      <svg viewBox="0 0 24 24" style="fill:rgba(255,165,0,.7)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+    </button><span class="blbl" style="color:rgba(255,140,0,.4)">偵錯</span>
+  </div>
+</div>
+<div id="dbg"></div>
 
-  <div id="dbg"></div>
-
-  <script>
-  // ═══ DEBUG ═══════════════════════════════════════════════
-  const D = {
-    el: null,
-    init() {
-      this.el = document.getElementById('dbg');
-      const b = document.getElementById('bdbg');
-      let t;
-      b.addEventListener('touchstart', () => { t = setTimeout(() => this.el.classList.toggle('show'), 1200); });
-      b.addEventListener('touchend',   () => clearTimeout(t));
-      b.addEventListener('click',      () => this.el.classList.toggle('show'));
-      window.addEventListener('error', e => this.log(e.message + ' L' + e.lineno, 'err'));
-    },
-    log(m, t = 'inf') {
-      if (!this.el) return;
-      const d = document.createElement('div');
-      d.className = t;
-      d.textContent = new Date().toLocaleTimeString('zh-TW') + ' ' + m;
-      this.el.appendChild(d);
-      this.el.scrollTop = this.el.scrollHeight;
-    }
-  };
-  D.init();
-
-  // ═══ PREFLIGHT ═══════════════════════════════════════════
-  async function preflight() {
-    for (const [u, l] of [
-      ['./external/xr/xr.js',       'xr.js'],
-      ['./external/xr/xr-slam.js',  'xr-slam.js ← 相機核心'],  // ★ 必須存在
-      ...AR_CONFIG.targets.map((t,i) => [t.jsonPath, 'target['+i+']']),
-    ]) {
-      try {
-        const r = await fetch(u, { method: 'HEAD' });
-        D.log((r.ok ? '✅' : '❌') + ' ' + l + (r.ok ? '' : ' HTTP' + r.status), r.ok ? 'ok' : 'err');
-      } catch { D.log('❌ ' + l, 'err'); }
-    }
+<script>
+// ═══ DEBUG ════════════════════════════════════════════
+const D = {
+  el: null,
+  init() {
+    this.el = document.getElementById('dbg');
+    const b = document.getElementById('bdbg');
+    let t;
+    b.addEventListener('touchstart', () => { t = setTimeout(() => this.el.classList.toggle('show'), 1200); });
+    b.addEventListener('touchend',   () => clearTimeout(t));
+    b.addEventListener('click',      () => this.el.classList.toggle('show'));
+    window.addEventListener('error', e => this.log(e.message + ' L' + e.lineno, 'err'));
+  },
+  log(m, t = 'inf') {
+    if (!this.el) return;
+    const d = document.createElement('div');
+    d.className = t;
+    d.textContent = new Date().toLocaleTimeString('zh-TW') + ' ' + m;
+    this.el.appendChild(d);
+    this.el.scrollTop = this.el.scrollHeight;
   }
+};
+D.init();
 
-  // ═══ UI HELPERS ══════════════════════════════════════════
-  let _st;
-  function showSt(m, d = 2800) {
-    const e = document.getElementById('status');
-    e.textContent = m; e.classList.add('show');
-    clearTimeout(_st); _st = setTimeout(() => e.classList.remove('show'), d);
+// ═══ STARS BACKGROUND ════════════════════════════════
+(function buildStars() {
+  const c = document.getElementById('ts-stars');
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    s.className = 'ts-star';
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*4}s;animation-duration:${3+Math.random()*4}s;opacity:${Math.random()*.6}`;
+    c.appendChild(s);
   }
-  function doFlash() {
-    const f = document.getElementById('flash');
-    f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 900);
-  }
-  function doBurst() {
-    const r = document.getElementById('ring-burst');
+})();
+
+// ═══ UI HELPERS ══════════════════════════════════════
+let _st;
+function showSt(m, d = 2800) {
+  const e = document.getElementById('status');
+  e.textContent = m; e.classList.add('show');
+  clearTimeout(_st); _st = setTimeout(() => e.classList.remove('show'), d);
+}
+function doFlash() {
+  const f = document.getElementById('flash');
+  f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 900);
+}
+function doBurst() {
+  const r = document.getElementById('ring-burst');
+  r.classList.remove('burst'); void r.offsetWidth; r.classList.add('burst');
+}
+function setTargetBadge(name, color, state) {
+  const b = document.getElementById('target-badge');
+  document.getElementById('target-dot').style.background = color;
+  document.getElementById('target-name').textContent = name;
+  b.classList.toggle('show', state !== 'hide');
+}
+
+// ── Portal VFX：target found 時呼叫 ──────────────
+function triggerPortalVFX() {
+  const vfx = document.getElementById('portal-vfx');
+  vfx.classList.add('active');
+  vfx.querySelectorAll('.pvfx-ring').forEach((r, i) => {
     r.classList.remove('burst');
-    void r.offsetWidth;           // reflow to restart animation
-    r.classList.add('burst');
-  }
-  function setTargetBadge(name, color, state) {
-    const b = document.getElementById('target-badge');
-    document.getElementById('target-dot').style.background = color;
-    document.getElementById('target-name').textContent = name;
-    b.classList.toggle('show', state !== 'hide');
-  }
+    void r.offsetWidth;
+    setTimeout(() => r.classList.add('burst'), i * 120);
+  });
+  setTimeout(() => vfx.classList.remove('active'), 1500);
+}
 
-  // ═══ HOLO PANEL ══════════════════════════════════════════
-  const HP = {
-    _t: null,
-    init() {
-      setInterval(() => {
-        document.getElementById('hclock').textContent =
-          new Date().toLocaleTimeString('zh-TW', { hour12: false });
-      }, 1000);
-    },
-    show()   { document.getElementById('holo-panel').classList.add('show'); },
-    hide()   { document.getElementById('holo-panel').classList.remove('show'); },
-    toggle() { document.getElementById('holo-panel').classList.toggle('show'); },
-    setMode(m) { document.getElementById('hpill').textContent = m; },
-    setTitle(t) { document.getElementById('holo-title').textContent = t; },
-    // Dynamically update holo accent color from target config
-    setAccent(hex) {
-      document.querySelector('.hcard').style.setProperty('--holo-accent', hex + '88');
-      document.getElementById('target-dot').style.background = hex;
-    },
-    setText(txt) {
-      clearTimeout(this._t);
-      const c = document.getElementById('holo-content');
-      const cur = document.getElementById('holo-cur');
-      c.textContent = ''; cur.classList.remove('done');
-      let i = 0;
-      const go = () => {
-        if (i >= txt.length) { cur.classList.add('done'); document.getElementById('hfooter-l').textContent = '◉ AI READY'; return; }
-        c.textContent += txt[i++];
-        this._t = setTimeout(go, 30);
-      };
-      go();
-    }
-  };
+// ═══ HOLO PANEL ══════════════════════════════════════
+const HP = {
+  _t: null,
+  _accent: '#00ccff',
+  init() {
+    setInterval(() => {
+      document.getElementById('hclock').textContent =
+        new Date().toLocaleTimeString('zh-TW', { hour12: false });
+    }, 1000);
+  },
+  show()   { document.getElementById('holo-panel').classList.add('show'); },
+  hide()   { document.getElementById('holo-panel').classList.remove('show'); },
+  toggle() { document.getElementById('holo-panel').classList.toggle('show'); },
+  setMode(m) { document.getElementById('hpill').textContent = m; },
 
-  // ═══ AI ══════════════════════════════════════════════════
-  const DEMOS = [
-    '此幅金屬海報採用昇華印刷工藝，色彩永久定著於鋁板，不褪色、不龜裂。細膩筆觸捕捉大海壯闊與船帆張力，典藏首選。',
-    '以一畫千言獨特工藝打造，高溫昇華讓色彩融入金屬纖維，展現超越紙張的層次感。每一塊金屬海報都是獨一無二的藝術品。',
-  ];
-  async function getAI(target) {
-    if (!AR_CONFIG.claudeApiKey) {
-      await new Promise(r => setTimeout(r, 600));
-      return DEMOS[Math.floor(Math.random() * DEMOS.length)];
-    }
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': AR_CONFIG.claudeApiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 160,
-          messages: [{ role: 'user', content:
-            `你是AR博物館語音導覽AI。用繁體中文、80字以內介紹「${target.productName}」。資訊：${target.productInfo}。語氣如博物館解說員，簡潔有力。`
-          }]
-        }),
-      });
-      if (!res.ok) throw new Error('HTTP' + res.status);
-      const d = await res.json();
-      return d.content?.[0]?.text?.trim() || DEMOS[0];
-    } catch (e) { D.log('AI err: ' + e.message, 'inf'); return DEMOS[0]; }
-  }
-
-  // ═══ ★ GYROSCOPE PARALLAX ════════════════════════════════
-  // DeviceOrientation → holo group 輕微偏移，打造浮空立體感
-  const Gyro = {
-    beta:  0,  // 前後傾斜 (-180~180)
-    gamma: 0,  // 左右傾斜 (-90~90)
-    _raw_beta:  0,
-    _raw_gamma: 0,
-    _base_beta:  null,
-    _base_gamma: null,
-
-    init() {
-      if (!AR_CONFIG.enableGyroParallax) return;
-      const handler = (e) => {
-        this._raw_beta  = e.beta  || 0;
-        this._raw_gamma = e.gamma || 0;
-        // 校正基準（目標找到時設定）
-        if (this._base_beta !== null) {
-          // 平滑插值，避免抖動
-          this.beta  += ((this._raw_beta  - this._base_beta)  - this.beta)  * 0.08;
-          this.gamma += ((this._raw_gamma - this._base_gamma) - this.gamma) * 0.08;
-          // 限制範圍 ±20 度
-          this.beta  = Math.max(-20, Math.min(20, this.beta));
-          this.gamma = Math.max(-20, Math.min(20, this.gamma));
-        }
-      };
-      window.addEventListener('deviceorientation', handler, true);
-      D.log('✅ Gyro parallax 監聽中', 'ok');
-    },
-
-    calibrate() {
-      this._base_beta  = this._raw_beta;
-      this._base_gamma = this._raw_gamma;
-      this.beta = 0; this.gamma = 0;
-    },
-
-    // 回傳 Three.js offset（放大係數讓視差更明顯）
-    offset(scale) {
-      return {
-        x: this.gamma * 0.003 * scale,
-        y: -this.beta * 0.003 * scale,
-      };
-    }
-  };
-
-  // ═══ ★ AR SCREENSHOT / SHARE ════════════════════════════
-  // 說明：XR8 的 WebGL context 預設 preserveDrawingBuffer=false，
-  // 直接呼叫 toDataURL() 只會得到空白圖片。
-  // 解法：在 onUpdate 裡，用 drawImage 把 WebGL canvas 複製到
-  // 一個離屏 2D canvas，再從 2D canvas 讀取像素。
-  const Screenshot = {
-    _pendingCapture: false,
-    _srcCanvas: null,       // WebGL canvas (renderer.domElement)
-    _offCanvas: null,       // 離屏 2D canvas（用於讀取像素）
-    _offCtx: null,
-
-    init(canvas) {
-      this._srcCanvas = canvas;
-      // 建立與 src 同尺寸的離屏 2D canvas
-      this._offCanvas = document.createElement('canvas');
-      this._offCtx    = this._offCanvas.getContext('2d');
-
-      if (!AR_CONFIG.enableScreenshot) return;
-      document.getElementById('snap-col').style.display = 'flex';
-      document.getElementById('bsnap').addEventListener('click', () => this.capture());
-      D.log('✅ Screenshot 初始化（離屏 canvas 模式）', 'ok');
-    },
-
-    // onUpdate 裡每幀呼叫，有 pending 時才真正複製
-    tick() {
-      if (!this._pendingCapture || !this._srcCanvas) return;
-      this._pendingCapture = false;
-
-      try {
-        const w = this._srcCanvas.width, h = this._srcCanvas.height;
-        this._offCanvas.width  = w;
-        this._offCanvas.height = h;
-        // 把 WebGL canvas 內容複製到 2D canvas
-        this._offCtx.drawImage(this._srcCanvas, 0, 0, w, h);
-        const dataUrl = this._offCanvas.toDataURL('image/jpeg', 0.92);
-        this._share(dataUrl);
-      } catch (e) {
-        D.log('截圖失敗: ' + e.message, 'err');
-        showSt('❌ 截圖失敗，請重試');
-      }
-    },
-
-    capture() {
-      const sf = document.getElementById('snap-flash');
-      sf.classList.add('on');
-      setTimeout(() => sf.classList.remove('on'), 300);
-      this._pendingCapture = true;
-      showSt('📸 擷取中…', 1500);
-    },
-
-    async _share(dataUrl) {
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], 'ar-moment.jpg', { type: 'image/jpeg' });
-
-      // Web Share API（iOS/Android 原生分享表單）
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: '一畫千言 AR 全息體驗',
-            text: '掃描金屬海報解鎖的 AR 瞬間 ✨',
-          });
-          showSt('✅ 分享成功！');
-          D.log('Web Share API 成功', 'ok');
-          return;
-        } catch (e) { D.log('Share cancelled: ' + e.message, 'inf'); return; }
-      }
-
-      // Fallback：直接下載
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href = url; a.download = 'ar-moment-' + Date.now() + '.jpg';
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-      showSt('✅ 截圖已儲存');
-    }
-  };
-
-  // ═══ THREE.JS 全息裝飾 ════════════════════════════════════
-  function mkRing(r, tube, hex, op) {
-    return new THREE.Mesh(
-      new THREE.TorusGeometry(r, tube, 6, 64),
-      new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: op })
-    );
-  }
-  function mkPts(n, radius) {
-    const pos = new Float32Array(n * 3), meta = [];
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2, r = radius * (.7 + Math.random() * .55), h = (Math.random() - .5) * .5;
-      pos[i*3] = Math.cos(a)*r; pos[i*3+1] = h; pos[i*3+2] = Math.sin(a)*r;
-      meta.push({ a, r, h, da: (Math.random() - .5) * .016, dh: (Math.random() - .5) * .004 });
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const p = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x00bbff, size: .009, transparent: true, opacity: .8 }));
-    p.userData = { meta, n }; return p;
-  }
-  function tickPts(p) {
-    const pos = p.geometry.attributes.position.array, { meta, n } = p.userData;
-    for (let i = 0; i < n; i++) {
-      const m = meta[i]; m.a += m.da; m.h += m.dh;
-      if (Math.abs(m.h) > .4) m.dh *= -1;
-      pos[i*3] = Math.cos(m.a)*m.r; pos[i*3+1] = m.h; pos[i*3+2] = Math.sin(m.a)*m.r;
-    }
-    p.geometry.attributes.position.needsUpdate = true;
-  }
-
-  // ═══ AR MODULE ═══════════════════════════════════════════
-  function mkARModule(allTargetData) {
-    // 建立 targetName → targetConfig 查詢表
-    const targetMap = {};
-    AR_CONFIG.targets.forEach((cfg, i) => {
-      const name = allTargetData[i].name;
-      targetMap[name] = { cfg, data: allTargetData[i] };
-      D.log(`targetMap["${name}"] → "${cfg.productName}"`, 'ok');
+  setAccent(hex) {
+    this._accent = hex;
+    const card = document.getElementById('hcard-el');
+    card.style.setProperty('--accent', hex);
+    card.style.borderColor = hex + '77';
+    // 更新 SVG 顏色
+    document.querySelectorAll('.char-svg [stroke="var(--accent,#00ccff)"]').forEach(el => {
+      el.setAttribute('stroke', hex);
     });
+    document.querySelector('.char-core')?.setAttribute('fill', hex);
+    document.getElementById('target-dot').style.background = hex;
+  },
 
-    let vEl, vTex, vMesh, hGrp, ring1, ring2, pts;
-    let frm = 0;
-    let currentTargetCfg = AR_CONFIG.targets[0];   // 目前追蹤的目標設定
-    const st = { play: false, mute: true, fs: false, holo: true };
-    const scanEl = document.getElementById('scan-ov');
-    const fsW = document.getElementById('fs-wrap'), fsV = document.getElementById('fs-vid');
+  setCharacter(name, role) {
+    document.getElementById('char-name').textContent = name;
+    document.getElementById('char-role').textContent = role;
+    document.getElementById('char-status-txt').textContent = 'HOLOGRAM ACTIVE';
+  },
 
-    function mkVid(src) {
-      const v = document.createElement('video');
-      v.src = src; v.loop = true; v.muted = true; v.playsInline = true;
-      v.crossOrigin = 'anonymous';
-      v.setAttribute('webkit-playsinline', 'true');
-      v.addEventListener('canplay', () => D.log('影片 canplay ✅', 'ok'));
-      return v;
-    }
-    async function playV(v) {
-      if (!v) return;
-      try { await v.play(); }
-      catch { v.muted = true; st.mute = true; uI(); await v.play().catch(() => {}); }
-    }
-    function pauseV(v) { if (v) v.pause(); }
-    function enterFS() {
-      if (!vEl) return;
-      fsV.src = vEl.src; fsV.currentTime = vEl.currentTime; fsV.muted = st.mute;
-      fsW.classList.add('show'); st.fs = true; playV(fsV);
-    }
-    function exitFS() {
-      if (!st.fs) return;
-      if (vEl) vEl.currentTime = fsV.currentTime;
-      fsW.classList.remove('show'); st.fs = false; pauseV(fsV); fsV.src = '';
-    }
-    function uI() {
-      document.getElementById('ipp').style.display = st.play ? 'none' : 'block';
-      document.getElementById('ipa').style.display = st.play ? 'block' : 'none';
-      document.getElementById('bp').classList.toggle('active', st.play);
-      document.getElementById('ism').style.display = st.mute ? 'block' : 'none';
-      document.getElementById('iss').style.display = st.mute ? 'none'  : 'block';
-      document.getElementById('bs').classList.toggle('active', !st.mute);
-    }
+  setSpeaking(v) {
+    const av = document.getElementById('char-avatar');
+    if (v) av.classList.add('speaking'); else av.classList.remove('speaking');
+  },
 
-    // 套用 image target pose（無 SLAM，直接 screen-space tracking）
-    function applyPose(detail) {
-      const { position: p, rotation: r, scale: s } = detail;
-      vMesh.position.set(p.x, p.y, p.z);
-      vMesh.quaternion.set(r.x, r.y, r.z, r.w);
-      vMesh.scale.setScalar(s);
-      hGrp.position.set(p.x, p.y, p.z);
-      hGrp.quaternion.set(r.x, r.y, r.z, r.w);
-      hGrp.scale.setScalar(s);
-    }
-
-    // 當切換到新海報時更新影片與 UI
-    function switchTarget(cfg) {
-      if (currentTargetCfg === cfg) return;
-      currentTargetCfg = cfg;
-      D.log(`切換目標: "${cfg.productName}"`, 'ok');
-
-      // 換影片
-      if (vEl) { pauseV(vEl); vEl.src = cfg.videoSrc; }
-      // 換全息主色
-      HP.setAccent(cfg.accentColor);
-      HP.setTitle(cfg.productName);
-      // 重置 AI（讓新海報重新生成說明）
-      G.aiDone = false;
-      // 換粒子色
-      if (pts) pts.material.color.set(cfg.accentColor);
-      if (ring1) ring1.material.color.set(cfg.accentColor);
-      // badge
-      setTargetBadge(cfg.productName, cfg.accentColor, 'show');
-    }
-
-    function setupBtns() {
-      document.getElementById('bp').addEventListener('click', () => {
-        if (!G.everFound) { showSt('請先掃描目標'); return; }
-        st.play = !st.play; uI();
-        if (st.play) {
-          if (!G.vis) { enterFS(); scanEl.classList.add('hidden'); }
-          else if (vEl && vEl.paused) playV(vEl);
-          showSt('▶ 持續播放');
-        } else {
-          exitFS();
-          if (!G.vis && vEl) pauseV(vEl);
-          if (!G.vis) scanEl.classList.remove('hidden');
-          showSt('⏸ 暫停');
-        }
-      });
-      document.getElementById('bs').addEventListener('click', () => {
-        st.mute = !st.mute;
-        if (vEl) vEl.muted = st.mute; fsV.muted = st.mute;
-        uI(); showSt(st.mute ? '🔇 靜音' : '🔊 聲音 ON');
-      });
-      document.getElementById('bai').addEventListener('click', async () => {
-        if (!G.everFound) { showSt('請先掃描目標'); return; }
-        const b = document.getElementById('bai'); b.classList.add('active');
-        HP.setText('⬛ AI 重新分析中…'); HP.setMode('AI THINKING');
-        const t = await getAI(currentTargetCfg);
-        HP.setText(t); HP.setMode('IMG LOCK'); b.classList.remove('active');
-        showSt('🤖 AI 導覽已更新');
-      });
-      document.getElementById('bh').addEventListener('click', () => {
-        st.holo = !st.holo;
-        if (hGrp) hGrp.visible = st.holo && G.vis;
-        st.holo ? HP.show() : HP.hide();
-        document.getElementById('bh').classList.toggle('active', st.holo);
-        showSt(st.holo ? '🔷 全息 ON' : '🔲 全息 OFF');
-      });
-      fsW.addEventListener('click', () => { exitFS(); st.play = false; uI(); if (!G.vis) scanEl.classList.remove('hidden'); });
-    }
-
-    async function onFound({ detail }) {
-      const name = detail.name;
-      const entry = targetMap[name];
-      if (!entry) { D.log('⚠ 未知目標: ' + name, 'inf'); return; }
-
-      D.log(`✅ imagefound "${name}"`, 'ok');
-      switchTarget(entry.cfg);
-      applyPose(detail);
-
-      vMesh.visible = true; hGrp.visible = st.holo;
-      G.vis = true; G.everFound = true;
-
-      scanEl.classList.add('hidden');
-      doFlash(); doBurst();
-      setTargetBadge(entry.cfg.productName, entry.cfg.accentColor, 'show');
-      showSt('✅ ' + entry.cfg.productName + ' — 目標鎖定');
-
-      // 陀螺儀視差基準校正
-      Gyro.calibrate();
-
-      if (st.fs) exitFS();
-      playV(vEl);
-
-      if (!G.aiDone) {
-        G.aiDone = true;
-        HP.show(); HP.setText('⬛ AI 導覽生成中…'); HP.setMode('AI THINKING');
-        const t = await getAI(entry.cfg);
-        HP.setText(t); HP.setMode('IMG LOCK');
-        showSt('🤖 AI 導覽已啟動', 3500);
+  setText(txt) {
+    clearTimeout(this._t);
+    this.setSpeaking(true);
+    const c = document.getElementById('holo-content');
+    const cur = document.getElementById('holo-cur');
+    c.textContent = ''; cur.classList.remove('done');
+    let i = 0;
+    const go = () => {
+      if (i >= txt.length) {
+        cur.classList.add('done');
+        document.getElementById('hfooter-l').textContent = '◉ AI READY';
+        this.setSpeaking(false);
+        // 顯示互動選項
+        document.getElementById('ai-options').style.display = 'flex';
+        return;
       }
-    }
-
-    function onUpdated({ detail }) {
-      applyPose(detail);
-      if (!G.vis) {
-        G.vis = true; vMesh.visible = true; hGrp.visible = st.holo;
-        scanEl.classList.add('hidden');
-      }
-    }
-
-    function onLost() {
-      D.log('📍 imagelost', 'inf');
-      G.vis = false;
-      vMesh.visible = false; hGrp.visible = false;
-      scanEl.classList.remove('hidden');
-      setTargetBadge('搜尋中…', '#888', 'show');
-      showSt('🔍 請重新對準海報');
-    }
-
-    return {
-      name: 'ar-holo',
-      onStart: () => {
-        const { scene, renderer, camera } = XR8.Threejs.xrScene();
-
-        // ★ 黑屏修復關鍵：禁止 Three.js 在每幀開始前清除畫布
-        // GlTextureRenderer 已把相機畫面畫到畫布上，
-        // 若 autoClear=true，Three.js 會用黑色蓋掉它 → 黑屏
-        renderer.autoClear = false;
-
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight, false);
-        // 用 cssText + !important 確保 renderer 畫布永遠全螢幕
-        renderer.domElement.style.cssText =
-          'position:fixed!important;top:0!important;left:0!important;' +
-          'width:100vw!important;height:100vh!important;z-index:0!important;';
-
-        // 截圖初始化（用離屏 canvas 方式，不依賴 preserveDrawingBuffer）
-        Screenshot.init(renderer.domElement);
-        D.log('Renderer ' + window.innerWidth + 'x' + window.innerHeight, 'ok');
-
-        // 影片平面（使用第一個目標的影片初始化）
-        vEl  = mkVid(AR_CONFIG.targets[0].videoSrc);
-        vTex = new THREE.VideoTexture(vEl);
-        vTex.minFilter = vTex.magFilter = THREE.LinearFilter;
-        vTex.format = THREE.RGBAFormat;
-        vMesh = new THREE.Mesh(
-          new THREE.PlaneGeometry(1, 1 / AR_CONFIG.targets[0].videoAspectRatio),
-          new THREE.MeshBasicMaterial({ map: vTex, side: THREE.DoubleSide, toneMapped: false })
-        );
-        vMesh.visible = false; scene.add(vMesh);
-
-        // 全息裝飾群組
-        hGrp = new THREE.Group(); hGrp.visible = false; scene.add(hGrp);
-        if (AR_CONFIG.enableHoloRings) {
-          ring1 = mkRing(.65, .004, AR_CONFIG.targets[0].accentColor, .75);
-          ring1.rotation.x = Math.PI / 2; hGrp.add(ring1);
-          ring2 = mkRing(.52, .003, 0x0066ff, .55);
-          ring2.rotation.x = Math.PI / 3; hGrp.add(ring2);
-        }
-        if (AR_CONFIG.enableHoloParticles) {
-          pts = mkPts(80, .6); hGrp.add(pts);
-        }
-        scene.add(new THREE.AmbientLight(0xffffff, 1));
-
-        HP.init(); setupBtns(); Gyro.init();
-        D.log('✅ Scene ready (no SLAM — image tracking only)', 'ok');
-        setTimeout(() => showSt('請對準金屬海報以啟動 AR', 4000), 800);
-      },
-
-      onUpdate: () => {
-        frm++;
-        if (ring1) ring1.rotation.z += .007;
-        if (ring2) { ring2.rotation.z -= .005; ring2.rotation.y += .004; }
-        if (pts) tickPts(pts);
-
-        // ★ 陀螺儀視差：讓全息群組隨手機傾斜輕微偏移
-        if (AR_CONFIG.enableGyroParallax && G.vis && hGrp.visible) {
-          const ofs = Gyro.offset(hGrp.scale.x);
-          // 在 group 本地座標系中偏移
-          hGrp.position.x += (ofs.x - 0) * .15;
-          hGrp.position.y += (ofs.y - 0) * .15;
-        }
-
-        // ★ 截圖：在渲染後立即讀取 canvas
-        Screenshot.tick();
-      },
-
-      listeners: [
-        { event: 'reality.imagefound',   process: onFound   },
-        { event: 'reality.imageupdated', process: onUpdated },
-        { event: 'reality.imagelost',    process: onLost    },
-      ],
-      onAttach: () => {
-        window.addEventListener('resize', () => {
-          const { renderer } = XR8.Threejs.xrScene();
-          renderer.setSize(window.innerWidth, window.innerHeight, false);
-        });
-        document.addEventListener('visibilitychange', () => {
-          if (document.hidden) { if (vEl) pauseV(vEl); }
-          else if (G.vis && vEl) playV(vEl);
-        });
-      }
+      c.textContent += txt[i++];
+      this._t = setTimeout(go, 28);
     };
+    document.getElementById('hfooter-l').textContent = '◉ AI SPEAKING';
+    document.getElementById('ai-options').style.display = 'none';
+    go();
   }
+};
 
-  // ═══ GLOBAL STATE ════════════════════════════════════════
-  const G = { vis: false, aiDone: false, everFound: false };
+// ═══ AI ══════════════════════════════════════════════
+const DEMOS = [
+  '歡迎踏入這扇金屬之門。此幅昇華海報以高溫將色彩永久熔入鋁板纖維，大海的深邃藍、船帆的張力、風浪的力量——全都凝固在這塊冰冷卻滾燙的金屬之上。',
+  '我是 ARIA，您的 AI 航海嚮導。眼前這幅海賊船以一畫千言獨特工藝打造：200°C 昇華印刷，色彩融入金屬表面，歷久不褪。每一抹浪花都是一個關於自由的承諾。',
+];
 
-  // ═══ PERMISSION GATE + MAIN ══════════════════════════════
-  let _xrReady = false;
-  let _allTargetData = null;   // 所有 target JSON 陣列
+const AI_PROMPTS = {
+  intro: (t) => `你是名為「${t.characterName}」的全息 AI 導航員（${t.characterRole}）。用繁體中文、90字以內自我介紹並描述「${t.productName}」。風格：科幻、詩意、充滿驚喜感。資訊：${t.productInfo}。`,
+  more:  (t) => `延伸介紹「${t.productName}」的獨特價值，繁體中文、80字以內，角色為${t.characterName}。`,
+  hist:  (t) => `以${t.characterName}的角度，介紹海賊船文化歷史背景與這幅海報的藝術意涵，繁體中文80字內。`,
+  craft: (t) => `詳細介紹一畫千言昇華金屬印刷工藝技術細節，繁體中文80字內，以${t.characterName}說明。`,
+};
 
-  window.addEventListener('xrloaded', () => {
-    _xrReady = true;
-    D.log('✅ xrloaded', 'ok');
-  });
-
-  async function preloadTargets() {
-    const results = [];
-    for (const [i, cfg] of AR_CONFIG.targets.entries()) {
-      try {
-        const r = await fetch(cfg.jsonPath);
-        if (!r.ok) throw new Error('HTTP' + r.status);
-        const d = await r.json();
-        results.push(d);
-        D.log(`✅ target[${i}] "${d.name}" 預載完成`, 'ok');
-      } catch (e) {
-        D.log(`❌ target[${i}] 失敗: ${e.message}`, 'err');
-        results.push(null);
-      }
-    }
-    if (results.some(r => !r)) {
-      document.getElementById('dbg').classList.add('show');
-      showSt('❌ 部分目標資料載入失敗', 8000);
-    }
-    _allTargetData = results.filter(Boolean);
-    return _allTargetData.length > 0;
+async function callAI(prompt) {
+  if (!AR_CONFIG.claudeApiKey) {
+    await new Promise(r => setTimeout(r, 700));
+    return DEMOS[Math.floor(Math.random() * DEMOS.length)];
   }
-
-  async function requestMotionPermissions() {
-    for (const Evt of [DeviceMotionEvent, DeviceOrientationEvent]) {
-      if (typeof Evt !== 'undefined' && typeof Evt.requestPermission === 'function') {
-        try { await Evt.requestPermission(); } catch {}
-      }
-    }
-  }
-
-  async function startXR8() {
-    showSt('AR 載入中…', 4000);
-
-    // 等待 target JSON
-    if (!_allTargetData) {
-      let w = 0;
-      while (!_allTargetData && w < 10000) { await new Promise(r => setTimeout(r, 200)); w += 200; }
-    }
-    if (!_allTargetData || !_allTargetData.length) { showSt('❌ 目標資料未就緒', 8000); return; }
-
-    // 等待 xr.js
-    let w = 0;
-    while (!_xrReady && w < 12000) { await new Promise(r => setTimeout(r, 200)); w += 200; }
-    if (!_xrReady) { showSt('❌ AR 引擎未就緒', 8000); return; }
-
-    // ★ 無 SLAM：disableWorldTracking: true（穩定、輕量）
-    XR8.XrController.configure({
-      disableWorldTracking: true,
-      imageTargetData: _allTargetData,
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AR_CONFIG.claudeApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 180,
+        messages: [{ role: 'user', content: prompt }]
+      }),
     });
-    D.log('XrController: SLAM=OFF, targets=' + _allTargetData.length, 'ok');
+    if (!res.ok) throw new Error('HTTP' + res.status);
+    const d = await res.json();
+    return d.content?.[0]?.text?.trim() || DEMOS[0];
+  } catch (e) { D.log('AI err: ' + e.message, 'inf'); return DEMOS[0]; }
+}
 
-    XR8.addCameraPipelineModules([
-      XR8.GlTextureRenderer.pipelineModule(),
-      XR8.Threejs.pipelineModule(),
-      XR8.XrController.pipelineModule(),
-      mkARModule(_allTargetData),
-    ]);
-    XR8.run({ canvas: document.getElementById('renderCanvas') });
-    D.log('✅ XR8.run()', 'ok');
+// ═══ GYROSCOPE PARALLAX ══════════════════════════════
+const Gyro = {
+  beta: 0, gamma: 0,
+  _rb: 0, _rg: 0,
+  _bb: null, _bg: null,
+  init() {
+    if (!AR_CONFIG.enableGyroParallax) return;
+    window.addEventListener('deviceorientation', e => {
+      this._rb = e.beta || 0; this._rg = e.gamma || 0;
+      if (this._bb !== null) {
+        this.beta  += ((this._rb - this._bb) - this.beta)  * 0.08;
+        this.gamma += ((this._rg - this._bg) - this.gamma) * 0.08;
+        this.beta  = Math.max(-20, Math.min(20, this.beta));
+        this.gamma = Math.max(-20, Math.min(20, this.gamma));
+      }
+    }, true);
+    D.log('✅ Gyro parallax 啟動', 'ok');
+  },
+  calibrate() { this._bb = this._rb; this._bg = this._rg; this.beta = 0; this.gamma = 0; },
+  offset(s)   { return { x: this.gamma * 0.003 * s, y: -this.beta * 0.003 * s }; }
+};
+
+// ═══ SCREENSHOT ═══════════════════════════════════════
+const Screenshot = {
+  _pending: false, _src: null, _off: null, _ctx: null,
+  init(canvas) {
+    this._src = canvas;
+    this._off = document.createElement('canvas');
+    this._ctx = this._off.getContext('2d');
+    if (!AR_CONFIG.enableScreenshot) return;
+    document.getElementById('snap-col').style.display = 'flex';
+    document.getElementById('bsnap').addEventListener('click', () => this.capture());
+    D.log('✅ Screenshot 就緒', 'ok');
+  },
+  tick() {
+    if (!this._pending || !this._src) return;
+    this._pending = false;
+    try {
+      const w = this._src.width, h = this._src.height;
+      this._off.width = w; this._off.height = h;
+      this._ctx.drawImage(this._src, 0, 0, w, h);
+      this._share(this._off.toDataURL('image/jpeg', .92));
+    } catch (e) { D.log('截圖失敗: ' + e.message, 'err'); showSt('❌ 截圖失敗'); }
+  },
+  capture() {
+    const sf = document.getElementById('snap-flash');
+    sf.classList.add('on'); setTimeout(() => sf.classList.remove('on'), 300);
+    this._pending = true; showSt('📸 擷取中…', 1500);
+  },
+  async _share(dataUrl) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'ar-moment.jpg', { type: 'image/jpeg' });
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: '一畫千言 AR', text: 'AI 全息體驗瞬間 ✨' }); showSt('✅ 分享成功！'); return; } catch {}
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'ar-moment-' + Date.now() + '.jpg';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    showSt('✅ 截圖已儲存');
+  }
+};
+
+// ═══ THREE.JS 全息裝飾 ═════════════════════════════════
+function mkRing(r, tube, hex, op) {
+  return new THREE.Mesh(
+    new THREE.TorusGeometry(r, tube, 6, 64),
+    new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: op })
+  );
+}
+function mkPts(n, radius) {
+  const pos = new Float32Array(n * 3), meta = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, r = radius * (.7 + Math.random() * .55), h = (Math.random() - .5) * .5;
+    pos[i*3] = Math.cos(a)*r; pos[i*3+1] = h; pos[i*3+2] = Math.sin(a)*r;
+    meta.push({ a, r, h, da: (Math.random() - .5) * .016, dh: (Math.random() - .5) * .004 });
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const p = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x00bbff, size: .009, transparent: true, opacity: .8 }));
+  p.userData = { meta, n }; return p;
+}
+function tickPts(p) {
+  const pos = p.geometry.attributes.position.array, { meta, n } = p.userData;
+  for (let i = 0; i < n; i++) {
+    const m = meta[i]; m.a += m.da; m.h += m.dh;
+    if (Math.abs(m.h) > .4) m.dh *= -1;
+    pos[i*3] = Math.cos(m.a)*m.r; pos[i*3+1] = m.h; pos[i*3+2] = Math.sin(m.a)*m.r;
+  }
+  p.geometry.attributes.position.needsUpdate = true;
+}
+
+// ═══ AR MODULE ════════════════════════════════════════
+function mkARModule(allTargetData) {
+  const targetMap = {};
+  AR_CONFIG.targets.forEach((cfg, i) => {
+    const name = allTargetData[i].name;
+    targetMap[name] = { cfg, data: allTargetData[i] };
+    D.log(`targetMap["${name}"] → "${cfg.productName}"`, 'ok');
+  });
+
+  let vEl, vTex, vMesh, hGrp, ring1, ring2, pts;
+  let currentCfg = AR_CONFIG.targets[0];
+  const st = { play: false, mute: true, fs: false, holo: true };
+  const scanEl = document.getElementById('scan-ov');
+  const fsW = document.getElementById('fs-wrap'), fsV = document.getElementById('fs-vid');
+
+  function mkVid(src) {
+    const v = document.createElement('video');
+    v.src = src; v.loop = true; v.muted = true; v.playsInline = true;
+    v.crossOrigin = 'anonymous';
+    v.setAttribute('webkit-playsinline', 'true');
+    v.addEventListener('canplay', () => D.log('影片 canplay ✅', 'ok'));
+    return v;
+  }
+  async function playV(v) { if (!v) return; try { await v.play(); } catch { v.muted = true; st.mute = true; uI(); await v.play().catch(()=>{}); } }
+  function pauseV(v) { if (v) v.pause(); }
+  function enterFS() {
+    if (!vEl) return;
+    fsV.src = vEl.src; fsV.currentTime = vEl.currentTime; fsV.muted = st.mute;
+    fsW.classList.add('show'); st.fs = true; playV(fsV);
+  }
+  function exitFS() {
+    if (!st.fs) return;
+    if (vEl) vEl.currentTime = fsV.currentTime;
+    fsW.classList.remove('show'); st.fs = false; pauseV(fsV); fsV.src = '';
+  }
+  function uI() {
+    document.getElementById('ipp').style.display = st.play ? 'none' : 'block';
+    document.getElementById('ipa').style.display = st.play ? 'block' : 'none';
+    document.getElementById('bp').classList.toggle('active', st.play);
+    document.getElementById('ism').style.display = st.mute ? 'block' : 'none';
+    document.getElementById('iss').style.display = st.mute ? 'none' : 'block';
+    document.getElementById('bs').classList.toggle('active', !st.mute);
+  }
+  function applyPose(detail) {
+    const { position: p, rotation: r, scale: s } = detail;
+    vMesh.position.set(p.x, p.y, p.z);
+    vMesh.quaternion.set(r.x, r.y, r.z, r.w);
+    vMesh.scale.setScalar(s);
+    hGrp.position.set(p.x, p.y, p.z);
+    hGrp.quaternion.set(r.x, r.y, r.z, r.w);
+    hGrp.scale.setScalar(s);
   }
 
-  document.getElementById('btn-start').addEventListener('click', async function () {
-    this.disabled = true; this.textContent = '授權中…';
-    await requestMotionPermissions();
-    document.getElementById('perm-gate').classList.add('fade');
-    setTimeout(() => { document.getElementById('perm-gate').style.display = 'none'; }, 700);
-    await startXR8();
-  });
+  function switchTarget(cfg) {
+    if (currentCfg === cfg) return;
+    currentCfg = cfg;
+    D.log(`切換: "${cfg.productName}"`, 'ok');
+    if (vEl) { pauseV(vEl); vEl.src = cfg.videoSrc; }
+    HP.setAccent(cfg.accentColor);
+    HP.setCharacter(cfg.characterName, cfg.characterRole);
+    G.aiDone = false;
+    if (pts) pts.material.color.set(cfg.accentColor);
+    if (ring1) ring1.material.color.set(cfg.accentColor);
+    setTargetBadge(cfg.productName, cfg.accentColor, 'show');
+  }
 
-  window.addEventListener('xrerror', e => {
-    D.log('❌ xrerror: ' + JSON.stringify(e.detail), 'err');
-    document.getElementById('dbg').classList.add('show');
-    showSt('❌ AR 引擎錯誤', 10000);
-  });
+  function setupBtns() {
+    document.getElementById('bp').addEventListener('click', () => {
+      if (!G.everFound) { showSt('請先掃描目標'); return; }
+      st.play = !st.play; uI();
+      if (st.play) {
+        if (!G.vis) { enterFS(); scanEl.classList.add('hidden'); }
+        else if (vEl?.paused) playV(vEl);
+        showSt('▶ 持續播放');
+      } else {
+        exitFS();
+        if (!G.vis && vEl) pauseV(vEl);
+        if (!G.vis) scanEl.classList.remove('hidden');
+        showSt('⏸ 暫停');
+      }
+    });
+    document.getElementById('bs').addEventListener('click', () => {
+      st.mute = !st.mute;
+      if (vEl) vEl.muted = st.mute; fsV.muted = st.mute;
+      uI(); showSt(st.mute ? '🔇 靜音' : '🔊 聲音 ON');
+    });
+    document.getElementById('bai').addEventListener('click', async () => {
+      if (!G.everFound) { showSt('請先掃描目標'); return; }
+      document.getElementById('bai').classList.add('active');
+      HP.setText('⬛ 重新喚醒 AI 導航員…'); HP.setMode('AI THINKING');
+      const t = await callAI(AI_PROMPTS.intro(currentCfg));
+      HP.setText(t); HP.setMode('IMG LOCK');
+      document.getElementById('bai').classList.remove('active');
+      showSt('🤖 AI 導覽已更新');
+    });
+    document.getElementById('bh').addEventListener('click', () => {
+      st.holo = !st.holo;
+      if (hGrp) hGrp.visible = st.holo && G.vis;
+      st.holo ? HP.show() : HP.hide();
+      document.getElementById('bh').classList.toggle('active', st.holo);
+      showSt(st.holo ? '🔷 全息 ON' : '🔲 全息 OFF');
+    });
+    fsW.addEventListener('click', () => { exitFS(); st.play = false; uI(); if (!G.vis) scanEl.classList.remove('hidden'); });
 
-  window.addEventListener('load', () => {
-    preflight();
-    preloadTargets();
-  });
-  </script>
+    // ── 互動按鈕 ──
+    document.getElementById('opt-more').addEventListener('click', async () => {
+      HP.setText('⬛ 深入分析中…'); HP.setMode('SCANNING');
+      const t = await callAI(AI_PROMPTS.more(currentCfg));
+      HP.setText(t); HP.setMode('IMG LOCK');
+    });
+    document.getElementById('opt-hist').addEventListener('click', async () => {
+      HP.setText('⬛ 調閱歷史資料庫…'); HP.setMode('ARCHIVE');
+      const t = await callAI(AI_PROMPTS.hist(currentCfg));
+      HP.setText(t); HP.setMode('IMG LOCK');
+    });
+    document.getElementById('opt-craft').addEventListener('click', async () => {
+      HP.setText('⬛ 分析工藝參數…'); HP.setMode('TECH SCAN');
+      const t = await callAI(AI_PROMPTS.craft(currentCfg));
+      HP.setText(t); HP.setMode('IMG LOCK');
+    });
+  }
+
+  async function onFound({ detail }) {
+    const name = detail.name;
+    const entry = targetMap[name];
+    if (!entry) { D.log('⚠ 未知目標: ' + name, 'inf'); return; }
+
+    D.log(`✅ imagefound "${name}"`, 'ok');
+    switchTarget(entry.cfg);
+    applyPose(detail);
+
+    vMesh.visible = true; hGrp.visible = st.holo;
+    G.vis = true; G.everFound = true;
+
+    scanEl.classList.add('hidden');
+    doFlash(); doBurst(); triggerPortalVFX();
+
+    setTargetBadge(entry.cfg.productName, entry.cfg.accentColor, 'show');
+    showSt('🔵 Portal 開啟 · ' + entry.cfg.productName);
+    Gyro.calibrate();
+    if (st.fs) exitFS();
+    playV(vEl);
+
+    if (!G.aiDone) {
+      G.aiDone = true;
+      HP.setCharacter(entry.cfg.characterName, entry.cfg.characterRole);
+      HP.show(); HP.setText('⬛ ' + entry.cfg.characterName + ' 全息投影中…'); HP.setMode('MATERIALIZING');
+      await new Promise(r => setTimeout(r, 1200)); // Portal 特效時間
+      HP.setMode('AI THINKING');
+      const t = await callAI(AI_PROMPTS.intro(entry.cfg));
+      HP.setText(t); HP.setMode('PORTAL OPEN');
+      document.getElementById('hfooter-l').textContent = '◉ PORTAL ACTIVE';
+      showSt('🤖 ' + entry.cfg.characterName + ' 已上線', 3500);
+    }
+  }
+
+  function onUpdated({ detail }) {
+    applyPose(detail);
+    if (!G.vis) {
+      G.vis = true; vMesh.visible = true; hGrp.visible = st.holo;
+      scanEl.classList.add('hidden');
+    }
+  }
+
+  function onLost() {
+    D.log('📍 imagelost', 'inf');
+    G.vis = false; vMesh.visible = false; hGrp.visible = false;
+    scanEl.classList.remove('hidden');
+    setTargetBadge('掃描中…', '#667', 'show');
+    showSt('🔍 請重新對準海報');
+  }
+
+  return {
+    name: 'ar-holo',
+    onStart: () => {
+      const { scene, renderer } = XR8.Threejs.xrScene();
+      renderer.autoClear = false;
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+      renderer.domElement.style.cssText =
+        'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:0!important;';
+
+      Screenshot.init(renderer.domElement);
+      D.log('Renderer ' + window.innerWidth + 'x' + window.innerHeight, 'ok');
+
+      vEl  = mkVid(AR_CONFIG.targets[0].videoSrc);
+      vTex = new THREE.VideoTexture(vEl);
+      vTex.minFilter = vTex.magFilter = THREE.LinearFilter;
+      vTex.format = THREE.RGBAFormat;
+      vMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1 / AR_CONFIG.targets[0].videoAspectRatio),
+        new THREE.MeshBasicMaterial({ map: vTex, side: THREE.DoubleSide, toneMapped: false })
+      );
+      vMesh.visible = false; scene.add(vMesh);
+
+      hGrp = new THREE.Group(); hGrp.visible = false; scene.add(hGrp);
+      if (AR_CONFIG.enableHoloRings) {
+        ring1 = mkRing(.65, .004, new THREE.Color(AR_CONFIG.targets[0].accentColor), .75);
+        ring1.rotation.x = Math.PI / 2; hGrp.add(ring1);
+        ring2 = mkRing(.52, .003, 0x0066ff, .55);
+        ring2.rotation.x = Math.PI / 3; hGrp.add(ring2);
+      }
+      if (AR_CONFIG.enableHoloParticles) { pts = mkPts(80, .6); hGrp.add(pts); }
+      scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+      HP.init(); setupBtns(); Gyro.init();
+      D.log('✅ Scene ready', 'ok');
+      setTimeout(() => showSt('對準金屬海報，開啟 AI Portal', 4000), 600);
+    },
+
+    onUpdate: () => {
+      if (ring1) ring1.rotation.z += .007;
+      if (ring2) { ring2.rotation.z -= .005; ring2.rotation.y += .004; }
+      if (pts) tickPts(pts);
+      if (AR_CONFIG.enableGyroParallax && G.vis && hGrp.visible) {
+        const ofs = Gyro.offset(hGrp.scale.x);
+        hGrp.position.x += (ofs.x - 0) * .15;
+        hGrp.position.y += (ofs.y - 0) * .15;
+      }
+      Screenshot.tick();
+    },
+
+    listeners: [
+      { event: 'reality.imagefound',   process: onFound   },
+      { event: 'reality.imageupdated', process: onUpdated },
+      { event: 'reality.imagelost',    process: onLost    },
+    ],
+    onAttach: () => {
+      window.addEventListener('resize', () => {
+        const { renderer } = XR8.Threejs.xrScene();
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { if (vEl) pauseV(vEl); }
+        else if (G.vis && vEl) playV(vEl);
+      });
+    }
+  };
+}
+
+// ═══ GLOBAL STATE ════════════════════════════════════
+const G = { vis: false, aiDone: false, everFound: false };
+
+// ═══ PREFLIGHT ════════════════════════════════════════
+async function preflight() {
+  for (const [u, l] of [
+    ['./external/xr/xr.js',      'xr.js'],
+    ['./external/xr/xr-slam.js', 'xr-slam.js'],
+    ...AR_CONFIG.targets.map((t,i) => [t.jsonPath, 'target['+i+']']),
+  ]) {
+    try {
+      const r = await fetch(u, { method: 'HEAD' });
+      D.log((r.ok ? '✅' : '❌') + ' ' + l, r.ok ? 'ok' : 'err');
+    } catch { D.log('❌ ' + l, 'err'); }
+  }
+}
+
+// ═══ TARGET PRELOAD ═══════════════════════════════════
+let _allTargetData = null;
+async function preloadTargets() {
+  const results = [];
+  for (const [i, cfg] of AR_CONFIG.targets.entries()) {
+    try {
+      const r = await fetch(cfg.jsonPath);
+      if (!r.ok) throw new Error('HTTP' + r.status);
+      results.push(await r.json());
+      D.log(`✅ target[${i}] 預載完成`, 'ok');
+    } catch (e) {
+      D.log(`❌ target[${i}] 失敗: ${e.message}`, 'err');
+      results.push(null);
+    }
+  }
+  _allTargetData = results.filter(Boolean);
+  return _allTargetData.length > 0;
+}
+
+// ═══ PERMISSION + XR8 START ═══════════════════════════
+let _xrReady = false;
+window.addEventListener('xrloaded', () => { _xrReady = true; D.log('✅ xrloaded', 'ok'); });
+
+async function requestAllPermissions() {
+  // 一次性請求所有動作感應器權限（iOS 需要 user gesture）
+  for (const Evt of [DeviceMotionEvent, DeviceOrientationEvent]) {
+    if (typeof Evt !== 'undefined' && typeof Evt.requestPermission === 'function') {
+      try { await Evt.requestPermission(); } catch {}
+    }
+  }
+  // 相機由 XR8 自動請求
+}
+
+async function startXR8() {
+  // 等待 target JSON
+  let w = 0;
+  while (!_allTargetData && w < 10000) { await new Promise(r => setTimeout(r, 200)); w += 200; }
+  if (!_allTargetData?.length) { showSt('❌ 目標資料未就緒', 8000); return; }
+
+  // 等待 xr.js
+  w = 0;
+  while (!_xrReady && w < 12000) { await new Promise(r => setTimeout(r, 200)); w += 200; }
+  if (!_xrReady) { showSt('❌ AR 引擎未就緒', 8000); return; }
+
+  XR8.XrController.configure({ disableWorldTracking: true, imageTargetData: _allTargetData });
+  D.log('XrController: SLAM=OFF, targets=' + _allTargetData.length, 'ok');
+
+  XR8.addCameraPipelineModules([
+    XR8.GlTextureRenderer.pipelineModule(),
+    XR8.Threejs.pipelineModule(),
+    XR8.XrController.pipelineModule(),
+    mkARModule(_allTargetData),
+  ]);
+  XR8.run({ canvas: document.getElementById('renderCanvas') });
+  D.log('✅ XR8.run()', 'ok');
+}
+
+// ═══ TAP-TO-START（輕觸任意處 = 單次啟動）════════════
+let _startDone = false;
+async function handleTapStart() {
+  if (_startDone) return;
+  _startDone = true;
+
+  const overlay = document.getElementById('tap-start');
+  const loading = document.getElementById('ts-loading');
+
+  // 顯示載入狀態
+  loading.classList.add('show');
+  loading.textContent = '⬛ 請求系統權限…';
+
+  // 單次請求所有權限
+  await requestAllPermissions();
+
+  loading.textContent = '⬛ 啟動 AR 引擎…';
+
+  // 淡出 overlay
+  overlay.style.opacity = '0';
+  setTimeout(() => { overlay.style.display = 'none'; }, 900);
+
+  // 啟動 XR8
+  await startXR8();
+}
+
+document.getElementById('tap-start').addEventListener('click', handleTapStart);
+document.getElementById('tap-start').addEventListener('touchend', (e) => {
+  e.preventDefault(); handleTapStart();
+}, { passive: false });
+
+// ═══ ERROR + INIT ═════════════════════════════════════
+window.addEventListener('xrerror', e => {
+  D.log('❌ xrerror: ' + JSON.stringify(e.detail), 'err');
+  document.getElementById('dbg').classList.add('show');
+  showSt('❌ AR 引擎錯誤', 10000);
+});
+
+window.addEventListener('load', () => {
+  preflight();
+  preloadTargets();
+});
+</script>
 </body>
 </html>
