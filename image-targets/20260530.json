@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/20260530_luminance.jpg",
+  "metadata": null,
+  "name": "20260530",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 155,
+    "width": 673,
+    "height": 897,
+    "isRotated": true,
+    "originalWidth": 673,
+    "originalHeight": 1206
+  },
+  "resources": {
+    "originalImage": "20260530_original.jpg",
+    "croppedImage": "20260530_cropped.jpg",
+    "thumbnailImage": "20260530_thumbnail.jpg",
+    "luminanceImage": "20260530_luminance.jpg"
+  },
+  "created": 1780121889569,
+  "updated": 1780121889569
+}
